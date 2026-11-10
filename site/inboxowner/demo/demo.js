@@ -859,7 +859,7 @@ window.TRIAGE_EVAL={
       <h2>How accurate is it</h2>
       <p class="muted">"Right" is the share of auto-sorted emails sent to the correct type. "Auto-sorted" is the share the rules handled on their own; the rest went to a person.</p>
       ${table(['Test set', 'Emails', 'First rules: right', 'auto-sorted', 'Final rules: right', 'auto-sorted'], sets.map(([k, name, n]) => [`${k === 'blind' ? '<strong>' : ''}${name}${k === 'blind' ? '</strong>' : ''}`, n, ...row('v1', k).replace(/<\/?td[^>]*>/g, '|').split('|').filter(Boolean), ...row('v2', k).replace(/<\/?td[^>]*>/g, '|').split('|').filter(Boolean)]), [1, 2, 3, 4, 5])}
-      <p class="muted">The version running here includes one bug fix found on the blind set ("lease" matched inside "please"). Its blind score (${pct(s['v2.1'].blind.autoPrecision)}) is no longer a clean measurement, so the case study reports the earlier ${pct(s.v2.blind.autoPrecision)}.</p>
+      <p class="muted">The version running here includes one bug fix found on the blind set ("lease" matched inside "please"). Its blind score (${pct(s['v2.1'].blind.autoPrecision)}) is no longer a clean measurement, so the project page reports the earlier ${pct(s.v2.blind.autoPrecision)}.</p>
       <h2>Where the final rules went wrong on the blind set</h2>
       <ul>${b.errors.map(e => `<li>${esc(LABEL[e.label])}, sorted as ${esc(LABEL[e.predicted]).toLowerCase()}: "${esc(e.text)}"</li>`).join('')}</ul>`;
     const ta = $('#t-text'), sel = $('#t-sample');

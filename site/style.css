@@ -103,7 +103,8 @@ hr { border: 0; border-top: 1px solid var(--border); margin: 2.6rem 0; }
   color: var(--muted); background: var(--surface-2); border: 1px solid var(--border-strong);
 }
 .tag.accent { color: #d6c9fd; border-color: rgba(139, 92, 246, 0.55); background: rgba(139, 92, 246, 0.12); }
-.chip b { color: var(--fg); font-weight: 700; }
+.chip { line-height: 1.4; padding: 0.4rem 0.75rem; border-radius: 12px; flex-wrap: wrap; column-gap: 0.45rem; row-gap: 0; }
+.chip b { color: var(--fg); font-weight: 700; white-space: nowrap; }
 
 /* Header on the homepage */
 .head { display: flex; gap: 1.4rem; align-items: flex-start; }
@@ -172,6 +173,9 @@ ol.steps > li::before {
 .stat .value small { font-size: 0.55em; color: var(--muted); font-weight: 500; letter-spacing: 0; }
 .stat .desc { font-size: 0.9rem; line-height: 1.4; color: var(--muted); margin: 0; }
 .stat::before { content: ""; display: block; width: 28px; height: 3px; border-radius: 3px; background: var(--grad); }
+p.lead { font-size: 1.15rem; color: var(--muted); margin: 0 0 0.5rem; }
+.stats.two { grid-template-columns: repeat(2, 1fr); }
+.stats.two .value { font-size: 1.8rem; }
 .note { font-size: 0.85rem; color: var(--muted); margin: 0 0 1rem; }
 
 /* Callout for the lesson */
@@ -301,7 +305,7 @@ button.plain:hover, select:hover { border-color: rgba(139, 92, 246, 0.6); }
   .head img, .head .photo { width: 72px; height: 72px; }
   .card, .project { padding: 1.15rem 1.1rem 1rem; }
   .tldr div { grid-template-columns: 1fr; }
-  .stats { grid-template-columns: 1fr; }
+  .stats, .stats.two { grid-template-columns: 1fr; }
   .stat { flex-direction: row; flex-wrap: wrap; align-items: baseline; column-gap: 0.9rem; }
   .stat::before { flex-basis: 100%; }
   .stat .value { font-size: 1.85rem; }

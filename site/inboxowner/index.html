@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>InboxOwner, by Tyler Bunn</title>
-<meta name="description" content="A shared-inbox health check and ownership system, built on a simulated inbox.">
+<meta name="description" content="A simple tool that helps a small team share one inbox without losing emails. Tested on fake data.">
 <meta name="author" content="Tyler Bunn">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -17,63 +17,49 @@
 <nav class="site" aria-label="Site"><a href="../#projects" aria-current="page">Projects</a><a href="../#paseo">The Paseo Club</a><a href="../#how">How I work</a><a href="../#contact">Contact</a></nav>
 
 <h1>InboxOwner</h1>
-<p class="label">Self-initiated. Simulated data.</p>
-<div class="overview">
-  <p><strong>My role:</strong> I chose the problem, set the requirements, made the decisions listed below, and checked the work. Claude Code wrote the code and generated the sample inbox.</p>
-  <p><strong>Goal:</strong> find out how long a shared inbox's emails really wait, give each one an owner, and only auto-sort mail when the sorting can be trusted.</p>
-  <p><strong>Three results:</strong> cancellation requests waited a median of 18.7 business hours; trial inquiries, 1.2. The first sorting rules scored 98% on their own examples and 22% on new ones. The final rules were right 87% of the time on emails nobody on the build had seen.</p>
-  <p><strong>Data note:</strong> the gym, the staff and every email are made up. The sample is 589 email threads over 95 days for a four-person studio, generated to behave like a real shared inbox: about half the email arrives outside staffed hours, cancellation requests get left waiting, trial inquiries get answered twice, and the owner handles most of the billing mail. The health check covers the most recent 90 days (548 emails). The numbers describe that sample, not a real team.</p>
-</div>
+<ul class="tags" aria-label="Tags">
+  <li class="tag">Self-initiated</li>
+  <li class="tag">Fake test data</li>
+  <li class="tag accent">v2</li>
+</ul>
+<p class="lead">A simple tool that helps a small team share one inbox without losing emails.</p>
 
-<h2>Situation</h2>
-<p>At The Paseo Club, every department's email came to the front desk. We'd read it, work out who it was for and forward it on, and nobody could see whether the person we sent it to had answered. It got messy, and problems we thought were handled kept coming back around to the desk. Nobody could have said how long a cancellation request waited, because nothing measured it. We could see the problem and had no number for it.</p>
+<h2>The problem</h2>
+<p>At The Paseo Club, every department's email came through the front desk. We forwarded it on, and nobody could tell who had answered what.</p>
 
-<h2>Task</h2>
-<p>Build something a small team could run on its own shared inbox that would, first, measure how long each kind of email waits using nothing but the timestamps and who sent what; second, make it obvious who owns each email; and third, sort new mail by topic only when the sort could be trusted, and send the rest to a person.</p>
-
-<h2>Action</h2>
-<ol>
-  <li><strong>Measure before fixing.</strong> The health check reads only when each email arrived, when a staff member first replied, and who replied. It never needs the text of the email. From that it works out first-reply time in staffed hours, how much mail goes unanswered after two days, and how often two people answer the same email.</li>
-  <li><strong>Make ownership a label.</strong> Claiming an email means adding a Gmail label with your name. Nothing new to learn, and everyone can see a thread is taken. Each type of email gets a reply target (two hours for a trial inquiry, eight for a cancellation, a day for a vendor).</li>
-  <li><strong>Remind people without nagging them.</strong> Once an hour during open hours, each person gets one email listing what's overdue on their plate. Anything unclaimed for a day goes to the whole team. Emails that have been sitting for two weeks are kept out of the reminders and put on a cleanup list instead.</li>
-  <li><strong>Sort by what people mean.</strong> New email is sorted into 8 topics by keyword rules. If the rules aren't at least 60% sure, the email goes to a person.</li>
-  <li><strong>Write the procedure.</strong> A one-page team procedure says who claims what, by when, and how to hand off. The tool only works if the team agrees on the rules.</li>
-</ol>
-
-<h2>What went wrong</h2>
-<p>The first set of sorting rules looked great and was useless. It scored 98% on the example emails it had been written from and 22% on a fresh set of emails. It hadn't learned what a cancellation request is; it had memorized the exact wording of the examples.</p>
-<p>The rules were rewritten around what people mean rather than the words they use. Then came the harder lesson. The new rules were tested against a second set of examples written during the build, and scored 95%, and that number was worthless too, because wording from that test set had leaked into the rules. So the final test used 96 emails written by a separate AI writer that was given only the 8 topic names and never saw the rules or any example. On that blind set, the rules sorted 81% of emails on their own and were right 87% of the time; the other 19% went to a person. The blind set also turned up a bug: the word "lease" was matching inside "please." The 87% is the number I report.</p>
-
-<h2>Result</h2>
-<p>On the sample inbox: a median first reply of 4.0 business hours overall, but cancellation requests waited 18.7 business hours against 1.2 for trial inquiries, and two thirds of cancellations had no reply after two days. Half the email arrived outside staffed hours. One person sent 46% of all replies.</p>
-<p>Those patterns were built into the sample on purpose. What the project shows is that the health check finds them from timestamps alone, with no one telling it where to look. On a real inbox the numbers will be whatever they are.</p>
-
-<h2>Decisions I made</h2>
+<h2>What I built</h2>
 <ul>
-  <li><strong>An email is auto-sorted only at 60% confidence or better.</strong> A stricter line mostly adds work; the costly misses (cancellations) already go to a person.</li>
-  <li><strong>Stale emails stay out of the daily reminders.</strong> Nagging gets ignored, and auto-emailing customers without a person reviewing isn't something I'd do at a front desk. They go on one weekly cleanup list.</li>
-  <li><strong>One batched reminder per person, once an hour.</strong> One email per person keeps it from feeling like spam, and hourly keeps the two-hour reply target real.</li>
+  <li>Measures how long each type of email waits for a reply.</li>
+  <li>Gives every email one owner, using a Gmail label.</li>
+  <li>Sorts new emails by topic, or sends them to a person.</li>
 </ul>
 
-<h2>What I'd do next</h2>
-<ol>
-  <li>Run the health check on a real shared inbox (a club or a student business) to get a real baseline. The version that reads a real Gmail inbox is built and tested against a fake one; it hasn't run on a real team yet.</li>
-  <li>Pilot the ownership labels and the procedure for a month, then compare against that baseline.</li>
-  <li>Cancellation requests are the weak spot: only half were recognized automatically on the blind set. Fix that before trusting the sort with anything that costs money.</li>
-</ol>
-<p class="links"><a href="demo/">Try the demo</a><a href="code/">Read the code</a></p>
+<h2>What happened</h2>
+<div class="stats two">
+  <div class="stat"><div class="value">18.7 hrs <small>vs</small> 1.2 hrs</div><p class="desc">Time to first reply: cancellation emails vs trial questions</p></div>
+  <div class="stat"><div class="value">87%</div><p class="desc">Sorted correctly on new emails</p></div>
+</div>
+<p class="note">Tested on fake data made for it.</p>
+
+<h2>What I learned</h2>
+<p>My first sorting rules only worked on the examples they were built from, 98% on those and 22% on new emails. Testing also caught a bug where "lease" matched inside "please."</p>
+
+<h2>How I made it</h2>
+<p>I picked the problem, set the rules and tested everything. Claude Code wrote the code.</p>
+
+<div class="actions">
+  <a class="btn primary" href="demo/">Try the demo</a>
+  <a class="btn" href="code/">Read the code</a>
+</div>
 
 <details>
-<summary>More details</summary>
+<summary>The details</summary>
 <ul>
-  <li><strong>Measurements.</strong> First-reply time counts staffed hours only (Mon–Fri 9–6, Sat 9–1 in the sample). "Unanswered after 48 hours" uses clock hours, because that's how the customer experiences it. The slowest 10% of emails waited 22 business hours or more.</li>
-  <li><strong>The 548 vs 589.</strong> The generator made 589 threads over 95 days; the health check measures the most recent 90 days, which holds 548. Of the 41 older threads, 2 are still unanswered and sit on the cleanup list.</li>
-  <li><strong>How the sorting was scored.</strong> "Right 87% of the time" means: of the emails the rules were confident enough to sort on their own, 87% went to the right topic. That's precision. Recall on cancellations (the share of real cancellations it caught) was 50%; most of the misses went to a person rather than the wrong topic.</li>
-  <li><strong>Test sets.</strong> Four: the 64 example phrasings the first rules were written from; 64 held-out phrasings; a 64-phrasing holdout written during the build (contaminated, and reported as such); and the 96-email blind set from a separate AI writer.</li>
-  <li><strong>The "please" bug.</strong> The vendor rule matched "lease" without word boundaries. It's fixed, but the fix was found by looking at the blind set, so the fixed version's blind score (88%) is reported separately and the 87% stands as the clean number.</li>
-  <li><strong>Privacy.</strong> The real-inbox version runs inside the owner's own Google account as a script. Email bodies are read in memory only to pick a topic and are never saved. The sheet stores thread IDs, times, who replied and the topic. A test plants a fake card number in an email and fails if it shows up anywhere in the sheet.</li>
-  <li><strong>How it's tested.</strong> 28 unit tests with hand-worked answers (weekends, duplicates, reply deadlines); every one of the 508 first-reply times re-derived minute by minute by a separate method; 7 tests of the Gmail version against a fake inbox.</li>
-  <li><strong>Stack.</strong> One JavaScript file does the measuring, the queue and the sorting, and runs unchanged in the browser demo, in the tests, and inside Google Apps Script on a real Gmail inbox.</li>
+  <li><strong>The fake data.</strong> A made-up four-person gym with 589 email threads over 95 days. The reply times come from the last 90 days, which is 548 emails.</li>
+  <li><strong>The 87%.</strong> I tested the final rules on 96 new emails written by a separate AI that never saw my rules. They sorted 81% on their own, and 87% of those went to the right topic. The rest went to a person.</li>
+  <li><strong>The weak spot.</strong> Only half the cancellation emails got recognized on their own. I'd fix that before trusting it with anything that costs money.</li>
+  <li><strong>How it's checked.</strong> 28 tests with hand-checked answers, and all 508 reply times worked out a second way to make sure they match.</li>
+  <li><strong>Real inbox.</strong> There's a version built for a real Gmail inbox, but it hasn't been used by a real team yet. It never saves email text, only times, who replied and the topic.</li>
 </ul>
 </details>
 
