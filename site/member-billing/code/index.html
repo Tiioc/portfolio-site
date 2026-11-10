@@ -15,13 +15,12 @@
 
 <body>
 <div class="page">
-<nav class="site" aria-label="Site"><a href="../../#projects" aria-current="page">Projects</a><a href="../../#paseo">The Paseo Club</a><a href="../../#how">How I work</a><a href="../../#contact">Contact</a></nav>
-
+<nav class="site" aria-label="Site"><a class="brand" href="../../">Tyler Bunn</a><span class="nav-links"><a href="../../#projects" aria-current="page">Projects</a><a href="../../#work">Work</a><a href="../../#contact">Contact</a></span></nav>
 <h1>Member Billing Tracker: the code</h1><p><a href="../">Back to the project</a></p>
 <p>Written with Claude Code to my rules. I directed and checked it; I didn't write it. All data is fake.</p><ul>
 <li><a href="#f0">Code.gs</a>: The Apps Script: a Front desk menu and the 8am fix list email.</li>
-<li><a href="#f1">build.py</a>: Builds the workbook: fake members and payments, the planted problems, and every formula.</li>
-<li><a href="#f2">test_tracker.py</a>: Checks the results against the planted problems, a separate version of the rules, and the same-name tests.</li>
+<li><a href="#f1">build.py</a>: Builds the sheet: fake members and payments, the planted mistakes, and every formula.</li>
+<li><a href="#f2">test_tracker.py</a>: Checks the results against the planted mistakes, a separate copy of the rules, and the same-name tests.</li>
 <li><a href="#f3">test_script.js</a>: Tests the Apps Script with stand-ins for Google.</li>
 <li><a href="#f4">test-results.txt</a>: The latest test run: LibreOffice, Google Sheets and the Apps Script.</li>
 </ul>
@@ -46,8 +45,8 @@ function onOpen() {
 function readFixList(sheet) {
   const values = sheet.getRange(5, 1, sheet.getLastRow() - 4, 7).getValues();
   return values
-    .filter(r =&gt; r[1] !== &#x27;&#x27;)
-    .map(r =&gt; ({ memberId: r[1], name: r[2], phone: r[3], problem: r[4], fix: r[5], ref: r[6] }));
+    .filter(r =&gt; r[2] !== &#x27;&#x27;)
+    .map(r =&gt; ({ action: r[0], name: r[1], memberId: r[2], phone: r[3], why: r[4], amount: r[5], ref: r[6] }));
 }
 
 /** Builds the plain email text. Kept separate so it can be tested outside Google. */
@@ -56,11 +55,11 @@ function buildFixListEmail(items, dateText) {
     return { subject: &#x27;Fix list for &#x27; + dateText + &#x27;: nothing to fix&#x27;, body: &#x27;Nothing on the fix list today.&#x27; };
   }
   const lines = items.map((it, i) =&gt;
-    (i + 1) + &#x27;. &#x27; + it.name + &#x27; (&#x27; + it.memberId + &#x27;, &#x27; + it.phone + &#x27;): &#x27; + it.problem + &#x27;. &#x27; + it.fix + &#x27;. [&#x27; + it.ref + &#x27;]&#x27;);
+    (i + 1) + &#x27;. &#x27; + it.action + &#x27;: &#x27; + it.name + &#x27; (&#x27; + it.memberId + &#x27;, &#x27; + it.phone + &#x27;). &#x27; + it.why + &#x27;. $&#x27; + it.amount + &#x27; [&#x27; + it.ref + &#x27;]&#x27;);
   return {
     subject: &#x27;Fix list for &#x27; + dateText + &#x27;: &#x27; + items.length + (items.length === 1 ? &#x27; thing&#x27; : &#x27; things&#x27;) + &#x27; to fix&#x27;,
-    body: &#x27;Good morning! Here is today\&#x27;s billing fix list.\n\n&#x27; + lines.join(&#x27;\n&#x27;) +
-      &#x27;\n\nAlways look members up by member ID, not by name. Two members can have the same name.&#x27;
+    body: &#x27;Good morning! Here is today\&#x27;s fix list.\n\n&#x27; + lines.join(&#x27;\n&#x27;) +
+      &#x27;\n\nLook members up by ID, never by name. Two members can have the same name.&#x27;
   };
 }
 
@@ -83,16 +82,16 @@ function turnOnDailyEmail() {
 
 if (typeof module !== &#x27;undefined&#x27;) module.exports = { readFixList, buildFixListEmail, emailFixList, turnOnDailyEmail };
 </code></pre>
-<h2 id="f1">build.py</h2><p class="muted">Builds the workbook: fake members and payments, the planted problems, and every formula.</p><pre><code>&quot;&quot;&quot;Member Billing Tracker: builds the workbook (fake data + formulas) and the answer key.
+<h2 id="f1">build.py</h2><p class="muted">Builds the sheet: fake members and payments, the planted mistakes, and every formula.</p><pre><code>&quot;&quot;&quot;Member Billing Tracker: builds the workbook (fake data + formulas) and the answer key.
 
 Every check is a visible spreadsheet formula. Every lookup uses the member ID, never the name.
-Output: member-billing.xlsx (upload to Google Drive to convert it to a Google Sheet) and answer_key.json.
+Tabs: Fix List (first), Payments, Refunds, Members.
+Output: member-billing.xlsx (upload to Google Drive to turn it into a Google Sheet) and answer_key.json.
 &quot;&quot;&quot;
 import json, datetime as dt, random
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment
 from openpyxl.formatting.rule import FormulaRule
-from openpyxl.worksheet.datavalidation import DataValidation
 
 random.seed(7)
 D = dt.date
@@ -104,62 +103,61 @@ LAST = [&quot;Ortiz&quot;, &quot;Nguyen&quot;, &quot;Patel&quot;, &quot;Brooks&q
         &quot;Shaw&quot;, &quot;Diaz&quot;, &quot;Fox&quot;, &quot;Grant&quot;, &quot;Hayes&quot;, &quot;Iqbal&quot;, &quot;Jensen&quot;, &quot;Klein&quot;, &quot;Lowe&quot;, &quot;Mendez&quot;, &quot;Novak&quot;, &quot;Olsen&quot;,
         &quot;Park&quot;, &quot;Quint&quot;, &quot;Ruiz&quot;, &quot;Stone&quot;, &quot;Tran&quot;, &quot;Udall&quot;, &quot;Voss&quot;, &quot;West&quot;, &quot;Young&quot;, &quot;Zane&quot;, &quot;Abbott&quot;, &quot;Banks&quot;]
 
+# Plain labels used in the sheet (and in the answer key).
+DISPUTE, DECLINED = &quot;Member disputed this charge&quot;, &quot;Card declined, not retried&quot;
+PAUSED, CANCELLED = &quot;Charged after they paused&quot;, &quot;Charged after they cancelled&quot;
+TWICE, WRONG_CARD = &quot;Charged twice this month&quot;, &quot;Paid with another member&#x27;s card&quot;
+NOT_SENT = &quot;Refund approved, never sent&quot;
+
 # ---- Members -------------------------------------------------------------------------------
 members = []
 cards = random.sample(range(1000, 9999), 36)
 for i in range(36):
-    mid = f&quot;M-{1001 + i}&quot;
     plan = random.choice(list(PLANS))
-    members.append(dict(id=mid, name=f&quot;{FIRST[i]} {LAST[i]}&quot;, plan=plan, dues=PLANS[plan],
+    members.append(dict(id=f&quot;M-{1001 + i}&quot;, name=f&quot;{FIRST[i]} {LAST[i]}&quot;, dues=PLANS[plan],
                         card=f&quot;Visa {cards[i]}&quot;, status=&quot;Active&quot;, since=D(2025, 1, 1),
                         phone=f&quot;(661) 555-01{i:02d}&quot;))
 M = {m[&quot;id&quot;]: m for m in members}
 # Same-name pair: two different members, both named Chris Morgan.
-M[&quot;M-1012&quot;].update(name=&quot;Chris Morgan&quot;, plan=&quot;Tennis&quot;, dues=189)
-M[&quot;M-1031&quot;].update(name=&quot;Chris Morgan&quot;, plan=&quot;Social&quot;, dues=95, status=&quot;Paused&quot;, since=D(2026, 9, 20))
-# Pauses and cancellations.
+M[&quot;M-1012&quot;].update(name=&quot;Chris Morgan&quot;, dues=189)
+M[&quot;M-1031&quot;].update(name=&quot;Chris Morgan&quot;, dues=95, status=&quot;Paused&quot;, since=D(2026, 9, 20))
 M[&quot;M-1015&quot;].update(status=&quot;Paused&quot;, since=D(2026, 9, 15))
 M[&quot;M-1030&quot;].update(status=&quot;Cancelled&quot;, since=D(2026, 8, 20))
-M[&quot;M-1033&quot;].update(status=&quot;Paused&quot;, since=D(2026, 9, 10))   # clean case: no charge after the pause
+M[&quot;M-1033&quot;].update(status=&quot;Paused&quot;, since=D(2026, 9, 10))   # clean case: billing stopped correctly
 
 # ---- Payments ------------------------------------------------------------------------------
 pay = []
-def add(date, mid, typ, amount, result=&quot;Paid&quot;, disputed=&quot;&quot;, card=None, note=&quot;&quot;):
-    pay.append(dict(date=date, mid=mid, type=typ, period=f&quot;{date:%Y-%m}&quot;, amount=amount,
-                    card=card or M[mid][&quot;card&quot;], result=result, disputed=disputed, note=note))
+def add(date, mid, kind, amount, result=&quot;Paid&quot;, disputed=&quot;&quot;, card=None):
+    pay.append(dict(date=date, mid=mid, type=kind, period=f&quot;{date:%Y-%m}&quot;, amount=amount,
+                    card=card or M[mid][&quot;card&quot;], result=result, disputed=disputed))
 
-planted = []   # (member ID, period or None, kind) resolved to row IDs after sorting
 failed_unretried = {(&quot;M-1004&quot;, 10), (&quot;M-1011&quot;, 10), (&quot;M-1019&quot;, 9), (&quot;M-1027&quot;, 10)}
 failed_retried = {(&quot;M-1008&quot;, 9, 4), (&quot;M-1023&quot;, 10, 5)}     # clean cases: retried and paid
 for month in (8, 9, 10):
     for m in members:
         mid = m[&quot;id&quot;]
         if m[&quot;status&quot;] != &quot;Active&quot; and D(2026, month, 1) &gt;= m[&quot;since&quot;]:
-            # Correctly stopped billing, except the planted mistakes below.
             if not ((mid == &quot;M-1015&quot; and month == 10) or (mid == &quot;M-1030&quot; and month in (9, 10))
                     or (mid == &quot;M-1031&quot; and month == 10)):
                 continue
         if mid == &quot;M-1018&quot; and month == 10:
-            continue  # M-1018&#x27;s October payment got posted to M-1017 (below)
+            continue  # M-1018&#x27;s October payment got put on M-1017&#x27;s account (below)
         if (mid, month) in failed_unretried:
-            add(D(2026, month, 1), mid, &quot;Dues&quot;, m[&quot;dues&quot;], result=&quot;Failed&quot;)
-            continue
+            add(D(2026, month, 1), mid, &quot;Dues&quot;, m[&quot;dues&quot;], result=&quot;Declined&quot;); continue
         r = [x for x in failed_retried if x[:2] == (mid, month)]
         if r:
-            add(D(2026, month, 1), mid, &quot;Dues&quot;, m[&quot;dues&quot;], result=&quot;Failed&quot;)
-            add(D(2026, month, r[0][2]), mid, &quot;Dues&quot;, m[&quot;dues&quot;], note=&quot;Retried&quot;)
-            continue
+            add(D(2026, month, 1), mid, &quot;Dues&quot;, m[&quot;dues&quot;], result=&quot;Declined&quot;)
+            add(D(2026, month, r[0][2]), mid, &quot;Dues&quot;, m[&quot;dues&quot;]); continue
         add(D(2026, month, 1), mid, &quot;Dues&quot;, m[&quot;dues&quot;])
 
-add(D(2026, 9, 2), &quot;M-1006&quot;, &quot;Dues&quot;, M[&quot;M-1006&quot;][&quot;dues&quot;])                 # duplicate
-add(D(2026, 10, 2), &quot;M-1021&quot;, &quot;Dues&quot;, M[&quot;M-1021&quot;][&quot;dues&quot;])                # duplicate
+add(D(2026, 9, 2), &quot;M-1006&quot;, &quot;Dues&quot;, M[&quot;M-1006&quot;][&quot;dues&quot;])                 # charged twice
+add(D(2026, 10, 2), &quot;M-1021&quot;, &quot;Dues&quot;, M[&quot;M-1021&quot;][&quot;dues&quot;])                # charged twice
 add(D(2026, 10, 3), &quot;M-1017&quot;, &quot;Dues&quot;, M[&quot;M-1018&quot;][&quot;dues&quot;], card=M[&quot;M-1018&quot;][&quot;card&quot;])  # wrong account
-for p in pay:  # disputes
+for p in pay:
     if (p[&quot;mid&quot;], p[&quot;period&quot;]) in {(&quot;M-1013&quot;, &quot;2026-08&quot;), (&quot;M-1025&quot;, &quot;2026-10&quot;)}:
         p[&quot;disputed&quot;] = &quot;Yes&quot;
-# Refunds that were sent
-add(D(2026, 10, 12), &quot;M-1003&quot;, &quot;Refund&quot;, 189, result=&quot;Sent&quot;)
-add(D(2026, 10, 20), &quot;M-1012&quot;, &quot;Refund&quot;, 95, result=&quot;Sent&quot;)   # the OTHER Chris Morgan&#x27;s $95 refund
+add(D(2026, 10, 12), &quot;M-1003&quot;, &quot;Refund&quot;, 189, result=&quot;Refunded&quot;)
+add(D(2026, 10, 20), &quot;M-1012&quot;, &quot;Refund&quot;, 95, result=&quot;Refunded&quot;)   # the OTHER Chris Morgan&#x27;s $95 refund
 pay.sort(key=lambda p: (p[&quot;date&quot;], p[&quot;mid&quot;]))
 for i, p in enumerate(pay):
     p[&quot;txn&quot;] = f&quot;T-{2001 + i}&quot;
@@ -171,123 +169,128 @@ refunds = [
     dict(req=&quot;R-04&quot;, date=D(2026, 10, 5), mid=&quot;M-1031&quot;, amount=95, reason=&quot;Unused guest passes&quot;),
 ]
 
-# ---- Answer key (written from the plan, not from the formulas) ------------------------------
+# ---- Answer key (written from the plan above, not from the formulas) -----------------------
 def txn(mid, date):
-    return next(p[&quot;txn&quot;] for p in pay if p[&quot;mid&quot;] == mid and p[&quot;date&quot;] == date and p[&quot;type&quot;] == &quot;Dues&quot;
-                and (p[&quot;result&quot;] == &quot;Failed&quot; or True))
-key = {}
-for mid, mo in failed_unretried:
-    key[txn(mid, D(2026, mo, 1))] = &quot;Card failed, not retried&quot;
-key[txn(&quot;M-1015&quot;, D(2026, 10, 1))] = &quot;Charged after pausing&quot;
-key[txn(&quot;M-1031&quot;, D(2026, 10, 1))] = &quot;Charged after pausing&quot;
-key[txn(&quot;M-1030&quot;, D(2026, 9, 1))] = &quot;Charged after cancelling&quot;
-key[txn(&quot;M-1030&quot;, D(2026, 10, 1))] = &quot;Charged after cancelling&quot;
-key[txn(&quot;M-1006&quot;, D(2026, 9, 2))] = &quot;Charged twice this month&quot;
-key[txn(&quot;M-1021&quot;, D(2026, 10, 2))] = &quot;Charged twice this month&quot;
-key[txn(&quot;M-1017&quot;, D(2026, 10, 3))] = &quot;Paid with another member&#x27;s card&quot;
-key[txn(&quot;M-1013&quot;, D(2026, 8, 1))] = &quot;Disputed charge&quot;
-key[txn(&quot;M-1025&quot;, D(2026, 10, 1))] = &quot;Disputed charge&quot;
-key[&quot;R-03&quot;] = &quot;Refund approved but never sent&quot;
-key[&quot;R-04&quot;] = &quot;Refund approved but never sent&quot;
+    return next(p[&quot;txn&quot;] for p in pay if p[&quot;mid&quot;] == mid and p[&quot;date&quot;] == date and p[&quot;type&quot;] == &quot;Dues&quot;)
+key = {txn(mid, D(2026, mo, 1)): DECLINED for mid, mo in failed_unretried}
+key[txn(&quot;M-1015&quot;, D(2026, 10, 1))] = PAUSED
+key[txn(&quot;M-1031&quot;, D(2026, 10, 1))] = PAUSED
+key[txn(&quot;M-1030&quot;, D(2026, 9, 1))] = CANCELLED
+key[txn(&quot;M-1030&quot;, D(2026, 10, 1))] = CANCELLED
+key[txn(&quot;M-1006&quot;, D(2026, 9, 2))] = TWICE
+key[txn(&quot;M-1021&quot;, D(2026, 10, 2))] = TWICE
+key[txn(&quot;M-1017&quot;, D(2026, 10, 3))] = WRONG_CARD
+key[txn(&quot;M-1013&quot;, D(2026, 8, 1))] = DISPUTE
+key[txn(&quot;M-1025&quot;, D(2026, 10, 1))] = DISPUTE
+key[&quot;R-03&quot;] = NOT_SENT
+key[&quot;R-04&quot;] = NOT_SENT
+ACTION = {DISPUTE: &quot;Call&quot;, DECLINED: &quot;Retry card&quot;, PAUSED: &quot;Refund&quot;, CANCELLED: &quot;Refund&quot;, TWICE: &quot;Refund&quot;,
+          WRONG_CARD: &quot;Move payment&quot;, NOT_SENT: &quot;Send refund&quot;}
 
 # ---- Workbook -----------------------------------------------------------------------------
-HEAD = Font(bold=True, color=&quot;FFFFFF&quot;)
-HFILL = PatternFill(&quot;solid&quot;, fgColor=&quot;4C1D95&quot;)
-def header(ws, cols, widths):
-    ws.append(cols)
-    for i, c in enumerate(ws[1], 1):
-        c.font, c.fill = HEAD, HFILL
-        ws.column_dimensions[c.column_letter].width = widths[i - 1]
-    ws.freeze_panes = &quot;A2&quot;
+HEAD, HFILL = Font(bold=True, color=&quot;FFFFFF&quot;), PatternFill(&quot;solid&quot;, fgColor=&quot;4C1D95&quot;)
+def header(ws, row, cols, widths):
+    for i, (c, w) in enumerate(zip(cols, widths), 1):
+        cell = ws.cell(row=row, column=i, value=c)
+        cell.font, cell.fill = HEAD, HFILL
+        ws.column_dimensions[cell.column_letter].width = w
+    ws.freeze_panes = ws.cell(row=row + 1, column=1)
+
+def put(ws, r, values):
+    for c, v in enumerate(values, 1):
+        ws.cell(row=r, column=c, value=v)
 
 wb = Workbook()
 ws = wb.active; ws.title = &quot;Fix List&quot;
-wm = wb.create_sheet(&quot;Members&quot;); wp = wb.create_sheet(&quot;Payments&quot;); wr = wb.create_sheet(&quot;Refunds Owed&quot;)
+wp = wb.create_sheet(&quot;Payments&quot;); wr = wb.create_sheet(&quot;Refunds&quot;); wm = wb.create_sheet(&quot;Members&quot;)
 
-header(wm, [&quot;Member ID&quot;, &quot;Name&quot;, &quot;Plan&quot;, &quot;Monthly dues&quot;, &quot;Card on file&quot;, &quot;Status&quot;, &quot;Status since&quot;, &quot;Phone&quot;],
-       [11, 18, 9, 13, 13, 11, 13, 16])
-for m in members:
-    wm.append([m[&quot;id&quot;], m[&quot;name&quot;], m[&quot;plan&quot;], m[&quot;dues&quot;], m[&quot;card&quot;], m[&quot;status&quot;], m[&quot;since&quot;], m[&quot;phone&quot;]])
+# Members: A ID, B Name, C Monthly dues, D Card on file, E Status, F Since, G Phone
+header(wm, 1, [&quot;Member ID&quot;, &quot;Name&quot;, &quot;Monthly dues&quot;, &quot;Card on file&quot;, &quot;Status&quot;, &quot;Since&quot;, &quot;Phone&quot;],
+       [11, 18, 13, 13, 11, 13, 16])
+for i, m in enumerate(members):
+    put(wm, i + 2, [m[&quot;id&quot;], m[&quot;name&quot;], m[&quot;dues&quot;], m[&quot;card&quot;], m[&quot;status&quot;], m[&quot;since&quot;], m[&quot;phone&quot;]])
 for r in range(2, len(members) + 2):
-    wm[f&quot;D{r}&quot;].number_format = &quot;$#,##0&quot;; wm[f&quot;G{r}&quot;].number_format = &quot;mmm d, yyyy&quot;
+    wm[f&quot;C{r}&quot;].number_format = &quot;$#,##0&quot;; wm[f&quot;F{r}&quot;].number_format = &quot;mmm d, yyyy&quot;
 
 NP = len(pay) + 1
-lk = lambda col, r: f&quot;INDEX(Members!${col}$2:${col}$200,MATCH($C{r},Members!$A$2:$A$200,0))&quot;
-header(wp, [&quot;Txn ID&quot;, &quot;Date&quot;, &quot;Member ID&quot;, &quot;Name&quot;, &quot;Type&quot;, &quot;Month&quot;, &quot;Amount&quot;, &quot;Card used&quot;, &quot;Result&quot;,
-            &quot;Disputed&quot;, &quot;Problem&quot;, &quot;What to do&quot;, &quot;Fix #&quot;], [9, 12, 11, 18, 8, 9, 9, 11, 8, 9, 30, 34, 6])
+mem = lambda col, r, key=&quot;$C&quot;: f&quot;INDEX(Members!${col}$2:${col}$200,MATCH({key}{r},Members!$A$2:$A$200,0))&quot;
+# Payments: A Payment #, B Date, C Member ID, D Name, E Kind, F Month, G Amount, H Card used,
+#           I Result, J Disputed?, K Problem, L List #
+header(wp, 1, [&quot;Payment #&quot;, &quot;Date&quot;, &quot;Member ID&quot;, &quot;Name&quot;, &quot;Kind&quot;, &quot;Month&quot;, &quot;Amount&quot;, &quot;Card used&quot;, &quot;Result&quot;,
+               &quot;Disputed?&quot;, &quot;Problem&quot;, &quot;List #&quot;], [10, 12, 11, 18, 8, 9, 9, 11, 10, 10, 30, 7])
 for i, p in enumerate(pay):
     r = i + 2
-    onfile, status, since = lk(&quot;E&quot;, r), lk(&quot;F&quot;, r), lk(&quot;G&quot;, r)
+    card, status, since = mem(&quot;D&quot;, r), mem(&quot;E&quot;, r), mem(&quot;F&quot;, r)
+    paid_dues = f&#x27;$E{r}=&quot;Dues&quot;,$I{r}=&quot;Paid&quot;&#x27;
     problem = (
-        f&#x27;=IF($J{r}=&quot;Yes&quot;,&quot;Disputed charge&quot;,&#x27;
-        f&#x27;IF(AND($E{r}=&quot;Dues&quot;,$I{r}=&quot;Paid&quot;,$H{r}&lt;&gt;{onfile}),&quot;Paid with another member\&#x27;s card&quot;,&#x27;
-        f&#x27;IF(AND($E{r}=&quot;Dues&quot;,$I{r}=&quot;Paid&quot;,{status}&lt;&gt;&quot;Active&quot;,$B{r}&gt;={since}),&#x27;
-        f&#x27;&quot;Charged after &quot;&amp;IF({status}=&quot;Paused&quot;,&quot;pausing&quot;,&quot;cancelling&quot;),&#x27;
-        f&#x27;IF(AND($E{r}=&quot;Dues&quot;,$I{r}=&quot;Paid&quot;,COUNTIFS($C$2:$C{r},$C{r},$F$2:$F{r},$F{r},$E$2:$E{r},&quot;Dues&quot;,&#x27;
-        f&#x27;$I$2:$I{r},&quot;Paid&quot;,$H$2:$H{r},{onfile})&gt;1),&quot;Charged twice this month&quot;,&#x27;
-        f&#x27;IF(AND($E{r}=&quot;Dues&quot;,$I{r}=&quot;Failed&quot;,COUNTIFS($C$2:$C${NP},$C{r},$F$2:$F${NP},$F{r},&#x27;
-        f&#x27;$E$2:$E${NP},&quot;Dues&quot;,$I$2:$I${NP},&quot;Paid&quot;)=0),&quot;Card failed, not retried&quot;,&quot;&quot;)))))&#x27;)
-    amt = f&#x27;TEXT($G{r},&quot;$#,##0&quot;)&#x27;
-    fix = (f&#x27;=IF($K{r}=&quot;&quot;,&quot;&quot;,IF($K{r}=&quot;Disputed charge&quot;,&quot;Call member about this &quot;&amp;{amt}&amp;&quot; charge&quot;,&#x27;
-           f&#x27;IF($K{r}=&quot;Card failed, not retried&quot;,&quot;Call to update card, then retry &quot;&amp;{amt},&#x27;
-           f&#x27;IF($K{r}=&quot;Charged twice this month&quot;,&quot;Refund the extra &quot;&amp;{amt},&#x27;
-           f&#x27;IF($K{r}=&quot;Paid with another member\&#x27;s card&quot;,&quot;Move this payment to &quot;&amp;&#x27;
-           f&#x27;IFERROR(INDEX(Members!$A$2:$A$200,MATCH($H{r},Members!$E$2:$E$200,0)),&quot;the right member&quot;),&#x27;
-           f&#x27;&quot;Refund &quot;&amp;{amt})))))&#x27;)
-    wp.append([p[&quot;txn&quot;], p[&quot;date&quot;], p[&quot;mid&quot;], f&quot;=IFERROR({lk(&#x27;B&#x27;, r)},\&quot;Unknown ID\&quot;)&quot;, p[&quot;type&quot;], p[&quot;period&quot;],
-               p[&quot;amount&quot;], p[&quot;card&quot;], p[&quot;result&quot;], p[&quot;disputed&quot;], problem, fix,
+        f&#x27;=IF($J{r}=&quot;Yes&quot;,&quot;{DISPUTE}&quot;,&#x27;
+        f&#x27;IF(AND({paid_dues},$H{r}&lt;&gt;{card}),&quot;{WRONG_CARD}&quot;,&#x27;
+        f&#x27;IF(AND({paid_dues},{status}&lt;&gt;&quot;Active&quot;,$B{r}&gt;={since}),&#x27;
+        f&#x27;IF({status}=&quot;Paused&quot;,&quot;{PAUSED}&quot;,&quot;{CANCELLED}&quot;),&#x27;
+        f&#x27;IF(AND({paid_dues},COUNTIFS($C$2:$C{r},$C{r},$F$2:$F{r},$F{r},$E$2:$E{r},&quot;Dues&quot;,&#x27;
+        f&#x27;$I$2:$I{r},&quot;Paid&quot;,$H$2:$H{r},{card})&gt;1),&quot;{TWICE}&quot;,&#x27;
+        f&#x27;IF(AND($E{r}=&quot;Dues&quot;,$I{r}=&quot;Declined&quot;,COUNTIFS($C$2:$C${NP},$C{r},$F$2:$F${NP},$F{r},&#x27;
+        f&#x27;$E$2:$E${NP},&quot;Dues&quot;,$I$2:$I${NP},&quot;Paid&quot;)=0),&quot;{DECLINED}&quot;,&quot;&quot;)))))&#x27;).replace(&quot;&#x27;&quot;, &quot;&#x27;&quot;)
+    put(wp, r, [p[&quot;txn&quot;], p[&quot;date&quot;], p[&quot;mid&quot;], f&#x27;=IFERROR({mem(&quot;B&quot;, r)},&quot;Unknown ID&quot;)&#x27;, p[&quot;type&quot;], p[&quot;period&quot;],
+               p[&quot;amount&quot;], p[&quot;card&quot;], p[&quot;result&quot;], p[&quot;disputed&quot;], problem,
                f&#x27;=IF($K{r}=&quot;&quot;,&quot;&quot;,COUNTIF($K$2:$K{r},&quot;?*&quot;))&#x27;])
     wp[f&quot;B{r}&quot;].number_format = &quot;mmm d, yyyy&quot;; wp[f&quot;G{r}&quot;].number_format = &quot;$#,##0&quot;
-wp.conditional_formatting.add(f&quot;A2:M{NP}&quot;, FormulaRule(formula=[&#x27;$K2&lt;&gt;&quot;&quot;&#x27;], fill=PatternFill(&quot;solid&quot;, fgColor=&quot;FDE2E2&quot;)))
+wp.conditional_formatting.add(f&quot;A2:L{NP}&quot;, FormulaRule(formula=[&#x27;$K2&lt;&gt;&quot;&quot;&#x27;], fill=PatternFill(&quot;solid&quot;, fgColor=&quot;FDE2E2&quot;)))
 
 NR = len(refunds) + 1
-header(wr, [&quot;Request&quot;, &quot;Approved on&quot;, &quot;Member ID&quot;, &quot;Name&quot;, &quot;Amount&quot;, &quot;Reason&quot;, &quot;Sent?&quot;, &quot;Problem&quot;, &quot;What to do&quot;, &quot;Fix #&quot;],
-       [9, 13, 11, 18, 9, 32, 7, 30, 24, 6])
+# Refunds: A Request #, B Approved, C Member ID, D Name, E Amount, F Reason, G Sent?, H Problem, I List #
+header(wr, 1, [&quot;Request #&quot;, &quot;Approved&quot;, &quot;Member ID&quot;, &quot;Name&quot;, &quot;Amount&quot;, &quot;Reason&quot;, &quot;Sent?&quot;, &quot;Problem&quot;, &quot;List #&quot;],
+       [10, 13, 11, 18, 9, 32, 7, 28, 7])
 for i, q in enumerate(refunds):
     r = i + 2
     sent = (f&#x27;=IF(COUNTIFS(Payments!$C$2:$C${NP},$C{r},Payments!$E$2:$E${NP},&quot;Refund&quot;,&#x27;
             f&#x27;Payments!$G$2:$G${NP},$E{r},Payments!$B$2:$B${NP},&quot;&gt;=&quot;&amp;$B{r})&gt;0,&quot;Yes&quot;,&quot;No&quot;)&#x27;)
-    wr.append([q[&quot;req&quot;], q[&quot;date&quot;], q[&quot;mid&quot;], f&quot;=IFERROR({lk(&#x27;B&#x27;, r)},\&quot;Unknown ID\&quot;)&quot;, q[&quot;amount&quot;], q[&quot;reason&quot;], sent,
-               f&#x27;=IF($G{r}=&quot;No&quot;,&quot;Refund approved but never sent&quot;,&quot;&quot;)&#x27;,
-               f&#x27;=IF($H{r}=&quot;&quot;,&quot;&quot;,&quot;Send the &quot;&amp;TEXT($E{r},&quot;$#,##0&quot;)&amp;&quot; refund&quot;)&#x27;,
+    put(wr, r, [q[&quot;req&quot;], q[&quot;date&quot;], q[&quot;mid&quot;], f&#x27;=IFERROR({mem(&quot;B&quot;, r)},&quot;Unknown ID&quot;)&#x27;, q[&quot;amount&quot;], q[&quot;reason&quot;], sent,
+               f&#x27;=IF($G{r}=&quot;No&quot;,&quot;{NOT_SENT}&quot;,&quot;&quot;)&#x27;,
                f&#x27;=IF($H{r}=&quot;&quot;,&quot;&quot;,COUNTIF(Payments!$K$2:$K${NP},&quot;?*&quot;)+COUNTIF($H$2:$H{r},&quot;?*&quot;))&#x27;])
     wr[f&quot;B{r}&quot;].number_format = &quot;mmm d, yyyy&quot;; wr[f&quot;E{r}&quot;].number_format = &quot;$#,##0&quot;
-wr.conditional_formatting.add(f&quot;A2:J{NR}&quot;, FormulaRule(formula=[&#x27;$H2&lt;&gt;&quot;&quot;&#x27;], fill=PatternFill(&quot;solid&quot;, fgColor=&quot;FDE2E2&quot;)))
+wr.conditional_formatting.add(f&quot;A2:I{NR}&quot;, FormulaRule(formula=[&#x27;$H2&lt;&gt;&quot;&quot;&#x27;], fill=PatternFill(&quot;solid&quot;, fgColor=&quot;FDE2E2&quot;)))
 
-# Fix List: one row per problem, pulled from both tabs by Fix #.
-ws[&quot;A1&quot;] = &quot;Front desk fix list&quot;; ws[&quot;A1&quot;].font = Font(bold=True, size=14)
-ws[&quot;A2&quot;] = (f&#x27;=COUNTIF(Payments!$K$2:$K${NP},&quot;?*&quot;)+COUNTIF(\&#x27;Refunds Owed\&#x27;!$H$2:$H${NR},&quot;?*&quot;)&amp;&#x27;
-            f&#x27;&quot; things to fix. Every lookup uses the member ID, never the name.&quot;&#x27;)
-cols = [&quot;#&quot;, &quot;Member ID&quot;, &quot;Name&quot;, &quot;Phone&quot;, &quot;What&#x27;s wrong&quot;, &quot;What to do&quot;, &quot;Ref&quot;]
-ws.append([]); ws.append(cols)
-for i, c in enumerate(ws[4], 1):
-    c.font, c.fill = HEAD, HFILL
-    ws.column_dimensions[c.column_letter].width = [5, 11, 18, 16, 30, 36, 8][i - 1]
+# Fix List: one row per problem, pulled from Payments then Refunds by List #.
+ws[&quot;A1&quot;] = &quot;Today&#x27;s fix list&quot;; ws[&quot;A1&quot;].font = Font(bold=True, size=14)
 P = f&#x27;COUNTIF(Payments!$K$2:$K${NP},&quot;?*&quot;)&#x27;
-T = f&#x27;({P}+COUNTIF(\&#x27;Refunds Owed\&#x27;!$H$2:$H${NR},&quot;?*&quot;))&#x27;
+T = f&#x27;({P}+COUNTIF(Refunds!$H$2:$H${NR},&quot;?*&quot;))&#x27;
+ws[&quot;A2&quot;] = f&#x27;={T}&amp;&quot; things to fix. Look members up by ID, never by name.&quot;&#x27;
+# A Do this, B Member, C Member ID, D Phone, E Why, F Amount, G Find it
+header(ws, 4, [&quot;Do this&quot;, &quot;Member&quot;, &quot;Member ID&quot;, &quot;Phone&quot;, &quot;Why&quot;, &quot;Amount&quot;, &quot;Find it&quot;], [14, 18, 11, 16, 34, 9, 9])
 def pick(pcol, rcol, r):
-    return (f&#x27;IF($A{r}&lt;={P},INDEX(Payments!${pcol}$2:${pcol}${NP},MATCH($A{r},Payments!$M$2:$M${NP},0)),&#x27;
-            f&#x27;INDEX(\&#x27;Refunds Owed\&#x27;!${rcol}$2:${rcol}${NR},MATCH($A{r},\&#x27;Refunds Owed\&#x27;!$J$2:$J${NR},0)))&#x27;)
-for k in range(1, 41):
-    r = k + 4
-    ws.append([k,
-               f&#x27;=IF($A{r}&gt;{T},&quot;&quot;,{pick(&quot;C&quot;, &quot;C&quot;, r)})&#x27;,
-               f&#x27;=IF($B{r}=&quot;&quot;,&quot;&quot;,INDEX(Members!$B$2:$B$200,MATCH($B{r},Members!$A$2:$A$200,0)))&#x27;,
-               f&#x27;=IF($B{r}=&quot;&quot;,&quot;&quot;,INDEX(Members!$H$2:$H$200,MATCH($B{r},Members!$A$2:$A$200,0)))&#x27;,
-               f&#x27;=IF($B{r}=&quot;&quot;,&quot;&quot;,{pick(&quot;K&quot;, &quot;H&quot;, r)})&#x27;,
-               f&#x27;=IF($B{r}=&quot;&quot;,&quot;&quot;,{pick(&quot;L&quot;, &quot;I&quot;, r)})&#x27;,
-               f&#x27;=IF($B{r}=&quot;&quot;,&quot;&quot;,{pick(&quot;A&quot;, &quot;A&quot;, r)})&#x27;])
+    k = f&quot;(ROW()-4)&quot;
+    return (f&#x27;IF({k}&lt;={P},INDEX(Payments!${pcol}$2:${pcol}${NP},MATCH({k},Payments!$L$2:$L${NP},0)),&#x27;
+            f&#x27;INDEX(Refunds!${rcol}$2:${rcol}${NR},MATCH({k},Refunds!$I$2:$I${NR},0)))&#x27;)
+for r in range(5, 45):
+    why = f&#x27;IF($C{r}=&quot;&quot;,&quot;&quot;,{pick(&quot;K&quot;, &quot;H&quot;, r)})&#x27;
+    put(ws, r, [
+        f&#x27;=IF($E{r}=&quot;&quot;,&quot;&quot;,IF($E{r}=&quot;{DISPUTE}&quot;,&quot;Call&quot;,IF($E{r}=&quot;{DECLINED}&quot;,&quot;Retry card&quot;,&#x27;
+        f&#x27;IF(LEFT($E{r},31)=&quot;{WRONG_CARD}&quot;,&quot;Move payment&quot;,IF($E{r}=&quot;{NOT_SENT}&quot;,&quot;Send refund&quot;,&quot;Refund&quot;)))))&#x27;,
+        f&#x27;=IF($C{r}=&quot;&quot;,&quot;&quot;,{mem(&quot;B&quot;, r, &quot;$C&quot;)})&#x27;,
+        f&#x27;=IF(ROW()-4&gt;{T},&quot;&quot;,{pick(&quot;C&quot;, &quot;C&quot;, r)})&#x27;,
+        f&#x27;=IF($C{r}=&quot;&quot;,&quot;&quot;,{mem(&quot;G&quot;, r, &quot;$C&quot;)})&#x27;,
+        f&#x27;=IF($C{r}=&quot;&quot;,&quot;&quot;,IF({pick(&quot;K&quot;, &quot;H&quot;, r)}=&quot;{WRONG_CARD}&quot;,&quot;{WRONG_CARD} (&quot;&amp;&#x27;
+        f&#x27;IFERROR(INDEX(Members!$A$2:$A$200,MATCH({pick(&quot;H&quot;, &quot;C&quot;, r)},Members!$D$2:$D$200,0)),&quot;check&quot;)&amp;&quot;)&quot;,&#x27;
+        f&#x27;{pick(&quot;K&quot;, &quot;H&quot;, r)}))&#x27;,
+        f&#x27;=IF($C{r}=&quot;&quot;,&quot;&quot;,{pick(&quot;G&quot;, &quot;E&quot;, r)})&#x27;,
+        f&#x27;=IF($C{r}=&quot;&quot;,&quot;&quot;,{pick(&quot;A&quot;, &quot;A&quot;, r)})&#x27;])
+    ws[f&quot;F{r}&quot;].number_format = &quot;$#,##0&quot;
+    ws[f&quot;A{r}&quot;].font = Font(bold=True)
+COLORS = {&quot;Call&quot;: &quot;EDE9FE&quot;, &quot;Retry card&quot;: &quot;FEF3C7&quot;, &quot;Refund&quot;: &quot;FCE7F3&quot;, &quot;Send refund&quot;: &quot;FCE7F3&quot;, &quot;Move payment&quot;: &quot;DBEAFE&quot;}
+for label, color in COLORS.items():
+    ws.conditional_formatting.add(&quot;A5:A44&quot;, FormulaRule(formula=[f&#x27;$A5=&quot;{label}&quot;&#x27;], fill=PatternFill(&quot;solid&quot;, fgColor=color)))
 ws.freeze_panes = &quot;A5&quot;
 
 wb.save(&quot;/home/user/finances/member-billing/member-billing.xlsx&quot;)
-json.dump({&quot;answer_key&quot;: key,
+json.dump({&quot;answer_key&quot;: key, &quot;actions&quot;: ACTION,
            &quot;members&quot;: {m[&quot;id&quot;]: {k: (str(v) if isinstance(v, D) else v) for k, v in m.items()} for m in members},
            &quot;payments&quot;: [{k: (str(v) if isinstance(v, D) else v) for k, v in p.items()} for p in pay],
            &quot;refunds&quot;: [{k: (str(v) if isinstance(v, D) else v) for k, v in q.items()} for q in refunds]},
           open(&quot;/home/user/finances/member-billing/answer_key.json&quot;, &quot;w&quot;), indent=1)
 print(len(members), &quot;members,&quot;, len(pay), &quot;payments,&quot;, len(refunds), &quot;refund requests,&quot;, len(key), &quot;planted problems&quot;)
 </code></pre>
-<h2 id="f2">test_tracker.py</h2><p class="muted">Checks the results against the planted problems, a separate version of the rules, and the same-name tests.</p><pre><code>&quot;&quot;&quot;Tests for the Member Billing Tracker.
+<h2 id="f2">test_tracker.py</h2><p class="muted">Checks the results against the planted mistakes, a separate copy of the rules, and the same-name tests.</p><pre><code>&quot;&quot;&quot;Tests for the Member Billing Tracker.
 
   python3 test_tracker.py                  # answer key vs a separate Python version of the rules
   python3 test_tracker.py results.xlsx     # also check a spreadsheet engine&#x27;s computed values
@@ -298,6 +301,8 @@ from openpyxl import load_workbook
 
 data = json.load(open(&quot;/home/user/finances/member-billing/answer_key.json&quot;))
 KEY, MEM, PAY, REF = data[&quot;answer_key&quot;], data[&quot;members&quot;], data[&quot;payments&quot;], data[&quot;refunds&quot;]
+ACTION = data[&quot;actions&quot;]
+import build_labels as L
 fails = []
 def check(name, ok, detail=&quot;&quot;):
     print((&quot;PASS &quot; if ok else &quot;FAIL &quot;) + name + (f&quot;  ({detail})&quot; if detail and not ok else &quot;&quot;))
@@ -316,18 +321,18 @@ def rules(by):
         m = who(p); dues_paid = p[&quot;type&quot;] == &quot;Dues&quot; and p[&quot;result&quot;] == &quot;Paid&quot;
         if dues_paid and p[&quot;card&quot;] == m[&quot;card&quot;]:
             seen[(m[&quot;id&quot;], p[&quot;period&quot;])] += 1
-        if p[&quot;disputed&quot;] == &quot;Yes&quot;: out[p[&quot;txn&quot;]] = &quot;Disputed charge&quot;
-        elif dues_paid and p[&quot;card&quot;] != m[&quot;card&quot;]: out[p[&quot;txn&quot;]] = &quot;Paid with another member&#x27;s card&quot;
+        if p[&quot;disputed&quot;] == &quot;Yes&quot;: out[p[&quot;txn&quot;]] = L.DISPUTE
+        elif dues_paid and p[&quot;card&quot;] != m[&quot;card&quot;]: out[p[&quot;txn&quot;]] = L.WRONG_CARD
         elif dues_paid and m[&quot;status&quot;] != &quot;Active&quot; and p[&quot;date&quot;] &gt;= m[&quot;since&quot;]:
-            out[p[&quot;txn&quot;]] = &quot;Charged after &quot; + (&quot;pausing&quot; if m[&quot;status&quot;] == &quot;Paused&quot; else &quot;cancelling&quot;)
+            out[p[&quot;txn&quot;]] = L.PAUSED if m[&quot;status&quot;] == &quot;Paused&quot; else L.CANCELLED
         elif dues_paid and p[&quot;card&quot;] == m[&quot;card&quot;] and seen[(m[&quot;id&quot;], p[&quot;period&quot;])] &gt; 1:
-            out[p[&quot;txn&quot;]] = &quot;Charged twice this month&quot;
-        elif p[&quot;type&quot;] == &quot;Dues&quot; and p[&quot;result&quot;] == &quot;Failed&quot; and not any(
+            out[p[&quot;txn&quot;]] = L.TWICE
+        elif p[&quot;type&quot;] == &quot;Dues&quot; and p[&quot;result&quot;] == &quot;Declined&quot; and not any(
                 same(q, p) and q[&quot;period&quot;] == p[&quot;period&quot;] and q[&quot;type&quot;] == &quot;Dues&quot; and q[&quot;result&quot;] == &quot;Paid&quot; for q in PAY):
-            out[p[&quot;txn&quot;]] = &quot;Card failed, not retried&quot;
+            out[p[&quot;txn&quot;]] = L.DECLINED
     for q in REF:
         sent = any(same(p, q) and p[&quot;type&quot;] == &quot;Refund&quot; and p[&quot;amount&quot;] == q[&quot;amount&quot;] and p[&quot;date&quot;] &gt;= q[&quot;date&quot;] for p in PAY)
-        if not sent: out[q[&quot;req&quot;]] = &quot;Refund approved but never sent&quot;
+        if not sent: out[q[&quot;req&quot;]] = L.NOT_SENT
     return out
 
 def compare(label, got):
@@ -343,9 +348,9 @@ def same_name_tests(label, got):
     a = next(p[&quot;txn&quot;] for p in PAY if p[&quot;mid&quot;] == &quot;M-1012&quot; and p[&quot;period&quot;] == &quot;2026-10&quot; and p[&quot;type&quot;] == &quot;Dues&quot;)
     b = next(p[&quot;txn&quot;] for p in PAY if p[&quot;mid&quot;] == &quot;M-1031&quot; and p[&quot;period&quot;] == &quot;2026-10&quot; and p[&quot;type&quot;] == &quot;Dues&quot;)
     check(f&quot;{label} same-name 1: active Chris Morgan (M-1012) October charge is not flagged&quot;, a not in got)
-    check(f&quot;{label} same-name 2: paused Chris Morgan (M-1031) October charge is flagged&quot;, got.get(b) == &quot;Charged after pausing&quot;)
+    check(f&quot;{label} same-name 2: paused Chris Morgan (M-1031) October charge is flagged&quot;, got.get(b) == L.PAUSED)
     check(f&quot;{label} same-name 3: M-1031&#x27;s refund is still owed even though M-1012 got a $95 refund&quot;,
-          got.get(&quot;R-04&quot;) == &quot;Refund approved but never sent&quot;)
+          got.get(&quot;R-04&quot;) == L.NOT_SENT)
     check(f&quot;{label} same-name 4: M-1012&#x27;s refund counts as sent&quot;, &quot;R-02&quot; not in got)
     m31 = [p[&quot;txn&quot;] for p in PAY if p[&quot;mid&quot;] == &quot;M-1031&quot; and p[&quot;period&quot;] != &quot;2026-10&quot;]
     check(f&quot;{label} same-name 5: M-1031&#x27;s earlier charges are not flagged as another member&#x27;s card&quot;,
@@ -370,7 +375,7 @@ if len(sys.argv) &gt; 1:
     got = {}
     for row in wb[&quot;Payments&quot;].iter_rows(min_row=2, values_only=True):
         if row[0] and row[10]: got[row[0]] = row[10]
-    for row in wb[&quot;Refunds Owed&quot;].iter_rows(min_row=2, values_only=True):
+    for row in wb[&quot;Refunds&quot;].iter_rows(min_row=2, values_only=True):
         if row[0] and row[7]: got[row[0]] = row[7]
     c, mi, wl, ex = compare(&quot;sheet&quot;, got)
     check(&quot;sheet: every planted problem caught with the right label&quot;, len(c) == len(KEY), sorted(mi | wl))
@@ -382,9 +387,12 @@ if len(sys.argv) &gt; 1:
     refs = {r[6]: r for r in fl}
     check(&quot;sheet: fix list covers every planted problem&quot;, set(refs) == set(KEY), set(KEY) ^ set(refs))
     check(&quot;sheet: fix list names and phones come from the member ID&quot;,
-          all(r[2] == MEM[r[1]][&quot;name&quot;] and r[3] == MEM[r[1]][&quot;phone&quot;] for r in fl))
-    wa = next(r for r in fl if r[4] == &quot;Paid with another member&#x27;s card&quot;)
-    check(&quot;sheet: wrong-account fix points to M-1018&quot;, wa[5] == &quot;Move this payment to M-1018&quot;, wa[5])
+          all(r[1] == MEM[r[2]][&quot;name&quot;] and r[3] == MEM[r[2]][&quot;phone&quot;] for r in fl))
+    check(&quot;sheet: every fix list row has the right action (Call, Refund, Retry card...)&quot;,
+          all(r[0] == ACTION[KEY[r[6]]] for r in fl), [(r[0], r[6]) for r in fl if r[0] != ACTION[KEY[r[6]]]])
+    check(&quot;sheet: Fix List is the first tab&quot;, wb.sheetnames[0] == &quot;Fix List&quot;, wb.sheetnames)
+    wa = next(r for r in fl if r[0] == &quot;Move payment&quot;)
+    check(&quot;sheet: wrong-account row points to M-1018&quot;, wa[4] == L.WRONG_CARD + &quot; (M-1018)&quot;, wa[4])
     print(&quot;  header line:&quot;, wb[&quot;Fix List&quot;][&quot;A2&quot;].value)
     print(&quot;  sample fix list rows:&quot;)
     for r in fl[:15]: print(&quot;   &quot;, r)
@@ -418,11 +426,12 @@ const S = require(&#x27;./Code.gs.js&#x27;);
 let n = 0; const ok = (c, m) =&gt; { assert(c, m); n++; console.log(&#x27;PASS &#x27; + m); };
 
 S.emailFixList();
-const filled = rows.filter(r =&gt; r[1] !== &#x27;&#x27;).length;
+const filled = rows.filter(r =&gt; r[2] !== &#x27;&#x27;).length;
 ok(sent.length === 1, &#x27;sends exactly one email&#x27;);
 ok(sent[0].subject === `Fix list for Oct 31, 2026: ${filled} things to fix`, &#x27;subject has the count: &#x27; + sent[0].subject);
 ok(sent[0].body.split(&#x27;\n&#x27;).filter(l =&gt; /^\d+\. /.test(l)).length === filled, &#x27;one line per problem&#x27;);
 ok(sent[0].body.includes(&#x27;Chris Morgan (M-1031&#x27;), &#x27;same-name member is listed with their ID&#x27;);
+ok(/^\d+\. (Call|Refund|Retry card|Move payment|Send refund): /m.test(sent[0].body), &#x27;each line starts with what to do&#x27;);
 ok(!/Chris Morgan \(M-1012/.test(sent[0].body), &#x27;the other Chris Morgan (M-1012) is not on the list&#x27;);
 ok(S.buildFixListEmail([], &#x27;Nov 1, 2026&#x27;).subject.endsWith(&#x27;nothing to fix&#x27;), &#x27;empty list gets a clear subject&#x27;);
 triggers = [mk(&#x27;emailFixList&#x27;), mk(&#x27;somethingElse&#x27;)];
@@ -432,7 +441,7 @@ ok(triggers.some(t =&gt; t.getHandlerFunction() === &#x27;somethingElse&#x27;), 
 ok(triggers.find(t =&gt; t.getHandlerFunction() === &#x27;emailFixList&#x27;).h === 8, &#x27;trigger runs at 8am&#x27;);
 console.log(`\n${n} script checks passed\n--- sample email ---\n${sent[0].subject}\n${sent[0].body}`);
 </code></pre>
-<h2 id="f4">test-results.txt</h2><p class="muted">The latest test run: LibreOffice, Google Sheets and the Apps Script.</p><pre><code># Test run 2026-11-10 
+<h2 id="f4">test-results.txt</h2><p class="muted">The latest test run: LibreOffice, Google Sheets and the Apps Script.</p><pre><code># Test run 2026-11-10
 
 ## Formulas recalculated by LibreOffice
 1. Answer key vs the Python version of the rules (lookups by member ID)
@@ -462,24 +471,26 @@ PASS sheet same-name 5: M-1031&#x27;s earlier charges are not flagged as another
 PASS sheet: fix list has one row per problem
 PASS sheet: fix list covers every planted problem
 PASS sheet: fix list names and phones come from the member ID
-PASS sheet: wrong-account fix points to M-1018
-  header line: 15 things to fix. Every lookup uses the member ID, never the name.
+PASS sheet: every fix list row has the right action (Call, Refund, Retry card...)
+PASS sheet: Fix List is the first tab
+PASS sheet: wrong-account row points to M-1018
+  header line: 15 things to fix. Look members up by ID, never by name.
   sample fix list rows:
-    (1, &#x27;M-1013&#x27;, &#x27;Mia Shaw&#x27;, &#x27;(661) 555-0112&#x27;, &#x27;Disputed charge&#x27;, &#x27;Call member about this $189 charge&#x27;, &#x27;T-2013&#x27;)
-    (2, &#x27;M-1019&#x27;, &#x27;Sam Jensen&#x27;, &#x27;(661) 555-0118&#x27;, &#x27;Card failed, not retried&#x27;, &#x27;Call to update card, then retry $95&#x27;, &#x27;T-2055&#x27;)
-    (3, &#x27;M-1030&#x27;, &#x27;Dana Udall&#x27;, &#x27;(661) 555-0129&#x27;, &#x27;Charged after cancelling&#x27;, &#x27;Refund $95&#x27;, &#x27;T-2066&#x27;)
-    (4, &#x27;M-1006&#x27;, &#x27;Felix Reyes&#x27;, &#x27;(661) 555-0105&#x27;, &#x27;Charged twice this month&#x27;, &#x27;Refund the extra $189&#x27;, &#x27;T-2073&#x27;)
-    (5, &#x27;M-1004&#x27;, &#x27;Dev Brooks&#x27;, &#x27;(661) 555-0103&#x27;, &#x27;Card failed, not retried&#x27;, &#x27;Call to update card, then retry $189&#x27;, &#x27;T-2078&#x27;)
-    (6, &#x27;M-1011&#x27;, &#x27;Kira Lund&#x27;, &#x27;(661) 555-0110&#x27;, &#x27;Card failed, not retried&#x27;, &#x27;Call to update card, then retry $189&#x27;, &#x27;T-2085&#x27;)
-    (7, &#x27;M-1015&#x27;, &#x27;Olive Fox&#x27;, &#x27;(661) 555-0114&#x27;, &#x27;Charged after pausing&#x27;, &#x27;Refund $260&#x27;, &#x27;T-2089&#x27;)
-    (8, &#x27;M-1025&#x27;, &#x27;Yara Park&#x27;, &#x27;(661) 555-0124&#x27;, &#x27;Disputed charge&#x27;, &#x27;Call member about this $189 charge&#x27;, &#x27;T-2098&#x27;)
-    (9, &#x27;M-1027&#x27;, &#x27;Amir Ruiz&#x27;, &#x27;(661) 555-0126&#x27;, &#x27;Card failed, not retried&#x27;, &#x27;Call to update card, then retry $189&#x27;, &#x27;T-2100&#x27;)
-    (10, &#x27;M-1030&#x27;, &#x27;Dana Udall&#x27;, &#x27;(661) 555-0129&#x27;, &#x27;Charged after cancelling&#x27;, &#x27;Refund $95&#x27;, &#x27;T-2103&#x27;)
-    (11, &#x27;M-1031&#x27;, &#x27;Chris Morgan&#x27;, &#x27;(661) 555-0130&#x27;, &#x27;Charged after pausing&#x27;, &#x27;Refund $95&#x27;, &#x27;T-2104&#x27;)
-    (12, &#x27;M-1021&#x27;, &#x27;Uma Lowe&#x27;, &#x27;(661) 555-0120&#x27;, &#x27;Charged twice this month&#x27;, &#x27;Refund the extra $95&#x27;, &#x27;T-2109&#x27;)
-    (13, &#x27;M-1017&#x27;, &#x27;Quinn Hayes&#x27;, &#x27;(661) 555-0116&#x27;, &quot;Paid with another member&#x27;s card&quot;, &#x27;Move this payment to M-1018&#x27;, &#x27;T-2110&#x27;)
-    (14, &#x27;M-1009&#x27;, &#x27;Iris Sato&#x27;, &#x27;(661) 555-0108&#x27;, &#x27;Refund approved but never sent&#x27;, &#x27;Send the $260 refund&#x27;, &#x27;R-03&#x27;)
-    (15, &#x27;M-1031&#x27;, &#x27;Chris Morgan&#x27;, &#x27;(661) 555-0130&#x27;, &#x27;Refund approved but never sent&#x27;, &#x27;Send the $95 refund&#x27;, &#x27;R-04&#x27;)
+    (&#x27;Call&#x27;, &#x27;Mia Shaw&#x27;, &#x27;M-1013&#x27;, &#x27;(661) 555-0112&#x27;, &#x27;Member disputed this charge&#x27;, 189, &#x27;T-2013&#x27;)
+    (&#x27;Retry card&#x27;, &#x27;Sam Jensen&#x27;, &#x27;M-1019&#x27;, &#x27;(661) 555-0118&#x27;, &#x27;Card declined, not retried&#x27;, 95, &#x27;T-2055&#x27;)
+    (&#x27;Refund&#x27;, &#x27;Dana Udall&#x27;, &#x27;M-1030&#x27;, &#x27;(661) 555-0129&#x27;, &#x27;Charged after they cancelled&#x27;, 95, &#x27;T-2066&#x27;)
+    (&#x27;Refund&#x27;, &#x27;Felix Reyes&#x27;, &#x27;M-1006&#x27;, &#x27;(661) 555-0105&#x27;, &#x27;Charged twice this month&#x27;, 189, &#x27;T-2073&#x27;)
+    (&#x27;Retry card&#x27;, &#x27;Dev Brooks&#x27;, &#x27;M-1004&#x27;, &#x27;(661) 555-0103&#x27;, &#x27;Card declined, not retried&#x27;, 189, &#x27;T-2078&#x27;)
+    (&#x27;Retry card&#x27;, &#x27;Kira Lund&#x27;, &#x27;M-1011&#x27;, &#x27;(661) 555-0110&#x27;, &#x27;Card declined, not retried&#x27;, 189, &#x27;T-2085&#x27;)
+    (&#x27;Refund&#x27;, &#x27;Olive Fox&#x27;, &#x27;M-1015&#x27;, &#x27;(661) 555-0114&#x27;, &#x27;Charged after they paused&#x27;, 260, &#x27;T-2089&#x27;)
+    (&#x27;Call&#x27;, &#x27;Yara Park&#x27;, &#x27;M-1025&#x27;, &#x27;(661) 555-0124&#x27;, &#x27;Member disputed this charge&#x27;, 189, &#x27;T-2098&#x27;)
+    (&#x27;Retry card&#x27;, &#x27;Amir Ruiz&#x27;, &#x27;M-1027&#x27;, &#x27;(661) 555-0126&#x27;, &#x27;Card declined, not retried&#x27;, 189, &#x27;T-2100&#x27;)
+    (&#x27;Refund&#x27;, &#x27;Dana Udall&#x27;, &#x27;M-1030&#x27;, &#x27;(661) 555-0129&#x27;, &#x27;Charged after they cancelled&#x27;, 95, &#x27;T-2103&#x27;)
+    (&#x27;Refund&#x27;, &#x27;Chris Morgan&#x27;, &#x27;M-1031&#x27;, &#x27;(661) 555-0130&#x27;, &#x27;Charged after they paused&#x27;, 95, &#x27;T-2104&#x27;)
+    (&#x27;Refund&#x27;, &#x27;Uma Lowe&#x27;, &#x27;M-1021&#x27;, &#x27;(661) 555-0120&#x27;, &#x27;Charged twice this month&#x27;, 95, &#x27;T-2109&#x27;)
+    (&#x27;Move payment&#x27;, &#x27;Quinn Hayes&#x27;, &#x27;M-1017&#x27;, &#x27;(661) 555-0116&#x27;, &quot;Paid with another member&#x27;s card (M-1018)&quot;, 95, &#x27;T-2110&#x27;)
+    (&#x27;Send refund&#x27;, &#x27;Iris Sato&#x27;, &#x27;M-1009&#x27;, &#x27;(661) 555-0108&#x27;, &#x27;Refund approved, never sent&#x27;, 260, &#x27;R-03&#x27;)
+    (&#x27;Send refund&#x27;, &#x27;Chris Morgan&#x27;, &#x27;M-1031&#x27;, &#x27;(661) 555-0130&#x27;, &#x27;Refund approved, never sent&#x27;, 95, &#x27;R-04&#x27;)
 
 RESULT: all passed
 
@@ -497,24 +508,26 @@ PASS sheet same-name 5: M-1031&#x27;s earlier charges are not flagged as another
 PASS sheet: fix list has one row per problem
 PASS sheet: fix list covers every planted problem
 PASS sheet: fix list names and phones come from the member ID
-PASS sheet: wrong-account fix points to M-1018
-  header line: 15 things to fix. Every lookup uses the member ID, never the name.
+PASS sheet: every fix list row has the right action (Call, Refund, Retry card...)
+PASS sheet: Fix List is the first tab
+PASS sheet: wrong-account row points to M-1018
+  header line: 15 things to fix. Look members up by ID, never by name.
   sample fix list rows:
-    (1.0, &#x27;M-1013&#x27;, &#x27;Mia Shaw&#x27;, &#x27;(661) 555-0112&#x27;, &#x27;Disputed charge&#x27;, &#x27;Call member about this $189 charge&#x27;, &#x27;T-2013&#x27;)
-    (2.0, &#x27;M-1019&#x27;, &#x27;Sam Jensen&#x27;, &#x27;(661) 555-0118&#x27;, &#x27;Card failed, not retried&#x27;, &#x27;Call to update card, then retry $95&#x27;, &#x27;T-2055&#x27;)
-    (3.0, &#x27;M-1030&#x27;, &#x27;Dana Udall&#x27;, &#x27;(661) 555-0129&#x27;, &#x27;Charged after cancelling&#x27;, &#x27;Refund $95&#x27;, &#x27;T-2066&#x27;)
-    (4.0, &#x27;M-1006&#x27;, &#x27;Felix Reyes&#x27;, &#x27;(661) 555-0105&#x27;, &#x27;Charged twice this month&#x27;, &#x27;Refund the extra $189&#x27;, &#x27;T-2073&#x27;)
-    (5.0, &#x27;M-1004&#x27;, &#x27;Dev Brooks&#x27;, &#x27;(661) 555-0103&#x27;, &#x27;Card failed, not retried&#x27;, &#x27;Call to update card, then retry $189&#x27;, &#x27;T-2078&#x27;)
-    (6.0, &#x27;M-1011&#x27;, &#x27;Kira Lund&#x27;, &#x27;(661) 555-0110&#x27;, &#x27;Card failed, not retried&#x27;, &#x27;Call to update card, then retry $189&#x27;, &#x27;T-2085&#x27;)
-    (7.0, &#x27;M-1015&#x27;, &#x27;Olive Fox&#x27;, &#x27;(661) 555-0114&#x27;, &#x27;Charged after pausing&#x27;, &#x27;Refund $260&#x27;, &#x27;T-2089&#x27;)
-    (8.0, &#x27;M-1025&#x27;, &#x27;Yara Park&#x27;, &#x27;(661) 555-0124&#x27;, &#x27;Disputed charge&#x27;, &#x27;Call member about this $189 charge&#x27;, &#x27;T-2098&#x27;)
-    (9.0, &#x27;M-1027&#x27;, &#x27;Amir Ruiz&#x27;, &#x27;(661) 555-0126&#x27;, &#x27;Card failed, not retried&#x27;, &#x27;Call to update card, then retry $189&#x27;, &#x27;T-2100&#x27;)
-    (10.0, &#x27;M-1030&#x27;, &#x27;Dana Udall&#x27;, &#x27;(661) 555-0129&#x27;, &#x27;Charged after cancelling&#x27;, &#x27;Refund $95&#x27;, &#x27;T-2103&#x27;)
-    (11.0, &#x27;M-1031&#x27;, &#x27;Chris Morgan&#x27;, &#x27;(661) 555-0130&#x27;, &#x27;Charged after pausing&#x27;, &#x27;Refund $95&#x27;, &#x27;T-2104&#x27;)
-    (12.0, &#x27;M-1021&#x27;, &#x27;Uma Lowe&#x27;, &#x27;(661) 555-0120&#x27;, &#x27;Charged twice this month&#x27;, &#x27;Refund the extra $95&#x27;, &#x27;T-2109&#x27;)
-    (13.0, &#x27;M-1017&#x27;, &#x27;Quinn Hayes&#x27;, &#x27;(661) 555-0116&#x27;, &quot;Paid with another member&#x27;s card&quot;, &#x27;Move this payment to M-1018&#x27;, &#x27;T-2110&#x27;)
-    (14.0, &#x27;M-1009&#x27;, &#x27;Iris Sato&#x27;, &#x27;(661) 555-0108&#x27;, &#x27;Refund approved but never sent&#x27;, &#x27;Send the $260 refund&#x27;, &#x27;R-03&#x27;)
-    (15.0, &#x27;M-1031&#x27;, &#x27;Chris Morgan&#x27;, &#x27;(661) 555-0130&#x27;, &#x27;Refund approved but never sent&#x27;, &#x27;Send the $95 refund&#x27;, &#x27;R-04&#x27;)
+    (&#x27;Call&#x27;, &#x27;Mia Shaw&#x27;, &#x27;M-1013&#x27;, &#x27;(661) 555-0112&#x27;, &#x27;Member disputed this charge&#x27;, 189, &#x27;T-2013&#x27;)
+    (&#x27;Retry card&#x27;, &#x27;Sam Jensen&#x27;, &#x27;M-1019&#x27;, &#x27;(661) 555-0118&#x27;, &#x27;Card declined, not retried&#x27;, 95, &#x27;T-2055&#x27;)
+    (&#x27;Refund&#x27;, &#x27;Dana Udall&#x27;, &#x27;M-1030&#x27;, &#x27;(661) 555-0129&#x27;, &#x27;Charged after they cancelled&#x27;, 95, &#x27;T-2066&#x27;)
+    (&#x27;Refund&#x27;, &#x27;Felix Reyes&#x27;, &#x27;M-1006&#x27;, &#x27;(661) 555-0105&#x27;, &#x27;Charged twice this month&#x27;, 189, &#x27;T-2073&#x27;)
+    (&#x27;Retry card&#x27;, &#x27;Dev Brooks&#x27;, &#x27;M-1004&#x27;, &#x27;(661) 555-0103&#x27;, &#x27;Card declined, not retried&#x27;, 189, &#x27;T-2078&#x27;)
+    (&#x27;Retry card&#x27;, &#x27;Kira Lund&#x27;, &#x27;M-1011&#x27;, &#x27;(661) 555-0110&#x27;, &#x27;Card declined, not retried&#x27;, 189, &#x27;T-2085&#x27;)
+    (&#x27;Refund&#x27;, &#x27;Olive Fox&#x27;, &#x27;M-1015&#x27;, &#x27;(661) 555-0114&#x27;, &#x27;Charged after they paused&#x27;, 260, &#x27;T-2089&#x27;)
+    (&#x27;Call&#x27;, &#x27;Yara Park&#x27;, &#x27;M-1025&#x27;, &#x27;(661) 555-0124&#x27;, &#x27;Member disputed this charge&#x27;, 189, &#x27;T-2098&#x27;)
+    (&#x27;Retry card&#x27;, &#x27;Amir Ruiz&#x27;, &#x27;M-1027&#x27;, &#x27;(661) 555-0126&#x27;, &#x27;Card declined, not retried&#x27;, 189, &#x27;T-2100&#x27;)
+    (&#x27;Refund&#x27;, &#x27;Dana Udall&#x27;, &#x27;M-1030&#x27;, &#x27;(661) 555-0129&#x27;, &#x27;Charged after they cancelled&#x27;, 95, &#x27;T-2103&#x27;)
+    (&#x27;Refund&#x27;, &#x27;Chris Morgan&#x27;, &#x27;M-1031&#x27;, &#x27;(661) 555-0130&#x27;, &#x27;Charged after they paused&#x27;, 95, &#x27;T-2104&#x27;)
+    (&#x27;Refund&#x27;, &#x27;Uma Lowe&#x27;, &#x27;M-1021&#x27;, &#x27;(661) 555-0120&#x27;, &#x27;Charged twice this month&#x27;, 95, &#x27;T-2109&#x27;)
+    (&#x27;Move payment&#x27;, &#x27;Quinn Hayes&#x27;, &#x27;M-1017&#x27;, &#x27;(661) 555-0116&#x27;, &quot;Paid with another member&#x27;s card (M-1018)&quot;, 95, &#x27;T-2110&#x27;)
+    (&#x27;Send refund&#x27;, &#x27;Iris Sato&#x27;, &#x27;M-1009&#x27;, &#x27;(661) 555-0108&#x27;, &#x27;Refund approved, never sent&#x27;, 260, &#x27;R-03&#x27;)
+    (&#x27;Send refund&#x27;, &#x27;Chris Morgan&#x27;, &#x27;M-1031&#x27;, &#x27;(661) 555-0130&#x27;, &#x27;Refund approved, never sent&#x27;, 95, &#x27;R-04&#x27;)
 
 RESULT: all passed
 
@@ -523,13 +536,14 @@ PASS sends exactly one email
 PASS subject has the count: Fix list for Oct 31, 2026: 15 things to fix
 PASS one line per problem
 PASS same-name member is listed with their ID
+PASS each line starts with what to do
 PASS the other Chris Morgan (M-1012) is not on the list
 PASS empty list gets a clear subject
 PASS turning it on twice leaves one daily trigger
 PASS other triggers are left alone
 PASS trigger runs at 8am
 
-9 script checks passed
+10 script checks passed
 </code></pre>
 <footer>
 <p>Built in plain HTML and CSS with Claude Code, which I directed and fact-checked.</p>

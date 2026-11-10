@@ -19,8 +19,8 @@ function onOpen() {
 function readFixList(sheet) {
   const values = sheet.getRange(5, 1, sheet.getLastRow() - 4, 7).getValues();
   return values
-    .filter(r => r[1] !== '')
-    .map(r => ({ memberId: r[1], name: r[2], phone: r[3], problem: r[4], fix: r[5], ref: r[6] }));
+    .filter(r => r[2] !== '')
+    .map(r => ({ action: r[0], name: r[1], memberId: r[2], phone: r[3], why: r[4], amount: r[5], ref: r[6] }));
 }
 
 /** Builds the plain email text. Kept separate so it can be tested outside Google. */
@@ -29,11 +29,11 @@ function buildFixListEmail(items, dateText) {
     return { subject: 'Fix list for ' + dateText + ': nothing to fix', body: 'Nothing on the fix list today.' };
   }
   const lines = items.map((it, i) =>
-    (i + 1) + '. ' + it.name + ' (' + it.memberId + ', ' + it.phone + '): ' + it.problem + '. ' + it.fix + '. [' + it.ref + ']');
+    (i + 1) + '. ' + it.action + ': ' + it.name + ' (' + it.memberId + ', ' + it.phone + '). ' + it.why + '. $' + it.amount + ' [' + it.ref + ']');
   return {
     subject: 'Fix list for ' + dateText + ': ' + items.length + (items.length === 1 ? ' thing' : ' things') + ' to fix',
-    body: 'Good morning! Here is today\'s billing fix list.\n\n' + lines.join('\n') +
-      '\n\nAlways look members up by member ID, not by name. Two members can have the same name.'
+    body: 'Good morning! Here is today\'s fix list.\n\n' + lines.join('\n') +
+      '\n\nLook members up by ID, never by name. Two members can have the same name.'
   };
 }
 

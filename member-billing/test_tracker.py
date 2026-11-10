@@ -9,6 +9,8 @@ from openpyxl import load_workbook
 
 data = json.load(open("/home/user/finances/member-billing/answer_key.json"))
 KEY, MEM, PAY, REF = data["answer_key"], data["members"], data["payments"], data["refunds"]
+ACTION = data["actions"]
+import build_labels as L
 fails = []
 def check(name, ok, detail=""):
     print(("PASS " if ok else "FAIL ") + name + (f"  ({detail})" if detail and not ok else ""))
@@ -27,18 +29,18 @@ def rules(by):
         m = who(p); dues_paid = p["type"] == "Dues" and p["result"] == "Paid"
         if dues_paid and p["card"] == m["card"]:
             seen[(m["id"], p["period"])] += 1
-        if p["disputed"] == "Yes": out[p["txn"]] = "Disputed charge"
-        elif dues_paid and p["card"] != m["card"]: out[p["txn"]] = "Paid with another member's card"
+        if p["disputed"] == "Yes": out[p["txn"]] = L.DISPUTE
+        elif dues_paid and p["card"] != m["card"]: out[p["txn"]] = L.WRONG_CARD
         elif dues_paid and m["status"] != "Active" and p["date"] >= m["since"]:
-            out[p["txn"]] = "Charged after " + ("pausing" if m["status"] == "Paused" else "cancelling")
+            out[p["txn"]] = L.PAUSED if m["status"] == "Paused" else L.CANCELLED
         elif dues_paid and p["card"] == m["card"] and seen[(m["id"], p["period"])] > 1:
-            out[p["txn"]] = "Charged twice this month"
-        elif p["type"] == "Dues" and p["result"] == "Failed" and not any(
+            out[p["txn"]] = L.TWICE
+        elif p["type"] == "Dues" and p["result"] == "Declined" and not any(
                 same(q, p) and q["period"] == p["period"] and q["type"] == "Dues" and q["result"] == "Paid" for q in PAY):
-            out[p["txn"]] = "Card failed, not retried"
+            out[p["txn"]] = L.DECLINED
     for q in REF:
         sent = any(same(p, q) and p["type"] == "Refund" and p["amount"] == q["amount"] and p["date"] >= q["date"] for p in PAY)
-        if not sent: out[q["req"]] = "Refund approved but never sent"
+        if not sent: out[q["req"]] = L.NOT_SENT
     return out
 
 def compare(label, got):
@@ -54,9 +56,9 @@ def same_name_tests(label, got):
     a = next(p["txn"] for p in PAY if p["mid"] == "M-1012" and p["period"] == "2026-10" and p["type"] == "Dues")
     b = next(p["txn"] for p in PAY if p["mid"] == "M-1031" and p["period"] == "2026-10" and p["type"] == "Dues")
     check(f"{label} same-name 1: active Chris Morgan (M-1012) October charge is not flagged", a not in got)
-    check(f"{label} same-name 2: paused Chris Morgan (M-1031) October charge is flagged", got.get(b) == "Charged after pausing")
+    check(f"{label} same-name 2: paused Chris Morgan (M-1031) October charge is flagged", got.get(b) == L.PAUSED)
     check(f"{label} same-name 3: M-1031's refund is still owed even though M-1012 got a $95 refund",
-          got.get("R-04") == "Refund approved but never sent")
+          got.get("R-04") == L.NOT_SENT)
     check(f"{label} same-name 4: M-1012's refund counts as sent", "R-02" not in got)
     m31 = [p["txn"] for p in PAY if p["mid"] == "M-1031" and p["period"] != "2026-10"]
     check(f"{label} same-name 5: M-1031's earlier charges are not flagged as another member's card",
@@ -81,7 +83,7 @@ if len(sys.argv) > 1:
     got = {}
     for row in wb["Payments"].iter_rows(min_row=2, values_only=True):
         if row[0] and row[10]: got[row[0]] = row[10]
-    for row in wb["Refunds Owed"].iter_rows(min_row=2, values_only=True):
+    for row in wb["Refunds"].iter_rows(min_row=2, values_only=True):
         if row[0] and row[7]: got[row[0]] = row[7]
     c, mi, wl, ex = compare("sheet", got)
     check("sheet: every planted problem caught with the right label", len(c) == len(KEY), sorted(mi | wl))
@@ -93,9 +95,12 @@ if len(sys.argv) > 1:
     refs = {r[6]: r for r in fl}
     check("sheet: fix list covers every planted problem", set(refs) == set(KEY), set(KEY) ^ set(refs))
     check("sheet: fix list names and phones come from the member ID",
-          all(r[2] == MEM[r[1]]["name"] and r[3] == MEM[r[1]]["phone"] for r in fl))
-    wa = next(r for r in fl if r[4] == "Paid with another member's card")
-    check("sheet: wrong-account fix points to M-1018", wa[5] == "Move this payment to M-1018", wa[5])
+          all(r[1] == MEM[r[2]]["name"] and r[3] == MEM[r[2]]["phone"] for r in fl))
+    check("sheet: every fix list row has the right action (Call, Refund, Retry card...)",
+          all(r[0] == ACTION[KEY[r[6]]] for r in fl), [(r[0], r[6]) for r in fl if r[0] != ACTION[KEY[r[6]]]])
+    check("sheet: Fix List is the first tab", wb.sheetnames[0] == "Fix List", wb.sheetnames)
+    wa = next(r for r in fl if r[0] == "Move payment")
+    check("sheet: wrong-account row points to M-1018", wa[4] == L.WRONG_CARD + " (M-1018)", wa[4])
     print("  header line:", wb["Fix List"]["A2"].value)
     print("  sample fix list rows:")
     for r in fl[:15]: print("   ", r)

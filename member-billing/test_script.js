@@ -24,11 +24,12 @@ const S = require('./Code.gs.js');
 let n = 0; const ok = (c, m) => { assert(c, m); n++; console.log('PASS ' + m); };
 
 S.emailFixList();
-const filled = rows.filter(r => r[1] !== '').length;
+const filled = rows.filter(r => r[2] !== '').length;
 ok(sent.length === 1, 'sends exactly one email');
 ok(sent[0].subject === `Fix list for Oct 31, 2026: ${filled} things to fix`, 'subject has the count: ' + sent[0].subject);
 ok(sent[0].body.split('\n').filter(l => /^\d+\. /.test(l)).length === filled, 'one line per problem');
 ok(sent[0].body.includes('Chris Morgan (M-1031'), 'same-name member is listed with their ID');
+ok(/^\d+\. (Call|Refund|Retry card|Move payment|Send refund): /m.test(sent[0].body), 'each line starts with what to do');
 ok(!/Chris Morgan \(M-1012/.test(sent[0].body), 'the other Chris Morgan (M-1012) is not on the list');
 ok(S.buildFixListEmail([], 'Nov 1, 2026').subject.endsWith('nothing to fix'), 'empty list gets a clear subject');
 triggers = [mk('emailFixList'), mk('somethingElse')];

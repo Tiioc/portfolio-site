@@ -749,9 +749,8 @@ window.TRIAGE_EVAL={
   ]
  }
 };
-/* InboxOwner demo: the health check, ownership queue, sorting and procedure,
- * rendered from INBOX_DATA (the sample inbox) by the same InboxCore engine the
- * Gmail version uses. Plain tables and lists; no framework. */
+/* InboxOwner demo screens. Everything shown is worked out live from INBOX_DATA (the fake
+ * gym inbox) by the same InboxCore engine the Gmail version uses. Three plain views. */
 (function () {
   const C = window.InboxCore;
   const { config: CFG, threads: THREADS } = window.INBOX_DATA;
@@ -761,7 +760,8 @@ window.TRIAGE_EVAL={
   const byId = Object.fromEntries(THREADS.map(t => [t.id, t]));
   const esc = s => String(s).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
   const pct = x => (x === null || x === undefined ? 'n/a' : Math.round(x * 100) + '%');
-  const hrs = x => (x === null ? 'n/a' : (x < 10 ? x.toFixed(1) : Math.round(x)) + ' h');
+  const hrs = x => (x === null ? 'n/a' : (x < 10 ? x.toFixed(1) : Math.round(x)) + ' hrs');
+  const one = x => (Math.round(x * 10) / 10).toFixed(1);
   const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const when = ms => {
@@ -769,70 +769,63 @@ window.TRIAGE_EVAL={
     return `${DAYS[d.getUTCDay()]} ${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}, ${(h % 12) || 12}:${m} ${h < 12 ? 'AM' : 'PM'}`;
   };
   const $ = sel => document.querySelector(sel);
-  const table = (heads, rows, numeric) => `<div class="scroll"><table><thead><tr>${heads.map((h, k) => `<th${numeric && numeric.includes(k) ? ' class="n"' : ''}>${h}</th>`).join('')}</tr></thead><tbody>${rows.map(r => `<tr>${r.map((c, k) => `<td${numeric && numeric.includes(k) ? ' class="n"' : ''}>${c}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
-  const bars = items => `<div class="bar">${items.map(([label, w, v]) => `<div>${esc(label)}</div><div class="track"><span style="width:${Math.max(0, Math.min(100, w)).toFixed(1)}%"></span></div><div class="v">${v}</div>`).join('')}</div>`;
+  const note = text => `<p class="view-note"><span class="dot" aria-hidden="true"></span>${text}</p>`;
+  const bars = (items, hi) => `<div class="bar">${items.map(([key, label, w, v]) => `<div>${esc(label)}</div><div class="track${key === hi ? ' hi' : ''}"><span style="width:${Math.max(0, Math.min(100, w)).toFixed(1)}%"></span></div><div class="v">${v}</div>`).join('')}</div>`;
+  const tiles = items => `<div class="mini-stats">${items.map(([v, l, tone]) => `<div class="mini ${tone || ''}"><b>${v}</b><span>${l}</span></div>`).join('')}</div>`;
 
-  function renderHealth() {
+  function renderWaits() {
     const a = C.audit(THREADS, CFG);
-    const f = C.findings(a, CFG.nouns, CFG.internalCategories);
+    const cat = k => a.categories.find(c => c.category === k);
+    const cancel = cat('cancel'), trial = cat('trial');
     const maxMed = Math.max(...a.categories.map(c => c.medianFrtHours || 0));
-    $('#p-health').innerHTML = `
-      <p class="muted">Last ${a.window.days} days to ${when(CFG.asOf)}. ${a.threads} of the ${THREADS.length} generated threads fall in this window; the rest are older. Reply times count staffed hours only (Mon to Fri 9 to 6, Sat 9 to 1, closed Sun).</p>
-      <dl class="facts">
-        <dt>Customer emails</dt><dd>${a.threads} (${a.answered} answered)</dd>
-        <dt>Median first reply</dt><dd>${hrs(a.medianFrtHours)} of staffed time</dd>
-        <dt>Slowest 10% waited</dt><dd>${hrs(a.p90FrtHours)} or more</dd>
-        <dt>No reply within 48 hours</dt><dd>${pct(a.unanswered48)} (${a.neverAnswered} never answered)</dd>
-        <dt>Answered by two people</dt><dd>${pct(a.duplicateRate)}</dd>
-        <dt>Arrived outside staffed hours</dt><dd>${pct(a.outsideHoursShare)}</dd>
-      </dl>
-      <h2>What the health check found</h2>
-      <ul>${f.map(x => `<li>${esc(x.text)}</li>`).join('')}</ul>
-      <h2>Median first reply by type of email</h2>
-      ${bars(a.categories.slice().sort((x, y) => (y.medianFrtHours || 0) - (x.medianFrtHours || 0)).map(c => [LABEL[c.category], c.medianFrtHours / maxMed * 100, hrs(c.medianFrtHours)]))}
+    const top = a.staff[0];
+    $('#p-waits').innerHTML = `
+      ${note(`How long each kind of email waited for a first reply. ${a.threads} emails from the last ${a.window.days} days. Hours count only when the gym was open.`)}
+      ${tiles([[a.threads, 'emails'], [hrs(a.medianFrtHours), 'typical wait'], [pct(a.unanswered48), 'no reply in 2 days', 'warn']])}
+      <h2>What it found</h2>
+      <ul class="found">
+        <li>Cancellation emails waited ${one(cancel.medianFrtHours)} hours. Trial questions waited ${one(trial.medianFrtHours)}.</li>
+        <li>${pct(cancel.unanswered48)} of cancellation emails got no reply in 2 days.</li>
+        <li>${esc(top.staff)} sent ${pct(top.share)} of all replies.</li>
+        <li>${pct(a.outsideHoursShare)} of emails came in while the gym was closed.</li>
+      </ul>
+      <h2>Typical wait, by kind of email</h2>
+      ${bars(a.categories.slice().sort((x, y) => (y.medianFrtHours || 0) - (x.medianFrtHours || 0)).map(c => [c.category, LABEL[c.category], c.medianFrtHours / maxMed * 100, hrs(c.medianFrtHours)]), 'cancel')}
       <h2>Who answers</h2>
-      ${bars(a.staff.map(s => [s.staff, s.share * 100, pct(s.share)]))}
-      <h2>By type of email</h2>
-      ${table(['Type', 'Emails', 'Median reply', 'No reply in 48 h', 'Two replies'], a.categories.map(c => [esc(LABEL[c.category]), c.threads, hrs(c.medianFrtHours), pct(c.unanswered48), pct(c.duplicateRate)]), [1, 2, 3, 4])}
-      <h2>Weekly scorecard</h2>
-      <p class="muted">The four numbers a team would watch each Monday. The last week is partial.</p>
-      ${table(['Week of', 'Emails', 'Median reply', 'No reply in 48 h', 'Two replies'], C.weekly(THREADS, CFG, 6).map(w => [when(w.weekOf).split(',')[0], w.threads, hrs(w.medianFrtHours), pct(w.unanswered48), pct(w.duplicateRate)]), [1, 2, 3, 4])}`;
+      ${bars(a.staff.map(s => [s.staff, s.staff, s.share * 100, pct(s.share)]))}`;
   }
 
   const CLAIM_KEY = 'inboxowner-demo-claims';
   let claims = {};
   try { claims = JSON.parse(localStorage.getItem(CLAIM_KEY) || '{}') || {}; } catch (e) { claims = {}; }
   const saveClaims = () => { try { localStorage.setItem(CLAIM_KEY, JSON.stringify(claims)); } catch (e) { /* storage blocked */ } };
-  let showStale = false;
 
-  function renderQueue() {
+  function renderOwners() {
     const q = C.queue(THREADS, CFG, claims);
-    const live = q.filter(x => x.status !== 'stale'), stale = q.filter(x => x.status === 'stale');
-    const rows = (showStale ? stale : live).map(x => {
+    const live = q.filter(x => x.status !== 'stale'), old = q.filter(x => x.status === 'stale');
+    const cards = live.map(x => {
       const t = byId[x.id];
-      const opts = ['<option value="">Unclaimed</option>'].concat(CFG.team.map(p => `<option${x.owner === p ? ' selected' : ''}>${p}</option>`)).join('');
-      const status = x.status === 'stale' ? `waiting ${Math.round((CFG.asOf - x.waitingSince) / C.DAY)} days`
-        : x.status === 'overdue' ? `overdue by ${hrs(-x.businessMinutesLeft / 60)}` : x.status === 'due-soon' ? `due within the hour` : `${hrs(x.businessMinutesLeft / 60)} left`;
-      return [`${esc(t.subject)}<br><span class="muted">${esc(t.customer.name)}, ${esc(LABEL[x.category]).toLowerCase()}</span>`, when(x.waitingSince), status,
-        `<label><span hidden>Owner for ${esc(t.subject)}</span><select data-id="${x.id}">${opts}</select></label><br><span class="muted">suggested: ${x.suggestedOwner || 'none'}</span>`];
-    });
+      const opts = ['<option value="">Nobody yet</option>'].concat(CFG.team.map(p => `<option${x.owner === p ? ' selected' : ''}>${p}</option>`)).join('');
+      const late = x.status === 'overdue';
+      const status = late ? `Late by ${hrs(-x.businessMinutesLeft / 60)}` : x.status === 'due-soon' ? 'Due within the hour' : `${hrs(x.businessMinutesLeft / 60)} left`;
+      return `<div class="email-card${x.owner ? ' owned' : ''}">
+        <div class="email-top"><strong>${esc(t.subject)}</strong><span class="pill ${late ? 'late' : 'ok'}">${status}</span></div>
+        <div class="muted">${esc(t.customer.name)} · ${esc(LABEL[x.category])}</div>
+        <label class="owner">Owner <select data-id="${x.id}">${opts}</select></label>
+      </div>`;
+    }).join('');
     const plan = C.nudges(q, CFG);
-    $('#p-queue').innerHTML = `
-      <p class="muted">Open requests at ${when(CFG.asOf)}. Pick an owner to claim one (in Gmail this is a label with the person's name). Due times follow each type's reply target in staffed hours.</p>
-      <dl class="facts">
-        <dt>Live requests</dt><dd>${live.length} (${live.filter(x => x.owner).length} claimed)</dd>
-        <dt>Overdue</dt><dd>${live.filter(x => x.status === 'overdue').length}</dd>
-        <dt>Waiting 14+ days</dt><dd>${stale.length}, kept on a separate cleanup list</dd>
-      </dl>
-      <p><button class="plain" id="q-toggle">${showStale ? 'Show live requests' : 'Show the cleanup list'}</button> <button class="plain" id="q-suggest">Claim all with suggested owners</button> <button class="plain" id="q-reset">Reset</button></p>
-      ${rows.length ? table(['Request', 'Waiting since', 'Reply target', 'Owner'], rows) : '<p>Nothing here.</p>'}
-      <h2>If the hourly reminder ran now</h2>
-      <p class="muted">One email per person, never one per thread. The cleanup list is left out so the reminders stay worth reading.</p>
-      <ul>${plan.length ? plan.map(p => { const over = p.items.filter(k => k.why === 'overdue').length, un = p.items.length - over; return `<li>${p.to} gets one email: ${[over ? `${over} overdue` : '', un ? `${un} unclaimed for a day or more` : ''].filter(Boolean).join(', ')}</li>`; }).join('') : '<li>Nobody. Everything live is claimed and inside its target.</li>'}</ul>`;
-    $('#p-queue').querySelectorAll('select[data-id]').forEach(s => s.addEventListener('change', () => { if (s.value) claims[s.dataset.id] = s.value; else delete claims[s.dataset.id]; saveClaims(); renderQueue(); }));
-    $('#q-toggle').onclick = () => { showStale = !showStale; renderQueue(); };
-    $('#q-suggest').onclick = () => { C.queue(THREADS, CFG, claims).forEach(x => { if (!claims[x.id] && x.suggestedOwner && x.status !== 'stale') claims[x.id] = x.suggestedOwner; }); saveClaims(); renderQueue(); };
-    $('#q-reset').onclick = () => { claims = {}; saveClaims(); renderQueue(); };
+    $('#p-owners').innerHTML = `
+      ${note(`Emails still waiting on ${when(CFG.asOf)}. Pick a name to claim one. In Gmail this is just a label with your name.`)}
+      ${tiles([[live.length, 'waiting'], [live.filter(x => x.owner).length, 'claimed', 'ok'], [live.filter(x => x.status === 'overdue').length, 'late', 'warn']])}
+      <p class="btn-row"><button class="plain" id="q-suggest">Claim all with suggested names</button> <button class="plain" id="q-reset">Start over</button></p>
+      <div class="email-list">${cards || '<p>Nothing waiting.</p>'}</div>
+      <p class="muted">${old.length} older emails (2+ weeks) sit on a separate cleanup list, so the reminders stay short.</p>
+      <h2>If reminders went out now</h2>
+      <ul class="found">${plan.length ? plan.map(p => { const over = p.items.filter(k => k.why === 'overdue').length, un = p.items.length - over; return `<li>${p.to} gets one email: ${[over ? `${over} late` : '', un ? `${un} nobody has claimed` : ''].filter(Boolean).join(', ')}.</li>`; }).join('') : '<li>Nobody. Every email has an owner and nothing is late.</li>'}</ul>`;
+    $('#p-owners').querySelectorAll('select[data-id]').forEach(s => s.addEventListener('change', () => { if (s.value) claims[s.dataset.id] = s.value; else delete claims[s.dataset.id]; saveClaims(); renderOwners(); }));
+    $('#q-suggest').onclick = () => { C.queue(THREADS, CFG, claims).forEach(x => { if (!claims[x.id] && x.suggestedOwner && x.status !== 'stale') claims[x.id] = x.suggestedOwner; }); saveClaims(); renderOwners(); };
+    $('#q-reset').onclick = () => { claims = {}; saveClaims(); renderOwners(); };
   }
 
   const SAMPLES = [
@@ -846,58 +839,30 @@ window.TRIAGE_EVAL={
     const words = (hits || []).map(src => { const m = new RegExp(src, 'i').exec(text); return m ? m[0].trim() : null; }).filter(Boolean);
     return [...new Set(words)].map(w => `"${esc(w)}"`).join(', ') || 'none';
   }
-  function renderTriage() {
-    const s = EVAL.summary;
-    const row = (v, k) => `<td class="n">${pct(s[v][k].autoPrecision)}</td><td class="n">${pct(s[v][k].autoRate)}</td>`;
-    const sets = [['dev', 'The examples the first rules were written from', 64], ['test', 'Held-out phrasings, later read to write the second rules', 64], ['holdout', 'A second holdout, contaminated and reported as such', 64], ['blind', 'Blind set from a separate writer (the honest number)', 96]];
-    const b = EVAL.blind;
-    $('#p-triage').innerHTML = `
-      <p class="muted">Keyword rules sort each new email into one of ${Object.keys(LABEL).length} types, which sets its owner and reply target. If the rules aren't at least 60% sure, the email goes to a person. Try one:</p>
-      <p><label for="t-sample">Example </label><select id="t-sample">${SAMPLES.map((x, k) => `<option value="${k}">${esc(x.slice(0, 50))}...</option>`).join('')}</select></p>
+  function renderSorting() {
+    const s = EVAL.summary.v2.blind;
+    $('#p-sorting').innerHTML = `
+      ${note('Type an email or pick one. The tool guesses what it is about. If it is not sure, a person gets it.')}
+      <p><label for="t-sample">Pick an example </label><select id="t-sample">${SAMPLES.map((x, k) => `<option value="${k}">${esc(x.slice(0, 44))}...</option>`).join('')}</select></p>
       <label for="t-text"><span hidden>Email text</span></label><textarea id="t-text" spellcheck="false">${esc(SAMPLES[0])}</textarea>
       <div class="result" id="t-out" aria-live="polite"></div>
-      <h2>How accurate is it</h2>
-      <p class="muted">"Right" is the share of auto-sorted emails sent to the correct type. "Auto-sorted" is the share the rules handled on their own; the rest went to a person.</p>
-      ${table(['Test set', 'Emails', 'First rules: right', 'auto-sorted', 'Final rules: right', 'auto-sorted'], sets.map(([k, name, n]) => [`${k === 'blind' ? '<strong>' : ''}${name}${k === 'blind' ? '</strong>' : ''}`, n, ...row('v1', k).replace(/<\/?td[^>]*>/g, '|').split('|').filter(Boolean), ...row('v2', k).replace(/<\/?td[^>]*>/g, '|').split('|').filter(Boolean)]), [1, 2, 3, 4, 5])}
-      <p class="muted">The version running here includes one bug fix found on the blind set ("lease" matched inside "please"). Its blind score (${pct(s['v2.1'].blind.autoPrecision)}) is no longer a clean measurement, so the project page reports the earlier ${pct(s.v2.blind.autoPrecision)}.</p>
-      <h2>Where the final rules went wrong on the blind set</h2>
-      <ul>${b.errors.map(e => `<li>${esc(LABEL[e.label])}, sorted as ${esc(LABEL[e.predicted]).toLowerCase()}: "${esc(e.text)}"</li>`).join('')}</ul>`;
+      <h2>How good is it?</h2>
+      ${tiles([[pct(s.autoPrecision), 'sorted right', 'ok'], [pct(s.autoRate), 'sorted by itself'], [pct(1 - s.autoRate), 'sent to a person']])}
+      <p class="muted">Tested on 96 new emails it had never seen. The 87% is out of the emails it sorted by itself.</p>`;
     const ta = $('#t-text'), sel = $('#t-sample');
     const run = () => {
       const r = C.classify(ta.value, RULES, CFG.triageThreshold);
       const route = r.category ? (CFG.routing[r.category] || CFG.defaultRoute) : null;
-      $('#t-out').innerHTML = !r.category ? '<strong>Goes to a person.</strong> No rule matched.' :
-        r.needsHuman ? `<strong>Goes to a person.</strong> Best guess ${esc(LABEL[r.category]).toLowerCase()}, but only ${pct(r.confidence)} sure, below the 60% line.`
-        : `<strong>${esc(LABEL[r.category])}.</strong> ${pct(r.confidence)} sure. Owner ${route.owner}; first reply due within ${route.slaHours} staffed hours.<br><span class="muted">Words that counted: ${matchedWords(ta.value, r.hits)}</span>`;
+      $('#t-out').innerHTML = !r.category ? '<strong>Goes to a person.</strong> Nothing matched.' :
+        r.needsHuman ? `<strong>Goes to a person.</strong> Best guess: ${esc(LABEL[r.category]).toLowerCase()}, but only ${pct(r.confidence)} sure.`
+        : `<strong>${esc(LABEL[r.category])}</strong> (${pct(r.confidence)} sure). Goes to ${route.owner}. Reply within ${route.slaHours} open hours.<br><span class="muted">Words that gave it away: ${matchedWords(ta.value, r.hits)}</span>`;
     };
     ta.addEventListener('input', run);
     sel.addEventListener('change', () => { ta.value = SAMPLES[sel.value]; run(); });
     run();
   }
 
-  function renderSop() {
-    const r = CFG.routing;
-    $('#p-sop').innerHTML = `
-      <p class="muted">The written procedure is half the fix. Drafted from the health check; with a real team it would be written together.</p>
-      <h2>Shared inbox procedure (draft)</h2>
-      <h3>1. Claim before you reply</h3>
-      <ul><li>At the start of each shift, open the shared inbox and add your name label to anything you'll handle, then reply.</li><li>If a thread already has someone's label, leave it to them. That's how double replies stop.</li></ul>
-      <h3>2. Default owners and reply targets (staffed hours)</h3>
-      ${table(['Type of email', 'Default owner', 'First reply within'], Object.keys(r).map(k => [esc(LABEL[k]), r[k].owner, r[k].slaHours + ' h']), [2])}
-      <p class="muted">A first reply can be "Got it, I'll have an answer by Thursday." The target is acknowledgement, not resolution.</p>
-      <h3>3. Cancellations and freezes are never "later" emails</h3>
-      <ul><li>They had the slowest replies and the most no-replies in the health check. Maya handles cancellations the same day; Jordan handles freezes and offers a freeze before processing a cancellation where it fits.</li></ul>
-      <h3>4. Handing off</h3>
-      <ul><li>Going off shift with a claimed thread still open? Leave a one-line note in the thread and re-label it to the next person on.</li></ul>
-      <h3>5. Reminders</h3>
-      <ul><li>Hourly during open hours, each owner gets one list of their overdue threads. Unclaimed emails older than a day go to the whole team.</li></ul>
-      <h3>6. The cleanup list</h3>
-      <ul><li>Anything waiting more than 14 days gets one cleanup pass a week: answer, forward, or archive with a note. It is not nagged about daily.</li></ul>
-      <h3>7. Weekly review (Mondays, 10 minutes)</h3>
-      <ul><li>Look at the scorecard and pick one thing to change this week.</li></ul>`;
-  }
-
-  const TABS = { health: renderHealth, queue: renderQueue, triage: renderTriage, sop: renderSop };
+  const TABS = { waits: renderWaits, owners: renderOwners, sorting: renderSorting };
   const rendered = {};
   function show(name) {
     document.querySelectorAll('#demo-tabs button').forEach(b => b.setAttribute('aria-selected', String(b.dataset.tab === name)));
@@ -905,6 +870,6 @@ window.TRIAGE_EVAL={
     if (!rendered[name]) { TABS[name](); rendered[name] = true; }
   }
   document.querySelectorAll('#demo-tabs button').forEach(b => b.addEventListener('click', () => show(b.dataset.tab)));
-  const start = ['health', 'queue', 'triage', 'sop'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'health';
+  const start = Object.keys(TABS).includes(location.hash.slice(1)) ? location.hash.slice(1) : 'waits';
   show(start);
 })();

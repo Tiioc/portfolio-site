@@ -1,4 +1,4 @@
-# Test run 2026-11-10 
+# Test run 2026-11-10
 
 ## Formulas recalculated by LibreOffice
 1. Answer key vs the Python version of the rules (lookups by member ID)
@@ -28,24 +28,26 @@ PASS sheet same-name 5: M-1031's earlier charges are not flagged as another memb
 PASS sheet: fix list has one row per problem
 PASS sheet: fix list covers every planted problem
 PASS sheet: fix list names and phones come from the member ID
-PASS sheet: wrong-account fix points to M-1018
-  header line: 15 things to fix. Every lookup uses the member ID, never the name.
+PASS sheet: every fix list row has the right action (Call, Refund, Retry card...)
+PASS sheet: Fix List is the first tab
+PASS sheet: wrong-account row points to M-1018
+  header line: 15 things to fix. Look members up by ID, never by name.
   sample fix list rows:
-    (1, 'M-1013', 'Mia Shaw', '(661) 555-0112', 'Disputed charge', 'Call member about this $189 charge', 'T-2013')
-    (2, 'M-1019', 'Sam Jensen', '(661) 555-0118', 'Card failed, not retried', 'Call to update card, then retry $95', 'T-2055')
-    (3, 'M-1030', 'Dana Udall', '(661) 555-0129', 'Charged after cancelling', 'Refund $95', 'T-2066')
-    (4, 'M-1006', 'Felix Reyes', '(661) 555-0105', 'Charged twice this month', 'Refund the extra $189', 'T-2073')
-    (5, 'M-1004', 'Dev Brooks', '(661) 555-0103', 'Card failed, not retried', 'Call to update card, then retry $189', 'T-2078')
-    (6, 'M-1011', 'Kira Lund', '(661) 555-0110', 'Card failed, not retried', 'Call to update card, then retry $189', 'T-2085')
-    (7, 'M-1015', 'Olive Fox', '(661) 555-0114', 'Charged after pausing', 'Refund $260', 'T-2089')
-    (8, 'M-1025', 'Yara Park', '(661) 555-0124', 'Disputed charge', 'Call member about this $189 charge', 'T-2098')
-    (9, 'M-1027', 'Amir Ruiz', '(661) 555-0126', 'Card failed, not retried', 'Call to update card, then retry $189', 'T-2100')
-    (10, 'M-1030', 'Dana Udall', '(661) 555-0129', 'Charged after cancelling', 'Refund $95', 'T-2103')
-    (11, 'M-1031', 'Chris Morgan', '(661) 555-0130', 'Charged after pausing', 'Refund $95', 'T-2104')
-    (12, 'M-1021', 'Uma Lowe', '(661) 555-0120', 'Charged twice this month', 'Refund the extra $95', 'T-2109')
-    (13, 'M-1017', 'Quinn Hayes', '(661) 555-0116', "Paid with another member's card", 'Move this payment to M-1018', 'T-2110')
-    (14, 'M-1009', 'Iris Sato', '(661) 555-0108', 'Refund approved but never sent', 'Send the $260 refund', 'R-03')
-    (15, 'M-1031', 'Chris Morgan', '(661) 555-0130', 'Refund approved but never sent', 'Send the $95 refund', 'R-04')
+    ('Call', 'Mia Shaw', 'M-1013', '(661) 555-0112', 'Member disputed this charge', 189, 'T-2013')
+    ('Retry card', 'Sam Jensen', 'M-1019', '(661) 555-0118', 'Card declined, not retried', 95, 'T-2055')
+    ('Refund', 'Dana Udall', 'M-1030', '(661) 555-0129', 'Charged after they cancelled', 95, 'T-2066')
+    ('Refund', 'Felix Reyes', 'M-1006', '(661) 555-0105', 'Charged twice this month', 189, 'T-2073')
+    ('Retry card', 'Dev Brooks', 'M-1004', '(661) 555-0103', 'Card declined, not retried', 189, 'T-2078')
+    ('Retry card', 'Kira Lund', 'M-1011', '(661) 555-0110', 'Card declined, not retried', 189, 'T-2085')
+    ('Refund', 'Olive Fox', 'M-1015', '(661) 555-0114', 'Charged after they paused', 260, 'T-2089')
+    ('Call', 'Yara Park', 'M-1025', '(661) 555-0124', 'Member disputed this charge', 189, 'T-2098')
+    ('Retry card', 'Amir Ruiz', 'M-1027', '(661) 555-0126', 'Card declined, not retried', 189, 'T-2100')
+    ('Refund', 'Dana Udall', 'M-1030', '(661) 555-0129', 'Charged after they cancelled', 95, 'T-2103')
+    ('Refund', 'Chris Morgan', 'M-1031', '(661) 555-0130', 'Charged after they paused', 95, 'T-2104')
+    ('Refund', 'Uma Lowe', 'M-1021', '(661) 555-0120', 'Charged twice this month', 95, 'T-2109')
+    ('Move payment', 'Quinn Hayes', 'M-1017', '(661) 555-0116', "Paid with another member's card (M-1018)", 95, 'T-2110')
+    ('Send refund', 'Iris Sato', 'M-1009', '(661) 555-0108', 'Refund approved, never sent', 260, 'R-03')
+    ('Send refund', 'Chris Morgan', 'M-1031', '(661) 555-0130', 'Refund approved, never sent', 95, 'R-04')
 
 RESULT: all passed
 
@@ -63,24 +65,26 @@ PASS sheet same-name 5: M-1031's earlier charges are not flagged as another memb
 PASS sheet: fix list has one row per problem
 PASS sheet: fix list covers every planted problem
 PASS sheet: fix list names and phones come from the member ID
-PASS sheet: wrong-account fix points to M-1018
-  header line: 15 things to fix. Every lookup uses the member ID, never the name.
+PASS sheet: every fix list row has the right action (Call, Refund, Retry card...)
+PASS sheet: Fix List is the first tab
+PASS sheet: wrong-account row points to M-1018
+  header line: 15 things to fix. Look members up by ID, never by name.
   sample fix list rows:
-    (1.0, 'M-1013', 'Mia Shaw', '(661) 555-0112', 'Disputed charge', 'Call member about this $189 charge', 'T-2013')
-    (2.0, 'M-1019', 'Sam Jensen', '(661) 555-0118', 'Card failed, not retried', 'Call to update card, then retry $95', 'T-2055')
-    (3.0, 'M-1030', 'Dana Udall', '(661) 555-0129', 'Charged after cancelling', 'Refund $95', 'T-2066')
-    (4.0, 'M-1006', 'Felix Reyes', '(661) 555-0105', 'Charged twice this month', 'Refund the extra $189', 'T-2073')
-    (5.0, 'M-1004', 'Dev Brooks', '(661) 555-0103', 'Card failed, not retried', 'Call to update card, then retry $189', 'T-2078')
-    (6.0, 'M-1011', 'Kira Lund', '(661) 555-0110', 'Card failed, not retried', 'Call to update card, then retry $189', 'T-2085')
-    (7.0, 'M-1015', 'Olive Fox', '(661) 555-0114', 'Charged after pausing', 'Refund $260', 'T-2089')
-    (8.0, 'M-1025', 'Yara Park', '(661) 555-0124', 'Disputed charge', 'Call member about this $189 charge', 'T-2098')
-    (9.0, 'M-1027', 'Amir Ruiz', '(661) 555-0126', 'Card failed, not retried', 'Call to update card, then retry $189', 'T-2100')
-    (10.0, 'M-1030', 'Dana Udall', '(661) 555-0129', 'Charged after cancelling', 'Refund $95', 'T-2103')
-    (11.0, 'M-1031', 'Chris Morgan', '(661) 555-0130', 'Charged after pausing', 'Refund $95', 'T-2104')
-    (12.0, 'M-1021', 'Uma Lowe', '(661) 555-0120', 'Charged twice this month', 'Refund the extra $95', 'T-2109')
-    (13.0, 'M-1017', 'Quinn Hayes', '(661) 555-0116', "Paid with another member's card", 'Move this payment to M-1018', 'T-2110')
-    (14.0, 'M-1009', 'Iris Sato', '(661) 555-0108', 'Refund approved but never sent', 'Send the $260 refund', 'R-03')
-    (15.0, 'M-1031', 'Chris Morgan', '(661) 555-0130', 'Refund approved but never sent', 'Send the $95 refund', 'R-04')
+    ('Call', 'Mia Shaw', 'M-1013', '(661) 555-0112', 'Member disputed this charge', 189, 'T-2013')
+    ('Retry card', 'Sam Jensen', 'M-1019', '(661) 555-0118', 'Card declined, not retried', 95, 'T-2055')
+    ('Refund', 'Dana Udall', 'M-1030', '(661) 555-0129', 'Charged after they cancelled', 95, 'T-2066')
+    ('Refund', 'Felix Reyes', 'M-1006', '(661) 555-0105', 'Charged twice this month', 189, 'T-2073')
+    ('Retry card', 'Dev Brooks', 'M-1004', '(661) 555-0103', 'Card declined, not retried', 189, 'T-2078')
+    ('Retry card', 'Kira Lund', 'M-1011', '(661) 555-0110', 'Card declined, not retried', 189, 'T-2085')
+    ('Refund', 'Olive Fox', 'M-1015', '(661) 555-0114', 'Charged after they paused', 260, 'T-2089')
+    ('Call', 'Yara Park', 'M-1025', '(661) 555-0124', 'Member disputed this charge', 189, 'T-2098')
+    ('Retry card', 'Amir Ruiz', 'M-1027', '(661) 555-0126', 'Card declined, not retried', 189, 'T-2100')
+    ('Refund', 'Dana Udall', 'M-1030', '(661) 555-0129', 'Charged after they cancelled', 95, 'T-2103')
+    ('Refund', 'Chris Morgan', 'M-1031', '(661) 555-0130', 'Charged after they paused', 95, 'T-2104')
+    ('Refund', 'Uma Lowe', 'M-1021', '(661) 555-0120', 'Charged twice this month', 95, 'T-2109')
+    ('Move payment', 'Quinn Hayes', 'M-1017', '(661) 555-0116', "Paid with another member's card (M-1018)", 95, 'T-2110')
+    ('Send refund', 'Iris Sato', 'M-1009', '(661) 555-0108', 'Refund approved, never sent', 260, 'R-03')
+    ('Send refund', 'Chris Morgan', 'M-1031', '(661) 555-0130', 'Refund approved, never sent', 95, 'R-04')
 
 RESULT: all passed
 
@@ -89,10 +93,11 @@ PASS sends exactly one email
 PASS subject has the count: Fix list for Oct 31, 2026: 15 things to fix
 PASS one line per problem
 PASS same-name member is listed with their ID
+PASS each line starts with what to do
 PASS the other Chris Morgan (M-1012) is not on the list
 PASS empty list gets a clear subject
 PASS turning it on twice leaves one daily trigger
 PASS other triggers are left alone
 PASS trigger runs at 8am
 
-9 script checks passed
+10 script checks passed

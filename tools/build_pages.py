@@ -1,0 +1,262 @@
+"""Builds the portfolio's main pages (homepage, both project pages, the demo shell)
+from one template, so the icons, nav and footer stay the same everywhere.
+Run: python3 tools/build_pages.py
+"""
+ROOT = "/home/user/finances/site/"
+
+ICONS = {
+    "inbox": '<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>',
+    "user": '<circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/>',
+    "users": '<circle cx="9" cy="8" r="3.5"/><path d="M2 20a7 7 0 0 1 14 0"/><circle cx="17" cy="8" r="3"/><path d="M17 14a5 5 0 0 1 5 5"/>',
+    "clock": '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+    "tag": '<path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><circle cx="7" cy="7" r="1.5"/>',
+    "card": '<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/><path d="M6 15h4"/>',
+    "alert": '<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+    "check": '<path d="M20 6 9 17l-5-5"/>',
+    "list": '<path d="M9 6h11M9 12h11M9 18h11"/><path d="m3 6 1 1 2-2M3 12l1 1 2-2M3 18l1 1 2-2"/>',
+    "id": '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="11" r="2"/><path d="M15 9h3M15 13h3M6 16h6"/>',
+    "mail": '<rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/>',
+    "sheet": '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/>',
+    "arrow": '<path d="M5 12h14M13 6l6 6-6 6"/>',
+    "play": '<path d="M7 4v16l13-8z"/>',
+    "code": '<path d="m16 18 6-6-6-6M8 6l-6 6 6 6"/>',
+    "up": '<path d="M7 17 17 7M8 7h9v9"/>',
+    "school": '<path d="M22 10 12 5 2 10l10 5 10-5z"/><path d="M6 12v5c3 2 9 2 12 0v-5"/>',
+    "briefcase": '<rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/>',
+    "link": '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
+}
+SPRITE = '<svg width="0" height="0" style="position:absolute" aria-hidden="true">' + "".join(
+    f'<symbol id="i-{k}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">{v}</symbol>'
+    for k, v in ICONS.items()) + "</svg>"
+ic = lambda name, cls="": f'<svg class="icon {cls}" aria-hidden="true"><use href="#i-{name}"/></svg>'
+
+def page(path, title, desc, body, depth, current="projects", script=""):
+    up = "../" * depth
+    cur = ' aria-current="page"'
+    nav = "".join(f'<a href="{up}#{k}"{cur if k == current else ""}>{v}</a>'
+                  for k, v in [("projects", "Projects"), ("work", "Work"), ("contact", "Contact")])
+    html = f"""<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{title}</title>
+<meta name="description" content="{desc}">
+<meta name="author" content="Tyler Bunn">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap">
+<link rel="stylesheet" href="{up}style.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%237c3aed'/%3E%3Ctext x='16' y='21' font-family='Arial' font-weight='700' font-size='14' fill='white' text-anchor='middle'%3ETB%3C/text%3E%3C/svg%3E">
+{script}</head>
+<body>
+{SPRITE}
+<div class="page">
+<nav class="site" aria-label="Site"><a class="brand" href="{up}">Tyler Bunn</a><span class="nav-links">{nav}</span></nav>
+{body}
+<footer>
+<p>Built in plain HTML and CSS with Claude Code, which I directed and fact-checked.</p>
+<p><a href="mailto:itstylerbunn@gmail.com">itstylerbunn@gmail.com</a> · <a href="https://www.linkedin.com/in/tdbunn">linkedin.com/in/tdbunn</a></p>
+</footer>
+</div>
+</body>
+</html>
+"""
+    open(ROOT + path, "w").write(html)
+
+def flow(items, small=False):
+    """Problem -> Tool -> Result picture."""
+    cells = []
+    for i, (icon, label, tone) in enumerate(items):
+        cells.append(f'<div class="flow-step {tone}"><span class="flow-icon">{ic(icon)}</span><span class="flow-label">{label}</span></div>')
+        if i < len(items) - 1:
+            cells.append(f'<span class="flow-arrow" aria-hidden="true">{ic("arrow")}</span>')
+    kind = ["Problem", "Tool", "Result"]
+    aria = ". ".join(f"{kind[i]}: {lab}" for i, (_, lab, _) in enumerate(items))
+    return f'<div class="flow{" small" if small else ""}" role="img" aria-label="{aria}">{"".join(cells)}</div>'
+
+def steps(items):
+    return '<ol class="how">' + "".join(
+        f'<li class="{tone}"><span class="how-icon">{ic(icon)}</span><div><strong>{t}</strong><span>{d}</span></div></li>'
+        for icon, t, d, tone in items) + "</ol>"
+
+# ---------------------------------------------------------------------------- homepage
+home = f"""
+<header class="hero">
+  <img class="avatar" src="me.jpg" width="88" height="88" alt="Tyler Bunn">
+  <p class="hello">Hi, I'm</p>
+  <h1>Tyler Bunn</h1>
+  <p class="role">Project Management student at Boise State. I'm looking for operations, coordinator or front office roles in Seattle.</p>
+  <p class="status"><span class="live-dot" aria-hidden="true"></span>Available now</p>
+</header>
+
+<section id="projects" class="section">
+  <h2>Projects</h2>
+  <p class="intro">These are small projects I built by combining my personal experience, what I've learned in my classes, and real problems I ran into at work.</p>
+
+  <article class="project-card teal">
+    <div class="pc-head"><span class="pc-icon">{ic("inbox")}</span><div><h3>InboxOwner</h3><p class="pc-tags">Fake test data · v2</p></div></div>
+    <p>Shows who owns each email in a shared inbox, and who is still waiting.</p>
+    {flow([("inbox", "Emails get lost", "pink"), ("user", "Every email gets an owner", "violet"), ("clock", "See who's waiting", "teal")], small=True)}
+    <ul class="chips"><li class="chip"><b>18.7 vs 1.2 hrs</b> wait</li><li class="chip"><b>87%</b> sorted right</li></ul>
+    <p class="actions"><a class="btn primary" href="inboxowner/">See how it works</a><a class="btn" href="inboxowner/demo/">{ic("play")}Try the demo</a></p>
+  </article>
+
+  <article class="project-card pink">
+    <div class="pc-head"><span class="pc-icon">{ic("card")}</span><div><h3>Member Billing Tracker</h3><p class="pc-tags">Fake test data · v1</p></div></div>
+    <p>Catches billing mistakes and makes a daily fix list for the front desk.</p>
+    {flow([("alert", "Billing mistakes", "pink"), ("sheet", "One Google Sheet", "violet"), ("list", "Daily fix list", "teal")], small=True)}
+    <ul class="chips"><li class="chip"><b>15 of 15</b> mistakes caught</li><li class="chip"><b>0</b> same-name mix-ups</li></ul>
+    <p class="actions"><a class="btn primary" href="member-billing/">See how it works</a><a class="btn" href="https://docs.google.com/spreadsheets/d/10E7Y1xSkgj9oXrpKes64kobsTme5ljlY7F1EERrffCU/edit?usp=sharing">{ic("sheet")}Open the sheet</a></p>
+  </article>
+</section>
+
+<section id="work" class="section">
+  <h2>Where the ideas came from</h2>
+  <p class="intro">I worked the front desk at The Paseo Club. Real job, no code.</p>
+  <div class="cards3">
+    <div class="mini-card violet">{ic("mail")}<p>All department emails came through the front desk, which got messy.</p></div>
+    <div class="mini-card pink">{ic("users")}<p>I once charged the wrong member. Two members had the exact same name.</p></div>
+    <div class="mini-card teal">{ic("up")}<p>I pitched fixes to the head manager and got moved into membership.</p></div>
+  </div>
+
+  <h2 class="sub">How I work</h2>
+  <p>I fix the process first, then find a tool. When I build with AI, I set the rules and check every number myself.</p>
+
+  <h2 class="sub">Experience</h2>
+  <ul class="timeline">
+    <li><span class="t-icon violet">{ic("briefcase")}</span><div><strong>The Paseo Club</strong><span class="when">Dec 2024 – Dec 2025 · Santa Clarita, CA</span><span>Front Desk, then Membership Advisor. Check-ins, email routing, billing fixes, payment disputes and refunds in HubSpot.</span></div></li>
+    <li><span class="t-icon teal">{ic("briefcase")}</span><div><strong>Outback Steakhouse</strong><span class="when">Dec 2025 – Jun 2026 · Santa Clarita</span><span>Busser, promoted to food runner within six months.</span></div></li>
+    <li><span class="t-icon amber">{ic("briefcase")}</span><div><strong>Cooksey's Lifeguard &amp; Swim Academy</strong><span class="when">Mar 2023 – Mar 2024 · Santa Clarita</span><span>Lifeguard and swim instructor. Often the only staff member on duty making safety calls.</span></div></li>
+    <li><span class="t-icon pink">{ic("school")}</span><div><strong>Boise State University</strong><span class="when">Expected Spring 2028</span><span>B.S. in Project Management.</span></div></li>
+  </ul>
+</section>
+
+<section id="contact" class="section">
+  <h2>Contact</h2>
+  <p>I'm in Mukilteo and can be in Seattle for an interview on short notice.</p>
+  <p class="actions"><a class="btn primary" href="mailto:itstylerbunn@gmail.com">{ic("mail")}Email me</a><a class="btn" href="https://www.linkedin.com/in/tdbunn">{ic("link")}LinkedIn</a></p>
+</section>
+"""
+page("index.html", "Tyler Bunn", "Tyler Bunn, Project Management student at Boise State, looking for operations, coordinator and front office roles in Seattle. Available now.", home, 0)
+
+# ---------------------------------------------------------------------------- InboxOwner
+def chart_waits():
+    rows = [("Cancellation emails", 18.7, "pink"), ("Trial questions", 1.2, "teal")]
+    bars = "".join(f'<div class="hbar {tone}"><span class="hbar-label">{lab}</span><span class="hbar-track"><span class="hbar-area"><span class="hbar-fill" style="width:{v / 18.7 * 100:.1f}%"></span></span><span class="hbar-value">{v} hrs</span></span></div>' for lab, v, tone in rows)
+    return f'''<figure class="chart" aria-label="Typical wait for a first reply: cancellation emails 18.7 hours, trial questions 1.2 hours.">
+  <figcaption>Wait for a first reply</figcaption>{bars}
+  <p class="chart-note">Open hours only. Fake test data.</p></figure>'''
+
+inbox = f"""
+<header class="page-head teal">
+  <span class="pc-icon big">{ic("inbox")}</span>
+  <h1>InboxOwner</h1>
+  <p class="pc-tags">Fake data · v2</p>
+</header>
+{flow([("inbox", "Lost emails", "pink"), ("user", "One owner each", "violet"), ("clock", "See who waits", "teal")])}
+
+<section class="block"><h2><span class="num">1</span>The problem</h2>
+<p>At The Paseo Club, every department's email came to the front desk. Nobody could tell who had answered what.</p></section>
+
+<section class="block"><h2><span class="num">2</span>What I made</h2>
+<p>A tool that gives every email an owner and shows who is still waiting.</p></section>
+
+<section class="block"><h2><span class="num">3</span>How it works</h2>
+{steps([("clock", "Times the wait", "How long each email waits.", "teal"),
+        ("user", "Gives it an owner", "One person's name on each email.", "violet"),
+        ("tag", "Sorts new mail", "Guesses the topic or asks a person.", "amber")])}</section>
+
+<section class="block"><h2><span class="num">4</span>What happened</h2>
+{chart_waits()}
+<p>It also sorted 87% of new emails right.</p></section>
+
+<section class="block"><h2><span class="num">5</span>What I learned</h2>
+<p>My first rules only knew old examples, and "lease" even matched inside "please."</p></section>
+
+<section class="block"><h2><span class="num">6</span>Try it</h2>
+<p class="actions"><a class="btn primary" href="demo/">{ic("play")}Try the demo</a><a class="btn" href="code/">{ic("code")}See the code</a></p></section>
+
+<details>
+<summary>The details</summary>
+<ul>
+  <li>A made-up gym with four staff and 548 emails from 90 days.</li>
+  <li>The 87% comes from 96 new emails. It counts the ones it sorted by itself.</li>
+  <li>A version for real Gmail exists, but no real team has used it yet.</li>
+</ul>
+</details>
+"""
+page("inboxowner/index.html", "InboxOwner, by Tyler Bunn", "A simple tool that shows who owns each email in a shared inbox. Tested on fake data.", inbox, 1)
+
+# ---------------------------------------------------------------------------- Member Billing
+def chart_billing():
+    def row(label, cells, value, tone=""):
+        dots = "".join(f'<span class="d {c}"></span>' for c in cells)
+        return f'<div class="dots-row {tone}"><span class="dots-label">{label}</span><span class="dots">{dots}</span><span class="dots-value">{value}</span></div>'
+    return f'''<figure class="chart" aria-label="15 planted mistakes. Looking members up by ID: 15 caught, 0 mistakes. Looking them up by name: 4 mistakes.">
+  <figcaption>15 planted mistakes</figcaption>
+  {row("My sheet, by member ID", ["ok"] * 15, "15 caught")}
+  {row("Same sheet, by name", ["ok"] * 13 + ["bad"] * 2 + ["bad extra"] * 2, "4 mistakes", "worse")}
+  <p class="legend"><span><i class="d ok"></i>Caught right</span><span><i class="d bad"></i>Wrong</span><span><i class="d bad extra"></i>False alarm</span></p>
+  <p class="chart-note">Fake test data in a real Google Sheet.</p></figure>'''
+
+billing = f"""
+<header class="page-head pink">
+  <span class="pc-icon big">{ic("card")}</span>
+  <h1>Member Billing Tracker</h1>
+  <p class="pc-tags">Fake data · v1</p>
+</header>
+{flow([("alert", "Billing mistakes", "pink"), ("id", "Member IDs", "violet"), ("list", "Daily fix list", "teal")])}
+
+<section class="block"><h2><span class="num">1</span>The problem</h2>
+<p>At The Paseo Club, I handled dues, refunds and failed payments. I once charged the wrong member because two members had the same name.</p></section>
+
+<section class="block"><h2><span class="num">2</span>What I made</h2>
+<p>A Google Sheet that catches billing mistakes and lists what to fix.</p></section>
+
+<section class="block"><h2><span class="num">3</span>How it works</h2>
+{steps([("id", "Uses member IDs", "So two Chris Morgans stay separate.", "violet"),
+        ("alert", "Catches mistakes", "Declined cards, double charges, unsent refunds.", "pink"),
+        ("list", "Makes a fix list", "Who to call, refund or retry.", "teal")])}</section>
+
+<section class="block"><h2><span class="num">4</span>What happened</h2>
+{chart_billing()}</section>
+
+<section class="block"><h2><span class="num">5</span>What I learned</h2>
+<p>Looking people up by name breaks fast, even with one shared name.</p></section>
+
+<section class="block"><h2><span class="num">6</span>Try it</h2>
+<p class="actions"><a class="btn primary" href="https://docs.google.com/spreadsheets/d/10E7Y1xSkgj9oXrpKes64kobsTme5ljlY7F1EERrffCU/edit?usp=sharing">{ic("sheet")}Open the sheet</a><a class="btn" href="code/">{ic("code")}See the code</a></p></section>
+
+<details>
+<summary>The details</summary>
+<ul>
+  <li>A made-up club with 36 members and 113 payments. I planted 15 mistakes.</li>
+  <li>It catches all 15 because I planted them. A wrong price would get through.</li>
+  <li>A short script can email the fix list at 8am. I haven't run it inside the sheet yet.</li>
+</ul>
+</details>
+"""
+page("member-billing/index.html", "Member Billing Tracker, by Tyler Bunn", "A Google Sheet that catches billing mistakes at a members' club and makes a daily fix list. Tested on fake data.", billing, 1)
+
+# ---------------------------------------------------------------------------- demo shell
+demo = f"""
+<header class="page-head teal">
+  <span class="pc-icon big">{ic("play")}</span>
+  <h1>InboxOwner demo</h1>
+  <p class="pc-tags">Fake test data</p>
+</header>
+<p>A made-up gym's shared inbox with four staff: Maya, Jordan, Priya and Sam. It's frozen at Thursday, October 22, 2026, 4:00 PM. <a href="../">Back to the project</a></p>
+<noscript><p><strong>This demo needs JavaScript to run.</strong> The project page works without it.</p></noscript>
+<div class="tabs" id="demo-tabs" role="tablist">
+  <button role="tab" data-tab="waits" aria-selected="true">Wait times</button>
+  <button role="tab" data-tab="owners" aria-selected="false">Who owns what</button>
+  <button role="tab" data-tab="sorting" aria-selected="false">Sorting</button>
+</div>
+<div id="p-waits" role="tabpanel"></div>
+<div id="p-owners" role="tabpanel" hidden></div>
+<div id="p-sorting" role="tabpanel" hidden></div>
+"""
+page("inboxowner/demo/index.html", "InboxOwner demo", "Live demo of InboxOwner on a fake gym inbox.", demo, 2,
+     script='<script src="demo.js" defer></script>\n')
+print("built 4 pages")

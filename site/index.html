@@ -8,64 +8,74 @@
 <meta name="author" content="Tyler Bunn">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap">
 <link rel="stylesheet" href="style.css">
-<link rel="icon" href="data:,">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%237c3aed'/%3E%3Ctext x='16' y='21' font-family='Arial' font-weight='700' font-size='14' fill='white' text-anchor='middle'%3ETB%3C/text%3E%3C/svg%3E">
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><symbol id="i-inbox" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></symbol><symbol id="i-user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/></symbol><symbol id="i-users" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2 20a7 7 0 0 1 14 0"/><circle cx="17" cy="8" r="3"/><path d="M17 14a5 5 0 0 1 5 5"/></symbol><symbol id="i-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></symbol><symbol id="i-tag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><circle cx="7" cy="7" r="1.5"/></symbol><symbol id="i-card" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/><path d="M6 15h4"/></symbol><symbol id="i-alert" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></symbol><symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></symbol><symbol id="i-list" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11M9 12h11M9 18h11"/><path d="m3 6 1 1 2-2M3 12l1 1 2-2M3 18l1 1 2-2"/></symbol><symbol id="i-id" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="11" r="2"/><path d="M15 9h3M15 13h3M6 16h6"/></symbol><symbol id="i-mail" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></symbol><symbol id="i-sheet" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></symbol><symbol id="i-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></symbol><symbol id="i-play" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4v16l13-8z"/></symbol><symbol id="i-code" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 18 6-6-6-6M8 6l-6 6 6 6"/></symbol><symbol id="i-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M8 7h9v9"/></symbol><symbol id="i-school" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10 12 5 2 10l10 5 10-5z"/><path d="M6 12v5c3 2 9 2 12 0v-5"/></symbol><symbol id="i-briefcase" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></symbol><symbol id="i-link" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></symbol></svg>
 <div class="page">
-<nav class="site" aria-label="Site"><a href="#projects">Projects</a><a href="#paseo">The Paseo Club</a><a href="#how">How I work</a><a href="#contact">Contact</a></nav>
+<nav class="site" aria-label="Site"><a class="brand" href="">Tyler Bunn</a><span class="nav-links"><a href="#projects" aria-current="page">Projects</a><a href="#work">Work</a><a href="#contact">Contact</a></span></nav>
 
-<header class="head">
-  <div class="text">
-    <h1>Tyler Bunn</h1>
-    <p class="role">I'm a Project Management student at Boise State, living in Mukilteo, WA. I'm looking for operations, coordinator or front office roles in Seattle, and I'm available now.</p>
-    <p class="role">I wasn't the most naturally gifted kid, but when I set my mind to something, I get it done.</p>
-  </div>
-  <img src="me.jpg" width="96" height="96" alt="Tyler Bunn">
+<header class="hero">
+  <img class="avatar" src="me.jpg" width="88" height="88" alt="Tyler Bunn">
+  <p class="hello">Hi, I'm</p>
+  <h1>Tyler Bunn</h1>
+  <p class="role">Project Management student at Boise State. I'm looking for operations, coordinator or front office roles in Seattle.</p>
+  <p class="status"><span class="live-dot" aria-hidden="true"></span>Available now</p>
 </header>
 
-<h2 id="projects">Projects</h2>
+<section id="projects" class="section">
+  <h2>Projects</h2>
+  <p class="intro">These are small projects I built by combining my personal experience, what I've learned in my classes, and real problems I ran into at work.</p>
 
-<section class="project">
-  <h3>InboxOwner</h3>
-  <ul class="tags" aria-label="Tags"><li class="tag">Self-initiated</li><li class="tag">Fake test data</li><li class="tag accent">v2</li></ul>
-  <p>A tool that shows who owns each email in a shared inbox and how long people are waiting for a reply.</p>
-  <ul class="tags" aria-label="Results on fake test data"><li class="chip"><b>18.7 hrs vs 1.2 hrs</b> cancellations vs trial questions</li><li class="chip"><b>87%</b> sorted right on new emails</li></ul>
-  <p class="links"><a href="inboxowner/">See the project</a><a href="inboxowner/demo/">Try the demo</a></p>
+  <article class="project-card teal">
+    <div class="pc-head"><span class="pc-icon"><svg class="icon " aria-hidden="true"><use href="#i-inbox"/></svg></span><div><h3>InboxOwner</h3><p class="pc-tags">Fake test data · v2</p></div></div>
+    <p>Shows who owns each email in a shared inbox, and who is still waiting.</p>
+    <div class="flow small" role="img" aria-label="Problem: Emails get lost. Tool: Every email gets an owner. Result: See who's waiting"><div class="flow-step pink"><span class="flow-icon"><svg class="icon " aria-hidden="true"><use href="#i-inbox"/></svg></span><span class="flow-label">Emails get lost</span></div><span class="flow-arrow" aria-hidden="true"><svg class="icon " aria-hidden="true"><use href="#i-arrow"/></svg></span><div class="flow-step violet"><span class="flow-icon"><svg class="icon " aria-hidden="true"><use href="#i-user"/></svg></span><span class="flow-label">Every email gets an owner</span></div><span class="flow-arrow" aria-hidden="true"><svg class="icon " aria-hidden="true"><use href="#i-arrow"/></svg></span><div class="flow-step teal"><span class="flow-icon"><svg class="icon " aria-hidden="true"><use href="#i-clock"/></svg></span><span class="flow-label">See who's waiting</span></div></div>
+    <ul class="chips"><li class="chip"><b>18.7 vs 1.2 hrs</b> wait</li><li class="chip"><b>87%</b> sorted right</li></ul>
+    <p class="actions"><a class="btn primary" href="inboxowner/">See how it works</a><a class="btn" href="inboxowner/demo/"><svg class="icon " aria-hidden="true"><use href="#i-play"/></svg>Try the demo</a></p>
+  </article>
+
+  <article class="project-card pink">
+    <div class="pc-head"><span class="pc-icon"><svg class="icon " aria-hidden="true"><use href="#i-card"/></svg></span><div><h3>Member Billing Tracker</h3><p class="pc-tags">Fake test data · v1</p></div></div>
+    <p>Catches billing mistakes and makes a daily fix list for the front desk.</p>
+    <div class="flow small" role="img" aria-label="Problem: Billing mistakes. Tool: One Google Sheet. Result: Daily fix list"><div class="flow-step pink"><span class="flow-icon"><svg class="icon " aria-hidden="true"><use href="#i-alert"/></svg></span><span class="flow-label">Billing mistakes</span></div><span class="flow-arrow" aria-hidden="true"><svg class="icon " aria-hidden="true"><use href="#i-arrow"/></svg></span><div class="flow-step violet"><span class="flow-icon"><svg class="icon " aria-hidden="true"><use href="#i-sheet"/></svg></span><span class="flow-label">One Google Sheet</span></div><span class="flow-arrow" aria-hidden="true"><svg class="icon " aria-hidden="true"><use href="#i-arrow"/></svg></span><div class="flow-step teal"><span class="flow-icon"><svg class="icon " aria-hidden="true"><use href="#i-list"/></svg></span><span class="flow-label">Daily fix list</span></div></div>
+    <ul class="chips"><li class="chip"><b>15 of 15</b> mistakes caught</li><li class="chip"><b>0</b> same-name mix-ups</li></ul>
+    <p class="actions"><a class="btn primary" href="member-billing/">See how it works</a><a class="btn" href="https://docs.google.com/spreadsheets/d/10E7Y1xSkgj9oXrpKes64kobsTme5ljlY7F1EERrffCU/edit?usp=sharing"><svg class="icon " aria-hidden="true"><use href="#i-sheet"/></svg>Open the sheet</a></p>
+  </article>
 </section>
 
-<section class="project">
-  <h3>Member Billing Tracker</h3>
-  <ul class="tags" aria-label="Tags"><li class="tag">Self-initiated</li><li class="tag">Fake test data</li><li class="tag accent">v1</li></ul>
-  <p>A Google Sheet that catches member billing mistakes and gives the front desk a daily list of who to call, refund or retry.</p>
-  <ul class="tags" aria-label="Results on fake test data"><li class="chip"><b>15 / 15</b> planted problems caught</li><li class="chip"><b>0</b> same-name mix-ups</li></ul>
-  <p class="links"><a href="member-billing/">See the project</a></p>
+<section id="work" class="section">
+  <h2>Where the ideas came from</h2>
+  <p class="intro">I worked the front desk at The Paseo Club. Real job, no code.</p>
+  <div class="cards3">
+    <div class="mini-card violet"><svg class="icon " aria-hidden="true"><use href="#i-mail"/></svg><p>All department emails came through the front desk, which got messy.</p></div>
+    <div class="mini-card pink"><svg class="icon " aria-hidden="true"><use href="#i-users"/></svg><p>I once charged the wrong member. Two members had the exact same name.</p></div>
+    <div class="mini-card teal"><svg class="icon " aria-hidden="true"><use href="#i-up"/></svg><p>I pitched fixes to the head manager and got moved into membership.</p></div>
+  </div>
+
+  <h2 class="sub">How I work</h2>
+  <p>I fix the process first, then find a tool. When I build with AI, I set the rules and check every number myself.</p>
+
+  <h2 class="sub">Experience</h2>
+  <ul class="timeline">
+    <li><span class="t-icon violet"><svg class="icon " aria-hidden="true"><use href="#i-briefcase"/></svg></span><div><strong>The Paseo Club</strong><span class="when">Dec 2024 – Dec 2025 · Santa Clarita, CA</span><span>Front Desk, then Membership Advisor. Check-ins, email routing, billing fixes, payment disputes and refunds in HubSpot.</span></div></li>
+    <li><span class="t-icon teal"><svg class="icon " aria-hidden="true"><use href="#i-briefcase"/></svg></span><div><strong>Outback Steakhouse</strong><span class="when">Dec 2025 – Jun 2026 · Santa Clarita</span><span>Busser, promoted to food runner within six months.</span></div></li>
+    <li><span class="t-icon amber"><svg class="icon " aria-hidden="true"><use href="#i-briefcase"/></svg></span><div><strong>Cooksey's Lifeguard &amp; Swim Academy</strong><span class="when">Mar 2023 – Mar 2024 · Santa Clarita</span><span>Lifeguard and swim instructor. Often the only staff member on duty making safety calls.</span></div></li>
+    <li><span class="t-icon pink"><svg class="icon " aria-hidden="true"><use href="#i-school"/></svg></span><div><strong>Boise State University</strong><span class="when">Expected Spring 2028</span><span>B.S. in Project Management.</span></div></li>
+  </ul>
 </section>
 
-<h2 id="paseo">The Paseo Club</h2>
-<p class="label">Real job. No code.</p>
-<p>All department emails came through the front desk, which got messy, and I handled a lot of payment disputes myself.</p>
-<p>I wrote up what I was seeing and pitched fixes to the head manager.</p>
-<p>That conversation got me moved into a Membership Advisor role.</p>
-
-<h2 id="how">How I work</h2>
-<p>I try to fix the process before reaching for a tool. When I build with AI, I set the rules and check every number myself instead of just trusting it.</p>
-
-<h2 id="experience">Experience</h2>
-<ul>
-  <li>The Paseo Club, Santa Clarita, CA. Front Desk / Membership Advisor (Dec 2024 – Dec 2025): member check-ins, email routing, account and billing fixes, payment disputes and refunds, HubSpot CRM.</li>
-  <li>Outback Steakhouse, Santa Clarita (Dec 2025 – Jun 2026): busser, promoted to food runner within six months.</li>
-  <li>Cooksey's Lifeguard &amp; Swim Academy, Santa Clarita (Mar 2023 – Mar 2024): lifeguard and swim instructor; often the only staff member on duty making safety calls.</li>
-  <li>Boise State University, B.S. in Project Management, expected Spring 2028.</li>
-</ul>
-
-<h2 id="contact">Contact</h2>
-<p><a href="mailto:itstylerbunn@gmail.com">itstylerbunn@gmail.com</a> · <a href="https://www.linkedin.com/in/tdbunn">linkedin.com/in/tdbunn</a><br>I'm in Mukilteo and can be in Seattle for an interview on short notice.</p>
+<section id="contact" class="section">
+  <h2>Contact</h2>
+  <p>I'm in Mukilteo and can be in Seattle for an interview on short notice.</p>
+  <p class="actions"><a class="btn primary" href="mailto:itstylerbunn@gmail.com"><svg class="icon " aria-hidden="true"><use href="#i-mail"/></svg>Email me</a><a class="btn" href="https://www.linkedin.com/in/tdbunn"><svg class="icon " aria-hidden="true"><use href="#i-link"/></svg>LinkedIn</a></p>
+</section>
 
 <footer>
 <p>Built in plain HTML and CSS with Claude Code, which I directed and fact-checked.</p>
-<p>tylerbunn.netlify.app · <a href="https://www.linkedin.com/in/tdbunn">linkedin.com/in/tdbunn</a> · <a href="mailto:itstylerbunn@gmail.com">itstylerbunn@gmail.com</a></p>
+<p><a href="mailto:itstylerbunn@gmail.com">itstylerbunn@gmail.com</a> · <a href="https://www.linkedin.com/in/tdbunn">linkedin.com/in/tdbunn</a></p>
 </footer>
 </div>
 </body>

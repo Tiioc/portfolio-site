@@ -1,26 +1,34 @@
 {
  "answer_key": {
-  "T-2100": "Card failed, not retried",
-  "T-2055": "Card failed, not retried",
-  "T-2085": "Card failed, not retried",
-  "T-2078": "Card failed, not retried",
-  "T-2089": "Charged after pausing",
-  "T-2104": "Charged after pausing",
-  "T-2066": "Charged after cancelling",
-  "T-2103": "Charged after cancelling",
+  "T-2100": "Card declined, not retried",
+  "T-2055": "Card declined, not retried",
+  "T-2078": "Card declined, not retried",
+  "T-2085": "Card declined, not retried",
+  "T-2089": "Charged after they paused",
+  "T-2104": "Charged after they paused",
+  "T-2066": "Charged after they cancelled",
+  "T-2103": "Charged after they cancelled",
   "T-2073": "Charged twice this month",
   "T-2109": "Charged twice this month",
   "T-2110": "Paid with another member's card",
-  "T-2013": "Disputed charge",
-  "T-2098": "Disputed charge",
-  "R-03": "Refund approved but never sent",
-  "R-04": "Refund approved but never sent"
+  "T-2013": "Member disputed this charge",
+  "T-2098": "Member disputed this charge",
+  "R-03": "Refund approved, never sent",
+  "R-04": "Refund approved, never sent"
+ },
+ "actions": {
+  "Member disputed this charge": "Call",
+  "Card declined, not retried": "Retry card",
+  "Charged after they paused": "Refund",
+  "Charged after they cancelled": "Refund",
+  "Charged twice this month": "Refund",
+  "Paid with another member's card": "Move payment",
+  "Refund approved, never sent": "Send refund"
  },
  "members": {
   "M-1001": {
    "id": "M-1001",
    "name": "Ava Ortiz",
-   "plan": "Family",
    "dues": 260,
    "card": "Visa 6305",
    "status": "Active",
@@ -30,7 +38,6 @@
   "M-1002": {
    "id": "M-1002",
    "name": "Ben Nguyen",
-   "plan": "Family",
    "dues": 260,
    "card": "Visa 3471",
    "status": "Active",
@@ -40,7 +47,6 @@
   "M-1003": {
    "id": "M-1003",
    "name": "Carla Patel",
-   "plan": "Family",
    "dues": 260,
    "card": "Visa 7468",
    "status": "Active",
@@ -50,7 +56,6 @@
   "M-1004": {
    "id": "M-1004",
    "name": "Dev Brooks",
-   "plan": "Tennis",
    "dues": 189,
    "card": "Visa 1791",
    "status": "Active",
@@ -60,7 +65,6 @@
   "M-1005": {
    "id": "M-1005",
    "name": "Ella Kim",
-   "plan": "Social",
    "dues": 95,
    "card": "Visa 2186",
    "status": "Active",
@@ -70,7 +74,6 @@
   "M-1006": {
    "id": "M-1006",
    "name": "Felix Reyes",
-   "plan": "Tennis",
    "dues": 189,
    "card": "Visa 9779",
    "status": "Active",
@@ -80,7 +83,6 @@
   "M-1007": {
    "id": "M-1007",
    "name": "Gina Hale",
-   "plan": "Family",
    "dues": 260,
    "card": "Visa 2542",
    "status": "Active",
@@ -90,7 +92,6 @@
   "M-1008": {
    "id": "M-1008",
    "name": "Hank Moreno",
-   "plan": "Family",
    "dues": 260,
    "card": "Visa 6991",
    "status": "Active",
@@ -100,7 +101,6 @@
   "M-1009": {
    "id": "M-1009",
    "name": "Iris Sato",
-   "plan": "Tennis",
    "dues": 189,
    "card": "Visa 1950",
    "status": "Active",
@@ -110,7 +110,6 @@
   "M-1010": {
    "id": "M-1010",
    "name": "Jake Price",
-   "plan": "Family",
    "dues": 260,
    "card": "Visa 9313",
    "status": "Active",
@@ -120,7 +119,6 @@
   "M-1011": {
    "id": "M-1011",
    "name": "Kira Lund",
-   "plan": "Tennis",
    "dues": 189,
    "card": "Visa 4517",
    "status": "Active",
@@ -130,7 +128,6 @@
   "M-1012": {
    "id": "M-1012",
    "name": "Chris Morgan",
-   "plan": "Tennis",
    "dues": 189,
    "card": "Visa 1614",
    "status": "Active",
@@ -140,7 +137,6 @@
   "M-1013": {
    "id": "M-1013",
    "name": "Mia Shaw",
-   "plan": "Tennis",
    "dues": 189,
    "card": "Visa 2408",
    "status": "Active",
@@ -150,7 +146,6 @@
   "M-1014": {
    "id": "M-1014",
    "name": "Nate Diaz",
-   "plan": "Social",
    "dues": 95,
    "card": "Visa 8104",
    "status": "Active",
@@ -160,7 +155,6 @@
   "M-1015": {
    "id": "M-1015",
    "name": "Olive Fox",
-   "plan": "Family",
    "dues": 260,
    "card": "Visa 7851",
    "status": "Paused",
@@ -170,7 +164,6 @@
   "M-1016": {
    "id": "M-1016",
    "name": "Paul Grant",
-   "plan": "Family",
    "dues": 260,
    "card": "Visa 2144",
    "status": "Active",
@@ -180,7 +173,6 @@
   "M-1017": {
    "id": "M-1017",
    "name": "Quinn Hayes",
-   "plan": "Social",
    "dues": 95,
    "card": "Visa 4943",
    "status": "Active",
@@ -190,7 +182,6 @@
   "M-1018": {
    "id": "M-1018",
    "name": "Rosa Iqbal",
-   "plan": "Social",
    "dues": 95,
    "card": "Visa 2486",
    "status": "Active",
@@ -200,7 +191,6 @@
   "M-1019": {
    "id": "M-1019",
    "name": "Sam Jensen",
-   "plan": "Social",
    "dues": 95,
    "card": "Visa 7955",
    "status": "Active",
@@ -210,7 +200,6 @@
   "M-1020": {
    "id": "M-1020",
    "name": "Tara Klein",
-   "plan": "Family",
    "dues": 260,
    "card": "Visa 1968",
    "status": "Active",
@@ -220,7 +209,6 @@
   "M-1021": {
    "id": "M-1021",
    "name": "Uma Lowe",
-   "plan": "Social",
    "dues": 95,
    "card": "Visa 3028",
    "status": "Active",
@@ -230,7 +218,6 @@
   "M-1022": {
    "id": "M-1022",
    "name": "Vic Mendez",
-   "plan": "Social",
    "dues": 95,
    "card": "Visa 4657",
    "status": "Active",
@@ -240,7 +227,6 @@
   "M-1023": {
    "id": "M-1023",
    "name": "Wes Novak",
-   "plan": "Social",
    "dues": 95,
    "card": "Visa 2013",
    "status": "Active",
@@ -250,7 +236,6 @@
   "M-1024": {
    "id": "M-1024",
    "name": "Xena Olsen",
-   "plan": "Tennis",
    "dues": 189,
    "card": "Visa 7499",
    "status": "Active",
@@ -260,7 +245,6 @@
   "M-1025": {
    "id": "M-1025",
    "name": "Yara Park",
-   "plan": "Tennis",
    "dues": 189,
    "card": "Visa 1812",
    "status": "Active",
@@ -270,7 +254,6 @@
   "M-1026": {
    "id": "M-1026",
    "name": "Zack Quint",
-   "plan": "Family",
    "dues": 260,
    "card": "Visa 4622",
    "status": "Active",
@@ -280,7 +263,6 @@
   "M-1027": {
    "id": "M-1027",
    "name": "Amir Ruiz",
-   "plan": "Tennis",
    "dues": 189,
    "card": "Visa 1763",
    "status": "Active",
@@ -290,7 +272,6 @@
   "M-1028": {
    "id": "M-1028",
    "name": "Bea Stone",
-   "plan": "Tennis",
    "dues": 189,
    "card": "Visa 3181",
    "status": "Active",
@@ -300,7 +281,6 @@
   "M-1029": {
    "id": "M-1029",
    "name": "Cole Tran",
-   "plan": "Family",
    "dues": 260,
    "card": "Visa 5744",
    "status": "Active",
@@ -310,7 +290,6 @@
   "M-1030": {
    "id": "M-1030",
    "name": "Dana Udall",
-   "plan": "Social",
    "dues": 95,
    "card": "Visa 7867",
    "status": "Cancelled",
@@ -320,7 +299,6 @@
   "M-1031": {
    "id": "M-1031",
    "name": "Chris Morgan",
-   "plan": "Social",
    "dues": 95,
    "card": "Visa 3363",
    "status": "Paused",
@@ -330,7 +308,6 @@
   "M-1032": {
    "id": "M-1032",
    "name": "Faye West",
-   "plan": "Social",
    "dues": 95,
    "card": "Visa 9858",
    "status": "Active",
@@ -340,7 +317,6 @@
   "M-1033": {
    "id": "M-1033",
    "name": "Gus Young",
-   "plan": "Social",
    "dues": 95,
    "card": "Visa 2929",
    "status": "Paused",
@@ -350,7 +326,6 @@
   "M-1034": {
    "id": "M-1034",
    "name": "Hana Zane",
-   "plan": "Family",
    "dues": 260,
    "card": "Visa 6054",
    "status": "Active",
@@ -360,7 +335,6 @@
   "M-1035": {
    "id": "M-1035",
    "name": "Ivan Abbott",
-   "plan": "Social",
    "dues": 95,
    "card": "Visa 3961",
    "status": "Active",
@@ -370,7 +344,6 @@
   "M-1036": {
    "id": "M-1036",
    "name": "Jules Banks",
-   "plan": "Social",
    "dues": 95,
    "card": "Visa 2688",
    "status": "Active",
@@ -388,7 +361,6 @@
    "card": "Visa 6305",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2001"
   },
   {
@@ -400,7 +372,6 @@
    "card": "Visa 3471",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2002"
   },
   {
@@ -412,7 +383,6 @@
    "card": "Visa 7468",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2003"
   },
   {
@@ -424,7 +394,6 @@
    "card": "Visa 1791",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2004"
   },
   {
@@ -436,7 +405,6 @@
    "card": "Visa 2186",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2005"
   },
   {
@@ -448,7 +416,6 @@
    "card": "Visa 9779",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2006"
   },
   {
@@ -460,7 +427,6 @@
    "card": "Visa 2542",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2007"
   },
   {
@@ -472,7 +438,6 @@
    "card": "Visa 6991",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2008"
   },
   {
@@ -484,7 +449,6 @@
    "card": "Visa 1950",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2009"
   },
   {
@@ -496,7 +460,6 @@
    "card": "Visa 9313",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2010"
   },
   {
@@ -508,7 +471,6 @@
    "card": "Visa 4517",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2011"
   },
   {
@@ -520,7 +482,6 @@
    "card": "Visa 1614",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2012"
   },
   {
@@ -532,7 +493,6 @@
    "card": "Visa 2408",
    "result": "Paid",
    "disputed": "Yes",
-   "note": "",
    "txn": "T-2013"
   },
   {
@@ -544,7 +504,6 @@
    "card": "Visa 8104",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2014"
   },
   {
@@ -556,7 +515,6 @@
    "card": "Visa 7851",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2015"
   },
   {
@@ -568,7 +526,6 @@
    "card": "Visa 2144",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2016"
   },
   {
@@ -580,7 +537,6 @@
    "card": "Visa 4943",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2017"
   },
   {
@@ -592,7 +548,6 @@
    "card": "Visa 2486",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2018"
   },
   {
@@ -604,7 +559,6 @@
    "card": "Visa 7955",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2019"
   },
   {
@@ -616,7 +570,6 @@
    "card": "Visa 1968",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2020"
   },
   {
@@ -628,7 +581,6 @@
    "card": "Visa 3028",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2021"
   },
   {
@@ -640,7 +592,6 @@
    "card": "Visa 4657",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2022"
   },
   {
@@ -652,7 +603,6 @@
    "card": "Visa 2013",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2023"
   },
   {
@@ -664,7 +614,6 @@
    "card": "Visa 7499",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2024"
   },
   {
@@ -676,7 +625,6 @@
    "card": "Visa 1812",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2025"
   },
   {
@@ -688,7 +636,6 @@
    "card": "Visa 4622",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2026"
   },
   {
@@ -700,7 +647,6 @@
    "card": "Visa 1763",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2027"
   },
   {
@@ -712,7 +658,6 @@
    "card": "Visa 3181",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2028"
   },
   {
@@ -724,7 +669,6 @@
    "card": "Visa 5744",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2029"
   },
   {
@@ -736,7 +680,6 @@
    "card": "Visa 7867",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2030"
   },
   {
@@ -748,7 +691,6 @@
    "card": "Visa 3363",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2031"
   },
   {
@@ -760,7 +702,6 @@
    "card": "Visa 9858",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2032"
   },
   {
@@ -772,7 +713,6 @@
    "card": "Visa 2929",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2033"
   },
   {
@@ -784,7 +724,6 @@
    "card": "Visa 6054",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2034"
   },
   {
@@ -796,7 +735,6 @@
    "card": "Visa 3961",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2035"
   },
   {
@@ -808,7 +746,6 @@
    "card": "Visa 2688",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2036"
   },
   {
@@ -820,7 +757,6 @@
    "card": "Visa 6305",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2037"
   },
   {
@@ -832,7 +768,6 @@
    "card": "Visa 3471",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2038"
   },
   {
@@ -844,7 +779,6 @@
    "card": "Visa 7468",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2039"
   },
   {
@@ -856,7 +790,6 @@
    "card": "Visa 1791",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2040"
   },
   {
@@ -868,7 +801,6 @@
    "card": "Visa 2186",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2041"
   },
   {
@@ -880,7 +812,6 @@
    "card": "Visa 9779",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2042"
   },
   {
@@ -892,7 +823,6 @@
    "card": "Visa 2542",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2043"
   },
   {
@@ -902,9 +832,8 @@
    "period": "2026-09",
    "amount": 260,
    "card": "Visa 6991",
-   "result": "Failed",
+   "result": "Declined",
    "disputed": "",
-   "note": "",
    "txn": "T-2044"
   },
   {
@@ -916,7 +845,6 @@
    "card": "Visa 1950",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2045"
   },
   {
@@ -928,7 +856,6 @@
    "card": "Visa 9313",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2046"
   },
   {
@@ -940,7 +867,6 @@
    "card": "Visa 4517",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2047"
   },
   {
@@ -952,7 +878,6 @@
    "card": "Visa 1614",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2048"
   },
   {
@@ -964,7 +889,6 @@
    "card": "Visa 2408",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2049"
   },
   {
@@ -976,7 +900,6 @@
    "card": "Visa 8104",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2050"
   },
   {
@@ -988,7 +911,6 @@
    "card": "Visa 7851",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2051"
   },
   {
@@ -1000,7 +922,6 @@
    "card": "Visa 2144",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2052"
   },
   {
@@ -1012,7 +933,6 @@
    "card": "Visa 4943",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2053"
   },
   {
@@ -1024,7 +944,6 @@
    "card": "Visa 2486",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2054"
   },
   {
@@ -1034,9 +953,8 @@
    "period": "2026-09",
    "amount": 95,
    "card": "Visa 7955",
-   "result": "Failed",
+   "result": "Declined",
    "disputed": "",
-   "note": "",
    "txn": "T-2055"
   },
   {
@@ -1048,7 +966,6 @@
    "card": "Visa 1968",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2056"
   },
   {
@@ -1060,7 +977,6 @@
    "card": "Visa 3028",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2057"
   },
   {
@@ -1072,7 +988,6 @@
    "card": "Visa 4657",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2058"
   },
   {
@@ -1084,7 +999,6 @@
    "card": "Visa 2013",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2059"
   },
   {
@@ -1096,7 +1010,6 @@
    "card": "Visa 7499",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2060"
   },
   {
@@ -1108,7 +1021,6 @@
    "card": "Visa 1812",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2061"
   },
   {
@@ -1120,7 +1032,6 @@
    "card": "Visa 4622",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2062"
   },
   {
@@ -1132,7 +1043,6 @@
    "card": "Visa 1763",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2063"
   },
   {
@@ -1144,7 +1054,6 @@
    "card": "Visa 3181",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2064"
   },
   {
@@ -1156,7 +1065,6 @@
    "card": "Visa 5744",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2065"
   },
   {
@@ -1168,7 +1076,6 @@
    "card": "Visa 7867",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2066"
   },
   {
@@ -1180,7 +1087,6 @@
    "card": "Visa 3363",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2067"
   },
   {
@@ -1192,7 +1098,6 @@
    "card": "Visa 9858",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2068"
   },
   {
@@ -1204,7 +1109,6 @@
    "card": "Visa 2929",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2069"
   },
   {
@@ -1216,7 +1120,6 @@
    "card": "Visa 6054",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2070"
   },
   {
@@ -1228,7 +1131,6 @@
    "card": "Visa 3961",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2071"
   },
   {
@@ -1240,7 +1142,6 @@
    "card": "Visa 2688",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2072"
   },
   {
@@ -1252,7 +1153,6 @@
    "card": "Visa 9779",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2073"
   },
   {
@@ -1264,7 +1164,6 @@
    "card": "Visa 6991",
    "result": "Paid",
    "disputed": "",
-   "note": "Retried",
    "txn": "T-2074"
   },
   {
@@ -1276,7 +1175,6 @@
    "card": "Visa 6305",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2075"
   },
   {
@@ -1288,7 +1186,6 @@
    "card": "Visa 3471",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2076"
   },
   {
@@ -1300,7 +1197,6 @@
    "card": "Visa 7468",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2077"
   },
   {
@@ -1310,9 +1206,8 @@
    "period": "2026-10",
    "amount": 189,
    "card": "Visa 1791",
-   "result": "Failed",
+   "result": "Declined",
    "disputed": "",
-   "note": "",
    "txn": "T-2078"
   },
   {
@@ -1324,7 +1219,6 @@
    "card": "Visa 2186",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2079"
   },
   {
@@ -1336,7 +1230,6 @@
    "card": "Visa 9779",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2080"
   },
   {
@@ -1348,7 +1241,6 @@
    "card": "Visa 2542",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2081"
   },
   {
@@ -1360,7 +1252,6 @@
    "card": "Visa 6991",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2082"
   },
   {
@@ -1372,7 +1263,6 @@
    "card": "Visa 1950",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2083"
   },
   {
@@ -1384,7 +1274,6 @@
    "card": "Visa 9313",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2084"
   },
   {
@@ -1394,9 +1283,8 @@
    "period": "2026-10",
    "amount": 189,
    "card": "Visa 4517",
-   "result": "Failed",
+   "result": "Declined",
    "disputed": "",
-   "note": "",
    "txn": "T-2085"
   },
   {
@@ -1408,7 +1296,6 @@
    "card": "Visa 1614",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2086"
   },
   {
@@ -1420,7 +1307,6 @@
    "card": "Visa 2408",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2087"
   },
   {
@@ -1432,7 +1318,6 @@
    "card": "Visa 8104",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2088"
   },
   {
@@ -1444,7 +1329,6 @@
    "card": "Visa 7851",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2089"
   },
   {
@@ -1456,7 +1340,6 @@
    "card": "Visa 2144",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2090"
   },
   {
@@ -1468,7 +1351,6 @@
    "card": "Visa 4943",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2091"
   },
   {
@@ -1480,7 +1362,6 @@
    "card": "Visa 7955",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2092"
   },
   {
@@ -1492,7 +1373,6 @@
    "card": "Visa 1968",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2093"
   },
   {
@@ -1504,7 +1384,6 @@
    "card": "Visa 3028",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2094"
   },
   {
@@ -1516,7 +1395,6 @@
    "card": "Visa 4657",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2095"
   },
   {
@@ -1526,9 +1404,8 @@
    "period": "2026-10",
    "amount": 95,
    "card": "Visa 2013",
-   "result": "Failed",
+   "result": "Declined",
    "disputed": "",
-   "note": "",
    "txn": "T-2096"
   },
   {
@@ -1540,7 +1417,6 @@
    "card": "Visa 7499",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2097"
   },
   {
@@ -1552,7 +1428,6 @@
    "card": "Visa 1812",
    "result": "Paid",
    "disputed": "Yes",
-   "note": "",
    "txn": "T-2098"
   },
   {
@@ -1564,7 +1439,6 @@
    "card": "Visa 4622",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2099"
   },
   {
@@ -1574,9 +1448,8 @@
    "period": "2026-10",
    "amount": 189,
    "card": "Visa 1763",
-   "result": "Failed",
+   "result": "Declined",
    "disputed": "",
-   "note": "",
    "txn": "T-2100"
   },
   {
@@ -1588,7 +1461,6 @@
    "card": "Visa 3181",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2101"
   },
   {
@@ -1600,7 +1472,6 @@
    "card": "Visa 5744",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2102"
   },
   {
@@ -1612,7 +1483,6 @@
    "card": "Visa 7867",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2103"
   },
   {
@@ -1624,7 +1494,6 @@
    "card": "Visa 3363",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2104"
   },
   {
@@ -1636,7 +1505,6 @@
    "card": "Visa 9858",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2105"
   },
   {
@@ -1648,7 +1516,6 @@
    "card": "Visa 6054",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2106"
   },
   {
@@ -1660,7 +1527,6 @@
    "card": "Visa 3961",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2107"
   },
   {
@@ -1672,7 +1538,6 @@
    "card": "Visa 2688",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2108"
   },
   {
@@ -1684,7 +1549,6 @@
    "card": "Visa 3028",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2109"
   },
   {
@@ -1696,7 +1560,6 @@
    "card": "Visa 2486",
    "result": "Paid",
    "disputed": "",
-   "note": "",
    "txn": "T-2110"
   },
   {
@@ -1708,7 +1571,6 @@
    "card": "Visa 2013",
    "result": "Paid",
    "disputed": "",
-   "note": "Retried",
    "txn": "T-2111"
   },
   {
@@ -1718,9 +1580,8 @@
    "period": "2026-10",
    "amount": 189,
    "card": "Visa 7468",
-   "result": "Sent",
+   "result": "Refunded",
    "disputed": "",
-   "note": "",
    "txn": "T-2112"
   },
   {
@@ -1730,9 +1591,8 @@
    "period": "2026-10",
    "amount": 95,
    "card": "Visa 1614",
-   "result": "Sent",
+   "result": "Refunded",
    "disputed": "",
-   "note": "",
    "txn": "T-2113"
   }
  ],
