@@ -1,0 +1,1249 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>InboxOwner: the code</title>
+<meta name="description" content="Source code for InboxOwner.">
+<meta name="author" content="Tyler Bunn">
+<link rel="stylesheet" href="../../style.css">
+<link rel="icon" href="data:,">
+
+</head>
+<body>
+<div class="page">
+<nav class="site" aria-label="Site"><a href="../../#projects" aria-current="page">Projects</a><a href="../../#paseo">The Paseo Club</a><a href="../../#how">How I work</a><a href="../../#contact">Contact</a></nav>
+<h1>InboxOwner: the code</h1><p><a href="../">Back to the case study</a></p><p>Written with Claude Code to my requirements. I directed and fact-checked it; I didn't write it. All data it generates is made up.</p><ul>
+<li><a href="#f0">core/inbox-core.js</a>: The engine: staffed-hours math, the health check, the ownership queue, reminders, the weekly scorecard, sorting and scoring.</li>
+<li><a href="#f1">core/triage-rules.js</a>: The sorting rules (current version, with the history of the earlier versions in the header comment).</li>
+<li><a href="#f2">apps-script/Pilot.gs</a>: The real-inbox version: Gmail to metadata to a Sheet, owner labels, hourly reminders, weekly scorecard. Never stores message bodies.</li>
+<li><a href="#f3">data/generate.js</a>: Builds the sample inbox from a seed, including the behaviour the health check has to find.</li>
+<li><a href="#f4">test/core.test.js</a>: Unit tests with hand-worked answers.</li>
+<li><a href="#f5">test/pilot.test.js</a>: Runs the Gmail version against a fake inbox, including the privacy check.</li>
+<li><a href="#f6">test/triage-eval.js</a>: Scores each rule version on the four test sets.</li>
+</ul>
+<h2 id="f0">core/inbox-core.js</h2><p class="muted">The engine: staffed-hours math, the health check, the ownership queue, reminders, the weekly scorecard, sorting and scoring.</p><pre><code>/**
+ * InboxOwner core: response-time audit, ownership/SLA status and rules triage
+ * for a shared inbox.
+ *
+ * Plain JavaScript with no dependencies, so the same file runs in the browser
+ * demo, in Node tests and in Google Apps Script (where it reads a real Gmail
+ * inbox).
+ *
+ * Time convention: every timestamp is &quot;studio wall-clock milliseconds&quot;, i.e.
+ * Date.UTC(year, month, day, hour, minute) of the local time at the business.
+ * Callers convert real dates once at the edge; nothing in here depends on the
+ * machine&#x27;s time zone.
+ */
+(function (root) {
+  &#x27;use strict&#x27;;
+
+  const HOUR = 3600000;
+  const MIN = 60000;
+  const DAY = 24 * HOUR;
+
+  /* ------------------------------------------------------------ helpers */
+
+  function median(xs) { return quantile(xs, 0.5); }
+
+  // Linear-interpolated quantile (same method as Google Sheets PERCENTILE).
+  function quantile(xs, q) {
+    if (!xs.length) return null;
+    const s = xs.slice().sort((a, b) =&gt; a - b);
+    const pos = (s.length - 1) * q;
+    const lo = Math.floor(pos), hi = Math.ceil(pos);
+    return s[lo] + (s[hi] - s[lo]) * (pos - lo);
+  }
+
+  function round(x, d) { const f = Math.pow(10, d || 0); return Math.round(x * f) / f; }
+
+  /* ----------------------------------------------------- business hours */
+
+  /**
+   * hours: {0..6: [openHour, closeHour] | null}, 0 = Sunday.
+   * Returns business minutes between two wall-clock timestamps.
+   */
+  function businessMinutes(start, end, hours) {
+    if (end &lt;= start) return 0;
+    let total = 0;
+    let dayStart = Math.floor(start / DAY) * DAY;
+    while (dayStart &lt; end) {
+      const h = hours[new Date(dayStart).getUTCDay()];
+      if (h) {
+        const open = dayStart + h[0] * HOUR, close = dayStart + h[1] * HOUR;
+        const a = Math.max(open, start), b = Math.min(close, end);
+        if (b &gt; a) total += (b - a) / MIN;
+      }
+      dayStart += DAY;
+    }
+    return total;
+  }
+
+  /** Adds business minutes to a wall-clock timestamp (used for SLA due times). */
+  function addBusinessMinutes(start, minutes, hours) {
+    let t = start, left = minutes;
+    for (let guard = 0; guard &lt; 400; guard++) {
+      const dayStart = Math.floor(t / DAY) * DAY;
+      const h = hours[new Date(dayStart).getUTCDay()];
+      if (h) {
+        const open = dayStart + h[0] * HOUR, close = dayStart + h[1] * HOUR;
+        const from = Math.max(t, open);
+        if (from &lt; close) {
+          const avail = (close - from) / MIN;
+          if (avail &gt;= left) return from + left * MIN;
+          left -= avail;
+        }
+      }
+      t = dayStart + DAY;
+    }
+    throw new Error(&#x27;addBusinessMinutes: no business hours configured&#x27;);
+  }
+
+  /* ------------------------------------------------------------- audit */
+
+  /**
+   * Per-thread facts. A thread is {id, category?, messages:[{from:&#x27;customer&#x27;|&#x27;staff&#x27;, staff?, at}]}
+   * sorted by time. Only metadata is used; message bodies are never needed.
+   */
+  function analyzeThread(thread, cfg) {
+    const msgs = thread.messages;
+    const firstIn = msgs.find(m =&gt; m.from === &#x27;customer&#x27;);
+    if (!firstIn) return null; // outbound-only thread: not a customer request
+    const firstReply = msgs.find(m =&gt; m.from === &#x27;staff&#x27; &amp;&amp; m.at &gt; firstIn.at);
+    const replyAt = firstReply ? firstReply.at : null;
+
+    // Duplicate reply: two or more different staff answer the same customer
+    // message before the customer writes again.
+    let duplicate = false;
+    for (let i = 0; i &lt; msgs.length; i++) {
+      if (msgs[i].from !== &#x27;customer&#x27;) continue;
+      const repliers = new Set();
+      for (let j = i + 1; j &lt; msgs.length &amp;&amp; msgs[j].from !== &#x27;customer&#x27;; j++) repliers.add(msgs[j].staff);
+      if (repliers.size &gt; 1) { duplicate = true; break; }
+    }
+
+    const last = msgs[msgs.length - 1];
+    const awaiting = last.from === &#x27;customer&#x27;;
+    // Oldest customer message that is still unanswered (drives SLA).
+    let waitingSince = null;
+    if (awaiting) {
+      for (let i = msgs.length - 1; i &gt;= 0 &amp;&amp; msgs[i].from === &#x27;customer&#x27;; i--) waitingSince = msgs[i].at;
+    }
+
+    const age = cfg.asOf - firstIn.at;
+    return {
+      id: thread.id,
+      category: thread.category || null,
+      firstIn: firstIn.at,
+      firstReplyBy: firstReply ? firstReply.staff : null,
+      frtMinutes: replyAt === null ? null : businessMinutes(firstIn.at, replyAt, cfg.hours),
+      frtClockHours: replyAt === null ? null : (replyAt - firstIn.at) / HOUR,
+      // Only judge a thread at 24h/48h once it is at least that old.
+      unanswered24: age &gt;= 24 * HOUR ? (replyAt === null || replyAt - firstIn.at &gt; 24 * HOUR) : null,
+      unanswered48: age &gt;= 48 * HOUR ? (replyAt === null || replyAt - firstIn.at &gt; 48 * HOUR) : null,
+      neverAnswered: replyAt === null,
+      duplicate,
+      awaiting,
+      waitingSince,
+      staffReplies: msgs.filter(m =&gt; m.from === &#x27;staff&#x27;).map(m =&gt; m.staff),
+    };
+  }
+
+  /** Inbox health check over a lookback window ending at cfg.asOf. */
+  function audit(threads, cfg) {
+    const from = cfg.asOf - (cfg.lookbackDays || 90) * DAY;
+    const rows = threads.map(t =&gt; analyzeThread(t, cfg)).filter(r =&gt; r &amp;&amp; r.firstIn &gt;= from &amp;&amp; r.firstIn &lt;= cfg.asOf);
+    const answered = rows.filter(r =&gt; r.frtMinutes !== null);
+    const frt = answered.map(r =&gt; r.frtMinutes / 60);
+    const judged24 = rows.filter(r =&gt; r.unanswered24 !== null);
+    const judged48 = rows.filter(r =&gt; r.unanswered48 !== null);
+    const pct = (num, den) =&gt; den.length ? num.length / den.length : null;
+
+    const byCategory = {};
+    rows.forEach(r =&gt; {
+      const k = r.category || &#x27;uncategorized&#x27;;
+      (byCategory[k] = byCategory[k] || []).push(r);
+    });
+    const categories = Object.keys(byCategory).map(k =&gt; {
+      const rs = byCategory[k];
+      const f = rs.filter(r =&gt; r.frtMinutes !== null).map(r =&gt; r.frtMinutes / 60);
+      const j48 = rs.filter(r =&gt; r.unanswered48 !== null);
+      return {
+        category: k, threads: rs.length,
+        medianFrtHours: f.length ? round(median(f), 2) : null,
+        p90FrtHours: f.length ? round(quantile(f, 0.9), 2) : null,
+        unanswered48: j48.length ? round(j48.filter(r =&gt; r.unanswered48).length / j48.length, 4) : null,
+        duplicateRate: round(rs.filter(r =&gt; r.duplicate).length / rs.length, 4),
+      };
+    }).sort((a, b) =&gt; b.threads - a.threads);
+
+    // Arrival heatmap: weekday (0=Sun) × hour of first customer message.
+    const heat = Array.from({ length: 7 }, () =&gt; Array(24).fill(0));
+    rows.forEach(r =&gt; { const d = new Date(r.firstIn); heat[d.getUTCDay()][d.getUTCHours()]++; });
+    const outsideHours = rows.filter(r =&gt; {
+      const d = new Date(r.firstIn), h = cfg.hours[d.getUTCDay()];
+      return !h || d.getUTCHours() &lt; h[0] || d.getUTCHours() &gt;= h[1];
+    }).length;
+
+    // Who carries the inbox: share of all staff replies.
+    const replyCounts = {};
+    rows.forEach(r =&gt; r.staffReplies.forEach(s =&gt; { replyCounts[s] = (replyCounts[s] || 0) + 1; }));
+    const totalReplies = Object.values(replyCounts).reduce((a, b) =&gt; a + b, 0);
+    const staff = Object.keys(replyCounts).map(s =&gt; ({ staff: s, replies: replyCounts[s], share: round(replyCounts[s] / totalReplies, 4) }))
+      .sort((a, b) =&gt; b.replies - a.replies);
+
+    return {
+      window: { from, to: cfg.asOf, days: cfg.lookbackDays || 90 },
+      threads: rows.length,
+      answered: answered.length,
+      medianFrtHours: frt.length ? round(median(frt), 2) : null,
+      p90FrtHours: frt.length ? round(quantile(frt, 0.9), 2) : null,
+      unanswered24: pct(judged24.filter(r =&gt; r.unanswered24), judged24),
+      unanswered48: pct(judged48.filter(r =&gt; r.unanswered48), judged48),
+      neverAnswered: rows.filter(r =&gt; r.neverAnswered).length,
+      awaitingNow: rows.filter(r =&gt; r.awaiting).length,
+      duplicateRate: rows.length ? rows.filter(r =&gt; r.duplicate).length / rows.length : null,
+      outsideHoursShare: rows.length ? outsideHours / rows.length : null,
+      categories, heat, staff, rows,
+    };
+  }
+
+  /** Plain-language findings, generated from the audit (never hard-coded). */
+  function findings(a, labels, exclude) {
+    const name = k =&gt; (labels &amp;&amp; labels[k]) || k;
+    const out = [];
+    // `exclude` drops internal mail (e.g. vendors) from customer-facing comparisons.
+    const cats = a.categories.filter(c =&gt; c.medianFrtHours !== null &amp;&amp; c.threads &gt;= 10 &amp;&amp; !(exclude || []).includes(c.category));
+    if (cats.length &gt;= 2) {
+      const slow = cats.reduce((x, y) =&gt; (y.medianFrtHours &gt; x.medianFrtHours ? y : x));
+      const fast = cats.reduce((x, y) =&gt; (y.medianFrtHours &lt; x.medianFrtHours ? y : x));
+      // The ratio is computed from the medians exactly as displayed (1 decimal),
+      // so a reader can check it: 18.7 / 1.2 = 15.6, not the unrounded 15.2.
+      const slowShown = round(slow.medianFrtHours, 1), fastShown = round(fast.medianFrtHours, 1);
+      if (fastShown &gt; 0 &amp;&amp; slowShown / fastShown &gt;= 1.5) {
+        const cap = s =&gt; s.charAt(0).toUpperCase() + s.slice(1);
+        out.push({ kind: &#x27;slowest&#x27;, ratio: round(slowShown / fastShown, 1), text: `${cap(name(slow.category))} wait ${round(slowShown / fastShown, 1)}× longer for a first reply than ${name(fast.category)} (median ${slowShown} vs ${fastShown} business hours).` });
+      }
+      const dropped = cats.filter(c =&gt; c.unanswered48 !== null).sort((x, y) =&gt; y.unanswered48 - x.unanswered48)[0];
+      if (dropped &amp;&amp; dropped.unanswered48 &gt;= 0.1) {
+        out.push({ kind: &#x27;dropped&#x27;, text: `${round(dropped.unanswered48 * 100)}% of ${name(dropped.category)} had no reply within 48 hours, the worst of any category.` });
+      }
+      const dup = cats.slice().sort((x, y) =&gt; y.duplicateRate - x.duplicateRate)[0];
+      if (dup &amp;&amp; dup.duplicateRate &gt;= 0.05) {
+        out.push({ kind: &#x27;duplicate&#x27;, text: `${round(dup.duplicateRate * 100)}% of ${name(dup.category)} got replies from two or more staff: nobody could see who already had it.` });
+      }
+    }
+    if (a.staff.length &amp;&amp; a.staff[0].share &gt;= 0.4) {
+      out.push({ kind: &#x27;load&#x27;, text: `${a.staff[0].staff} sent ${round(a.staff[0].share * 100)}% of all replies. The inbox depends on one person.` });
+    }
+    if (a.outsideHoursShare !== null &amp;&amp; a.outsideHoursShare &gt;= 0.25) {
+      out.push({ kind: &#x27;afterhours&#x27;, text: `${round(a.outsideHoursShare * 100)}% of emails arrive outside staffed hours, so they start the next day already waiting.` });
+    }
+    return out;
+  }
+
+  /* ------------------------------------------------ ownership and SLAs */
+
+  /**
+   * Open-queue status at `now`. routing: {category: {owner, slaHours}} in business hours.
+   * claims: {threadId: owner} overrides the routing default.
+   */
+  function queue(threads, cfg, claims, now) {
+    now = now || cfg.asOf;
+    const soonMin = (cfg.dueSoonHours || 1) * 60;
+    return threads.map(t =&gt; analyzeThread(t, Object.assign({}, cfg, { asOf: now })))
+      .filter(r =&gt; r &amp;&amp; r.awaiting &amp;&amp; r.waitingSince &lt;= now)
+      .map(r =&gt; {
+        const route = (cfg.routing &amp;&amp; cfg.routing[r.category]) || cfg.defaultRoute || { owner: null, slaHours: 8 };
+        const owner = (claims &amp;&amp; claims[r.id]) || null;
+        const due = addBusinessMinutes(r.waitingSince, route.slaHours * 60, cfg.hours);
+        const leftMin = due &gt; now ? businessMinutes(now, due, cfg.hours) : -businessMinutes(due, now, cfg.hours);
+        // Requests older than staleDays are a one-time backlog to clean up, not
+        // something to nudge about every day.
+        const stale = cfg.staleDays &amp;&amp; now - r.waitingSince &gt; cfg.staleDays * DAY;
+        const status = stale ? &#x27;stale&#x27; : leftMin &lt; 0 ? &#x27;overdue&#x27; : leftMin &lt;= soonMin ? &#x27;due-soon&#x27; : &#x27;on-track&#x27;;
+        const unclaimedHours = owner ? 0 : (now - r.waitingSince) / HOUR;
+        return {
+          id: r.id, category: r.category, owner, suggestedOwner: route.owner, slaHours: route.slaHours,
+          waitingSince: r.waitingSince, due, businessMinutesLeft: round(leftMin), status, unclaimedHours: round(unclaimedHours, 1),
+        };
+      })
+      .sort((a, b) =&gt; (a.status === &#x27;stale&#x27;) - (b.status === &#x27;stale&#x27;) || a.due - b.due);
+  }
+
+  /**
+   * Nudge plan: who gets an email right now. Owners get one digest of their
+   * overdue threads; unclaimed threads older than cfg.escalateUnclaimedHours go
+   * to the whole team. Batched per person to respect daily send limits.
+   */
+  function nudges(q, cfg) {
+    const byPerson = {};
+    const add = (who, item, why) =&gt; { (byPerson[who] = byPerson[who] || []).push({ id: item.id, why }); };
+    q.forEach(item =&gt; {
+      if (item.status === &#x27;stale&#x27;) return;
+      if (item.owner &amp;&amp; item.status === &#x27;overdue&#x27;) add(item.owner, item, &#x27;overdue&#x27;);
+      if (!item.owner &amp;&amp; item.unclaimedHours &gt;= (cfg.escalateUnclaimedHours || 24)) cfg.team.forEach(p =&gt; add(p, item, &#x27;unclaimed&#x27;));
+    });
+    return Object.keys(byPerson).map(p =&gt; ({ to: p, items: byPerson[p] }));
+  }
+
+  /** Weekly scorecard rows for the last n weeks (Monday-start weeks). */
+  function weekly(threads, cfg, weeks) {
+    const rows = [];
+    const d = new Date(cfg.asOf);
+    const monday = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) - ((d.getUTCDay() + 6) % 7) * DAY;
+    for (let w = (weeks || 6) - 1; w &gt;= 0; w--) {
+      const start = monday - w * 7 * DAY, end = Math.min(start + 7 * DAY, cfg.asOf);
+      const a = audit(threads, Object.assign({}, cfg, { asOf: end, lookbackDays: (end - start) / DAY }));
+      rows.push({ weekOf: start, threads: a.threads, medianFrtHours: a.medianFrtHours, unanswered48: a.unanswered48, duplicateRate: a.duplicateRate });
+    }
+    return rows;
+  }
+
+  /* ----------------------------------------------------------- triage */
+
+  /**
+   * Rules-first triage. rules: {category: [[regexSource, weight], ...]}.
+   * Confidence = top score / (top + runner-up). Below `threshold` goes to a
+   * human instead of being auto-routed.
+   */
+  function compileRules(rules) {
+    const out = {};
+    Object.keys(rules).forEach(k =&gt; { out[k] = rules[k].map(([src, w]) =&gt; [new RegExp(src, &#x27;i&#x27;), w, src]); });
+    return out;
+  }
+
+  function classify(text, compiled, threshold) {
+    const scores = [];
+    Object.keys(compiled).forEach(k =&gt; {
+      let s = 0; const hits = [];
+      compiled[k].forEach(([re, w, src]) =&gt; { if (re.test(text)) { s += w; hits.push(src); } });
+      scores.push({ category: k, score: s, hits });
+    });
+    scores.sort((a, b) =&gt; b.score - a.score);
+    const top = scores[0], second = scores[1];
+    if (!top || top.score &lt;= 0) return { category: null, confidence: 0, needsHuman: true, scores };
+    const confidence = top.score / (top.score + Math.max(0, second ? second.score : 0));
+    return { category: top.category, confidence: round(confidence, 3), needsHuman: confidence &lt; (threshold || 0.6), hits: top.hits, scores };
+  }
+
+  /** Accuracy report against hand labels. items: [{text, label}] */
+  function evaluate(items, compiled, threshold, categories) {
+    const cats = categories || Object.keys(compiled);
+    const matrix = {};
+    cats.forEach(a =&gt; { matrix[a] = {}; cats.concat([&#x27;(human)&#x27;]).forEach(b =&gt; { matrix[a][b] = 0; }); });
+    let correct = 0, auto = 0, autoCorrect = 0;
+    const errors = [];
+    items.forEach(it =&gt; {
+      const r = classify(it.text, compiled, threshold);
+      const predicted = r.needsHuman ? &#x27;(human)&#x27; : r.category;
+      matrix[it.label][predicted] = (matrix[it.label][predicted] || 0) + 1;
+      if (!r.needsHuman) {
+        auto++;
+        if (r.category === it.label) autoCorrect++; else errors.push({ text: it.text, label: it.label, predicted: r.category, confidence: r.confidence });
+      }
+      if (r.category === it.label) correct++;
+    });
+    const perClass = cats.map(c =&gt; {
+      const tp = matrix[c][c];
+      const predictedC = cats.reduce((s, a) =&gt; s + (matrix[a][c] || 0), 0);
+      const actualC = cats.concat([&#x27;(human)&#x27;]).reduce((s, b) =&gt; s + (matrix[c][b] || 0), 0);
+      return { category: c, support: actualC, precision: predictedC ? round(tp / predictedC, 3) : null, recall: actualC ? round(tp / actualC, 3) : null };
+    });
+    return {
+      n: items.length,
+      topLabelAccuracy: round(correct / items.length, 3),       // if every email were auto-routed
+      autoRouted: auto, autoRate: round(auto / items.length, 3),
+      autoPrecision: auto ? round(autoCorrect / auto, 3) : null, // accuracy of what actually gets auto-routed
+      humanQueue: items.length - auto,
+      perClass, matrix, errors,
+    };
+  }
+
+  const api = { HOUR, MIN, DAY, median, quantile, businessMinutes, addBusinessMinutes, analyzeThread, audit, findings, queue, nudges, weekly, compileRules, classify, evaluate };
+  if (typeof module !== &#x27;undefined&#x27; &amp;&amp; module.exports) module.exports = api;
+  else root.InboxCore = api;
+})(typeof globalThis !== &#x27;undefined&#x27; ? globalThis : this);
+</code></pre>
+<h2 id="f1">core/triage-rules.js</h2><p class="muted">The sorting rules (current version, with the history of the earlier versions in the header comment).</p><pre><code>/**
+ * Keyword rules for routing shared-inbox email (v2). [regex, weight] per category.
+ *
+ * History (see test/triage-eval.js for the measurements):
+ *  v1 was written from the DEV phrasings only. It scored well on dev and badly
+ *     on the held-out TEST phrasings: it had memorised wording.
+ *  v2 (this file) was rewritten from dev + test around INTENT (stop paying,
+ *     come back later, try before buying) instead of exact phrases, and
+ *     generic words that appear in every category (&quot;session&quot;, &quot;class&quot;,
+ *     &quot;membership&quot;) were removed. Because test was used to write v2, v2 is
+ *     meant to be measured on data/holdout.js, but words from that set leaked into these
+ *     rules while they were being written, so it is not a clean test either. The clean
+ *     measurement is data/blind.json (independent author). See test/triage-eval.js.
+ *  v2.1 fixes one bug found on the blind set (data/blind.json, written by an
+ *     independent author): &quot;lease&quot; matched inside &quot;please&quot;. v2 is kept in
+ *     triage-rules.v2.js because its blind score is the clean measurement.
+ * Weights: 3 = strong signal, 2 = medium, 1 = weak.
+ */
+(function (root) {
+  const TRIAGE_RULES = {
+    trial: [
+      [&#x27;free (trial|week|session|class)|trial (week|session|class|pass)&#x27;, 3],
+      [&#x27;intro (offer|deal|special)|new.?member|newcomer|first.?timer|first (class|visit|time|week)&#x27;, 3],
+      [&#x27;guest pass|day pass|drop.?in|bring a friend&#x27;, 3],
+      [&#x27;\\b(try|sample|test) (it|a|out|before|some|the place|a couple)|try a few|give it a shot&#x27;, 3],
+      [&#x27;before (committing|buying|i (sign|join|decide))|thinking about joining|interested in (becoming|joining)&#x27;, 3],
+      [&#x27;\\btour\\b|stop by|check (the place|it) out|good fit&#x27;, 2],
+      [&#x27;\\bbeginner|never (done|been)|starting out|intimidated&#x27;, 2],
+      [&#x27;\\bpromo|special for|complimentary&#x27;, 2],
+    ],
+    schedule: [
+      [&#x27;\\bschedule\\b(?! changed)|timetable|calendar|class times?&#x27;, 3],
+      [&#x27;wait.?list|spots? (left|in)|openings tonight|sold out|\\bfull\\b&#x27;, 3],
+      [&#x27;\\b(re|un)?book(ing|ed)?\\b|reserve|sign (up|in) for|hold my spot|switch my&#x27;, 3],
+      [&#x27;\\b(when|what time) (is|does)|start(s)? on|rescheduled|has it moved|still (on|happening)&#x27;, 2],
+      [&#x27;\\b\\d{1,2}(:\\d{2})?\\s?(am|pm)\\b|\\bthe \\d{1,2}(:\\d{2})?\\b&#x27;, 2],
+      [&#x27;instructor|who is teaching|which room|running late|be \\d+ min late&#x27;, 3],
+      [&#x27;holiday|winter break|open on|on sundays|weekday&#x27;, 2],
+      [&#x27;\\bapp\\b&#x27;, 1],
+    ],
+    billing: [
+      [&#x27;charged|charge from|billed for|double (charge|payment)|paid .* (two|2) times&#x27;, 3],
+      [&#x27;refund|money back&#x27;, 3],
+      [&#x27;receipt|proof of payment|payment history|statement|tax (id|docs)|year.end summary&#x27;, 3],
+      [&#x27;\\bcard\\b|declined|bank (transfer|flagged)&#x27;, 2],
+      [&#x27;payment|autopay|\\bbill(ed|ing)?\\b|balance due|\\bowe\\b|overdue notice&#x27;, 2],
+      [&#x27;cost more|went up|price change|\\$\\d+&#x27;, 1],
+      [&#x27;discount|corporate rate|student discount|paying full price&#x27;, 2],
+      [&#x27;reimburse|\\bhsa\\b|insurance&#x27;, 2],
+    ],
+    cancel: [
+      [&#x27;\\bcancel(l?ation)?\\b(?! (my |the |tonight|tomorrow)?(class|spin|yoga|session))&#x27;, 3],
+      [&#x27;(end|close|terminate|discontinue|stop) (my|the|things)? ?(membership|account|plan|it)|termination&#x27;, 3],
+      [&#x27;\\bquit\\b|leave the gym|move on|opt out|not (renew|continue|continuing)|won.?t be continuing|no longer need&#x27;, 3],
+      [&#x27;stop (all )?(future )?(charges|paying)|don.?t charge me|not be charged again|for good&#x27;, 2],
+      [&#x27;moving out of|relocating|withdraw from&#x27;, 2],
+      [&#x27;not (for me|coming back|working out)|done with&#x27;, 2],
+    ],
+    freeze: [
+      [&#x27;freeze|unfreeze|\\bpause|put .* on (hold|ice)|on hold|medical hold|military hold&#x27;, 4],
+      [&#x27;suspend(ed)?|\\bbreak from|vacation hold&#x27;, 3],
+      [&#x27;resume|reactivate|restart|back in town&#x27;, 3],
+      [&#x27;while (i.?m |i am |my .* )?(away|traveling|heals?|recover)|out of town|overseas|abroad|deployed|until (i.?m|march|i am)&#x27;, 2],
+      [&#x27;not (quitting|cancell?ing)|rather than cancell?ing|don.?t want to cancel&#x27;, 3],
+      [&#x27;surgery|injury|hospital|expecting&#x27;, 1],
+    ],
+    training: [
+      [&#x27;personal (training|sessions)|private(ly)? (sessions?|train)|train me&#x27;, 3],
+      [&#x27;\\btrainers?\\b|\\bcoach(es|ing)?\\b(?! intern)&#x27;, 2],
+      [&#x27;1:1|one.?on.?ones?|partner sessions|semi.?private&#x27;, 3],
+      [&#x27;(write|build|custom) (me )?(a )?(program|plan)|program design|plateau&#x27;, 3],
+      [&#x27;form check|squat form|olympic lifts|deadlift|powerlifting|marathon|strength work&#x27;, 2],
+      [&#x27;assessment|nutrition|postpartum|youth|weight loss&#x27;, 1],
+    ],
+    vendor: [
+      [&#x27;partner(ship)? (on|with|opportunity)|referral partnership|co.?brand|collaborat&#x27;, 3],
+      [&#x27;sponsor|fundraiser|donation|nonprofit|raffle&#x27;, 3],
+      [&#x27;\\bquote\\b|estimate|invoice #?\\d+|net 30|\\blease\\b|wholesale&#x27;, 3], // v2.1: \\b added; &quot;lease&quot; matched inside &quot;please&quot;
+      [&#x27;we (provide|help|sell|offer|are a)|our (brand|company|clinic|5k)|i (represent|offer|run|create|teach)&#x27;, 2],
+      [&#x27;technician|maintenance|repair|hvac|flooring|cleaning (supply|services)|supply order|delivery window&#x27;, 2],
+      [&#x27;\\bdemo\\b|more leads|free audit|photo shoots|guest speakers?|wellness week|group rates&#x27;, 2],
+      [&#x27;rent your space|stock our|flyers&#x27;, 2],
+    ],
+    general: [
+      [&#x27;left my|lost|did anyone find|took my|cameras?&#x27;, 3],
+      [&#x27;parking|\\bbus\\b|bike&#x27;, 3],
+      [&#x27;locker|cubby|towels?|showers?|sauna|water (refill|bottle)|wifi&#x27;, 2],
+      [&#x27;gift card|merch|hoodies?&#x27;, 2],
+      [&#x27;childcare|\\bkids\\b|\\bdog\\b|wheelchair|accessib&#x27;, 3],
+      [&#x27;hiring|part time work|join(ing)? the staff|intern\\b&#x27;, 3],
+      [&#x27;too loud|music|door code|smoke|filming|policy on&#x27;, 2],
+      [&#x27;thank you to the staff|everyone was so kind|feedback&#x27;, 2],
+    ],
+  };
+  if (typeof module !== &#x27;undefined&#x27; &amp;&amp; module.exports) module.exports = TRIAGE_RULES;
+  else root.TRIAGE_RULES = TRIAGE_RULES;
+})(typeof globalThis !== &#x27;undefined&#x27; ? globalThis : this);
+</code></pre>
+<h2 id="f2">apps-script/Pilot.gs</h2><p class="muted">The real-inbox version: Gmail to metadata to a Sheet, owner labels, hourly reminders, weekly scorecard. Never stores message bodies.</p><pre><code>/**
+ * InboxOwner pilot: runs inside the inbox owner&#x27;s own Google account.
+ *
+ * Files in this Apps Script project:
+ *   Core.gs   — core/inbox-core.js (unchanged)
+ *   Rules.gs  — core/triage-rules.js (unchanged)
+ *   Pilot.gs  — this file: Gmail → metadata → Sheets, ownership labels, nudges
+ *
+ * Privacy by design: message bodies are read in memory only to pick a
+ * category and are never written anywhere. The Sheet stores thread IDs,
+ * timestamps, who replied, and the category. Subjects are stored only if the
+ * owner switches STORE_SUBJECTS on in Settings.
+ */
+
+const NOUNS = { trial: &#x27;trial inquiries&#x27;, schedule: &#x27;schedule questions&#x27;, billing: &#x27;billing emails&#x27;, cancel: &#x27;cancellation requests&#x27;,
+  freeze: &#x27;freeze requests&#x27;, training: &#x27;training inquiries&#x27;, vendor: &#x27;vendor emails&#x27;, general: &#x27;general questions&#x27;, &#x27;needs-review&#x27;: &#x27;unsorted emails&#x27; };
+
+const PILOT = {
+  SETTINGS: &#x27;Settings&#x27;, AUDIT: &#x27;Audit&#x27;, QUEUE: &#x27;Queue&#x27;, WEEKLY: &#x27;Weekly&#x27;,
+  LABEL_PREFIX: &#x27;owner/&#x27;,
+};
+
+function onOpen() {
+  SpreadsheetApp.getUi().createMenu(&#x27;InboxOwner&#x27;)
+    .addItem(&#x27;1. Create settings tab&#x27;, &#x27;setupPilot&#x27;)
+    .addItem(&#x27;2. Run inbox health check&#x27;, &#x27;runAudit&#x27;)
+    .addItem(&#x27;3. Refresh ownership queue&#x27;, &#x27;refreshQueue&#x27;)
+    .addSeparator()
+    .addItem(&#x27;Start hourly nudges + weekly scorecard&#x27;, &#x27;installPilotTriggers&#x27;)
+    .addItem(&#x27;Stop all automation&#x27;, &#x27;removePilotTriggers&#x27;)
+    .addToUi();
+}
+
+/* ------------------------------------------------------------ settings */
+
+function setupPilot() {
+  const ss = SpreadsheetApp.getActive();
+  let sh = ss.getSheetByName(PILOT.SETTINGS);
+  if (sh) { SpreadsheetApp.getUi().alert(&#x27;Settings tab already exists.&#x27;); return; }
+  sh = ss.insertSheet(PILOT.SETTINGS);
+  const me = Session.getEffectiveUser().getEmail();
+  sh.getRange(1, 1, 9, 2).setValues([
+    [&#x27;Shared inbox address&#x27;, me],
+    [&#x27;Time zone&#x27;, Session.getScriptTimeZone()],
+    [&#x27;Lookback days&#x27;, 90],
+    [&#x27;Business hours (Sun..Sat, &quot;9-18&quot; or blank)&#x27;, &#x27;,9-18,9-18,9-18,9-18,9-18,9-13&#x27;],
+    [&#x27;Store subjects? (TRUE/FALSE)&#x27;, false],
+    [&#x27;Escalate unclaimed after (hours)&#x27;, 24],
+    [&#x27;Stale after (days)&#x27;, 14],
+    [&#x27;Triage confidence threshold&#x27;, 0.6],
+    [&#x27;&#x27;, &#x27;&#x27;],
+  ]);
+  sh.getRange(10, 1, 1, 2).setValues([[&#x27;Team member&#x27;, &#x27;Email&#x27;]]);
+  sh.getRange(11, 1, 1, 2).setValues([[&#x27;Owner&#x27;, me]]);
+  sh.getRange(10, 4, 1, 3).setValues([[&#x27;Category&#x27;, &#x27;Default owner&#x27;, &#x27;SLA (business hours)&#x27;]]);
+  const cats = [&#x27;trial&#x27;, &#x27;schedule&#x27;, &#x27;billing&#x27;, &#x27;cancel&#x27;, &#x27;freeze&#x27;, &#x27;training&#x27;, &#x27;vendor&#x27;, &#x27;general&#x27;];
+  sh.getRange(11, 4, cats.length, 3).setValues(cats.map(c =&gt; [c, &#x27;Owner&#x27;, c === &#x27;trial&#x27; ? 2 : c === &#x27;vendor&#x27; ? 24 : 8]));
+  sh.getRange(&#x27;A1:A10&#x27;).setFontWeight(&#x27;bold&#x27;);
+  sh.getRange(&#x27;D10:F10&#x27;).setFontWeight(&#x27;bold&#x27;);
+  sh.setColumnWidth(1, 300); sh.setColumnWidth(2, 260); sh.setColumnWidth(4, 120); sh.setColumnWidth(5, 120);
+  SpreadsheetApp.getUi().alert(&#x27;Fill in the team list (column A/B, from row 11) and the routing table, then run the health check.&#x27;);
+}
+
+function readPilotSettings() {
+  const sh = SpreadsheetApp.getActive().getSheetByName(PILOT.SETTINGS);
+  if (!sh) throw new Error(&#x27;Run &quot;Create settings tab&quot; first.&#x27;);
+  const v = sh.getRange(1, 2, 8, 1).getValues().map(r =&gt; r[0]);
+  const hours = {};
+  String(v[3]).split(&#x27;,&#x27;).forEach((x, i) =&gt; {
+    const m = /^(\d{1,2})-(\d{1,2})$/.exec(String(x).trim());
+    hours[i] = m ? [Number(m[1]), Number(m[2])] : null;
+  });
+  const last = sh.getLastRow();
+  const team = sh.getRange(11, 1, Math.max(1, last - 10), 2).getValues().filter(r =&gt; r[0] &amp;&amp; r[1])
+    .map(r =&gt; ({ name: String(r[0]).trim(), email: String(r[1]).trim().toLowerCase() }));
+  const routing = {};
+  sh.getRange(11, 4, Math.max(1, last - 10), 3).getValues().filter(r =&gt; r[0])
+    .forEach(r =&gt; { routing[String(r[0]).trim()] = { owner: String(r[1]).trim() || null, slaHours: Number(r[2]) || 8 }; });
+  const tz = String(v[1] || Session.getScriptTimeZone());
+  return {
+    shared: String(v[0]).trim().toLowerCase(), tz, lookbackDays: Number(v[2]) || 90, hours,
+    storeSubjects: v[4] === true || String(v[4]).toUpperCase() === &#x27;TRUE&#x27;,
+    escalateUnclaimedHours: Number(v[5]) || 24, staleDays: Number(v[6]) || 14, triageThreshold: Number(v[7]) || 0.6,
+    team, teamNames: team.map(t =&gt; t.name), routing, defaultRoute: { owner: null, slaHours: 8 }, dueSoonHours: 1,
+    asOf: toWallClock(new Date(), tz),
+  };
+}
+
+/* ---------------------------------------------- Gmail → core threads */
+
+// Converts a real Date to studio wall-clock ms (the core&#x27;s time convention).
+function toWallClock(date, tz) {
+  const s = Utilities.formatDate(date, tz, &quot;yyyy-MM-dd&#x27;T&#x27;HH:mm:ss&quot;);
+  return Date.UTC(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10), +s.slice(11, 13), +s.slice(14, 16), +s.slice(17, 19));
+}
+
+function addressOf(from) {
+  const m = /&lt;([^&gt;]+)&gt;/.exec(from);
+  return (m ? m[1] : from).trim().toLowerCase();
+}
+
+/**
+ * Turns one GmailThread into {id, category, subject?, messages:[{from, staff, at}]}.
+ * Staff = any team member&#x27;s address or the shared address itself.
+ */
+function convertThread(thread, st, rules) {
+  const byEmail = {};
+  st.team.forEach(t =&gt; { byEmail[t.email] = t.name; });
+  const messages = thread.getMessages().map(m =&gt; {
+    const addr = addressOf(m.getFrom());
+    const isStaff = addr === st.shared || Object.prototype.hasOwnProperty.call(byEmail, addr);
+    return { from: isStaff ? &#x27;staff&#x27; : &#x27;customer&#x27;, staff: isStaff ? (byEmail[addr] || &#x27;Shared inbox&#x27;) : null, at: toWallClock(m.getDate(), st.tz) };
+  });
+  const firstIn = thread.getMessages().find(m =&gt; {
+    const a = addressOf(m.getFrom());
+    return a !== st.shared &amp;&amp; !Object.prototype.hasOwnProperty.call(byEmail, a);
+  });
+  let category = null;
+  if (firstIn &amp;&amp; rules) {
+    // Body is used in memory only; it is never written to the Sheet.
+    const text = thread.getFirstMessageSubject() + &#x27;\n&#x27; + String(firstIn.getPlainBody()).slice(0, 600);
+    const r = InboxCore.classify(text, rules, st.triageThreshold);
+    category = r.needsHuman ? &#x27;needs-review&#x27; : r.category;
+  }
+  const out = { id: thread.getId(), category, messages: messages.sort((a, b) =&gt; a.at - b.at) };
+  if (st.storeSubjects) out.subject = thread.getFirstMessageSubject();
+  return out;
+}
+
+function fetchThreads(st) {
+  const rules = InboxCore.compileRules(TRIAGE_RULES);
+  const query = `to:${st.shared} newer_than:${st.lookbackDays}d -in:spam -in:trash`;
+  const threads = [];
+  for (let start = 0; start &lt; 1500; start += 100) {
+    const page = GmailApp.search(query, start, 100);
+    page.forEach(t =&gt; threads.push(convertThread(t, st, rules)));
+    if (page.length &lt; 100) break;
+  }
+  return threads;
+}
+
+/* -------------------------------------------------------------- audit */
+
+function runAudit() {
+  const st = readPilotSettings();
+  const threads = fetchThreads(st);
+  const a = InboxCore.audit(threads, st);
+  const sh = resetSheet(PILOT.AUDIT);
+  const fmtH = x =&gt; (x === null ? &#x27;—&#x27; : Math.round(x * 10) / 10 + &#x27; h&#x27;);
+  const fmtP = x =&gt; (x === null ? &#x27;—&#x27; : Math.round(x * 100) + &#x27;%&#x27;);
+  const summary = [
+    [&#x27;Inbox health check&#x27;, &#x27;&#x27;],
+    [&#x27;Window&#x27;, `${a.window.days} days to ${Utilities.formatDate(new Date(), st.tz, &#x27;yyyy-MM-dd HH:mm&#x27;)}`],
+    [&#x27;Customer threads&#x27;, a.threads],
+    [&#x27;Median first reply (business hours)&#x27;, fmtH(a.medianFrtHours)],
+    [&#x27;90th percentile first reply&#x27;, fmtH(a.p90FrtHours)],
+    [&#x27;No reply within 24h&#x27;, fmtP(a.unanswered24)],
+    [&#x27;No reply within 48h&#x27;, fmtP(a.unanswered48)],
+    [&#x27;Never answered&#x27;, a.neverAnswered],
+    [&#x27;Duplicate replies&#x27;, fmtP(a.duplicateRate)],
+    [&#x27;Arrived outside staffed hours&#x27;, fmtP(a.outsideHoursShare)],
+  ];
+  sh.getRange(1, 1, summary.length, 2).setValues(summary);
+  sh.getRange(&#x27;A1&#x27;).setFontWeight(&#x27;bold&#x27;).setFontSize(14);
+  const finds = InboxCore.findings(a, NOUNS, [&#x27;vendor&#x27;, &#x27;needs-review&#x27;]).map(f =&gt; [f.text]);
+  sh.getRange(12, 1).setValue(&#x27;Findings&#x27;).setFontWeight(&#x27;bold&#x27;);
+  if (finds.length) sh.getRange(13, 1, finds.length, 1).setValues(finds);
+  const r0 = 15 + finds.length;
+  const head = [&#x27;Category&#x27;, &#x27;Threads&#x27;, &#x27;Median first reply (h)&#x27;, &#x27;p90 (h)&#x27;, &#x27;No reply 48h&#x27;, &#x27;Duplicate rate&#x27;];
+  sh.getRange(r0, 1, 1, head.length).setValues([head]).setFontWeight(&#x27;bold&#x27;);
+  if (a.categories.length) sh.getRange(r0 + 1, 1, a.categories.length, head.length)
+    .setValues(a.categories.map(c =&gt; [c.category, c.threads, c.medianFrtHours, c.p90FrtHours, c.unanswered48, c.duplicateRate]));
+  // Per-thread metadata (no bodies; subjects only if enabled).
+  const r1 = r0 + a.categories.length + 3;
+  const cols = [&#x27;Thread ID&#x27;, &#x27;Category&#x27;, &#x27;First message (local)&#x27;, &#x27;First reply by&#x27;, &#x27;First reply (business h)&#x27;, &#x27;No reply 48h&#x27;, &#x27;Duplicate&#x27;, &#x27;Awaiting reply&#x27;];
+  sh.getRange(r1, 1, 1, cols.length).setValues([cols]).setFontWeight(&#x27;bold&#x27;);
+  const iso = ms =&gt; new Date(ms).toISOString().slice(0, 16).replace(&#x27;T&#x27;, &#x27; &#x27;);
+  const rows = a.rows.map(r =&gt; [r.id, r.category || &#x27;&#x27;, iso(r.firstIn), r.firstReplyBy || &#x27;&#x27;, r.frtMinutes === null ? &#x27;&#x27; : Math.round(r.frtMinutes / 6) / 10, r.unanswered48, r.duplicate, r.awaiting]);
+  if (rows.length) sh.getRange(r1 + 1, 1, rows.length, cols.length).setValues(rows);
+  sh.setColumnWidth(1, 320);
+  return a;
+}
+
+/* ------------------------------------------------ ownership and nudges */
+
+// Claims come from Gmail labels named owner/&lt;Name&gt;.
+function readClaims(st) {
+  const claims = {};
+  st.teamNames.forEach(name =&gt; {
+    const label = GmailApp.getUserLabelByName(PILOT.LABEL_PREFIX + name);
+    if (label) label.getThreads(0, 200).forEach(t =&gt; { claims[t.getId()] = name; });
+  });
+  return claims;
+}
+
+function ensureOwnerLabels(st) {
+  st.teamNames.forEach(name =&gt; {
+    if (!GmailApp.getUserLabelByName(PILOT.LABEL_PREFIX + name)) GmailApp.createLabel(PILOT.LABEL_PREFIX + name);
+  });
+}
+
+function refreshQueue() {
+  const st = readPilotSettings();
+  ensureOwnerLabels(st);
+  const q = InboxCore.queue(fetchThreads(st), st, readClaims(st));
+  const sh = resetSheet(PILOT.QUEUE);
+  const head = [&#x27;Thread ID&#x27;, &#x27;Category&#x27;, &#x27;Owner&#x27;, &#x27;Suggested owner&#x27;, &#x27;Waiting since&#x27;, &#x27;Due&#x27;, &#x27;Status&#x27;, &#x27;Business min left&#x27;];
+  sh.getRange(1, 1, 1, head.length).setValues([head]).setFontWeight(&#x27;bold&#x27;);
+  const iso = ms =&gt; new Date(ms).toISOString().slice(0, 16).replace(&#x27;T&#x27;, &#x27; &#x27;);
+  if (q.length) sh.getRange(2, 1, q.length, head.length).setValues(q.map(x =&gt; [x.id, x.category || &#x27;&#x27;, x.owner || &#x27;UNCLAIMED&#x27;, x.suggestedOwner || &#x27;&#x27;, iso(x.waitingSince), iso(x.due), x.status, x.businessMinutesLeft]));
+  return q;
+}
+
+/** Hourly during business hours: one batched email per person, never per thread. */
+function hourlyNudge() {
+  const st = readPilotSettings();
+  const now = new Date(st.asOf), h = st.hours[now.getUTCDay()];
+  if (!h || now.getUTCHours() &lt; h[0] || now.getUTCHours() &gt;= h[1]) return; // closed
+  const q = refreshQueue();
+  const plan = InboxCore.nudges(q, Object.assign({}, st, { team: st.teamNames }));
+  const emailOf = {};
+  st.team.forEach(t =&gt; { emailOf[t.name] = t.email; });
+  plan.forEach(p =&gt; {
+    if (!emailOf[p.to]) return;
+    const lines = p.items.map(i =&gt; `• ${i.why === &#x27;overdue&#x27; ? &#x27;Overdue&#x27; : &#x27;Unclaimed 24h+&#x27;}: https://mail.google.com/mail/u/0/#all/${i.id}`);
+    MailApp.sendEmail(emailOf[p.to], `[InboxOwner] ${p.items.length} email(s) need you`, lines.join(&#x27;\n&#x27;) +
+      &#x27;\n\nClaim a thread by adding the label owner/&lt;your name&gt;. Reply and the item clears on the next refresh.&#x27;);
+  });
+}
+
+/** Weekly scorecard row (Mondays). */
+function weeklyScorecard() {
+  const st = readPilotSettings();
+  const rows = InboxCore.weekly(fetchThreads(st), st, 1);
+  const sh = SpreadsheetApp.getActive().getSheetByName(PILOT.WEEKLY) || SpreadsheetApp.getActive().insertSheet(PILOT.WEEKLY);
+  if (sh.getLastRow() === 0) sh.appendRow([&#x27;Week of&#x27;, &#x27;Threads&#x27;, &#x27;Median first reply (h)&#x27;, &#x27;No reply 48h&#x27;, &#x27;Duplicate rate&#x27;]);
+  rows.forEach(r =&gt; sh.appendRow([new Date(r.weekOf).toISOString().slice(0, 10), r.threads, r.medianFrtHours, r.unanswered48, r.duplicateRate]));
+}
+
+function installPilotTriggers() {
+  removePilotTriggers();
+  ScriptApp.newTrigger(&#x27;hourlyNudge&#x27;).timeBased().everyHours(1).create();
+  ScriptApp.newTrigger(&#x27;weeklyScorecard&#x27;).timeBased().onWeekDay(ScriptApp.WeekDay.MONDAY).atHour(8).create();
+}
+
+function removePilotTriggers() {
+  ScriptApp.getProjectTriggers()
+    .filter(t =&gt; [&#x27;hourlyNudge&#x27;, &#x27;weeklyScorecard&#x27;].indexOf(t.getHandlerFunction()) !== -1)
+    .forEach(t =&gt; ScriptApp.deleteTrigger(t));
+}
+
+function resetSheet(name) {
+  const ss = SpreadsheetApp.getActive();
+  const sh = ss.getSheetByName(name) || ss.insertSheet(name);
+  sh.clear();
+  return sh;
+}
+</code></pre>
+<h2 id="f3">data/generate.js</h2><p class="muted">Builds the sample inbox from a seed, including the behaviour the health check has to find.</p><pre><code>/**
+ * Generates 90+ days of synthetic shared-inbox email for &quot;Cedar &amp; Iron
+ * Fitness&quot; (fictional), deterministically from a seed.
+ *
+ * Behaviour baked into the model (what a real audit would have to discover):
+ *  - many emails arrive before/after staffed hours (members email around workouts)
+ *  - uncomfortable requests (cancellations, freezes, vendors) wait longest and
+ *    are most often never answered
+ *  - easy requests (trials, schedule) sometimes get two replies because nobody
+ *    can see who already answered
+ *  - one person (the owner) carries most money-related email
+ * Usage: node data/generate.js  → writes web/data/inbox.json
+ */
+const fs = require(&#x27;fs&#x27;);
+const path = require(&#x27;path&#x27;);
+const C = require(&#x27;../core/inbox-core.js&#x27;);
+const { CATEGORIES, PHRASINGS, FOLLOW_UPS, STAFF_REPLIES } = require(&#x27;./phrasings.js&#x27;);
+
+const AS_OF = Date.UTC(2026, 9, 22, 16, 0); // Thu Oct 22, 2026, 4:00pm studio time
+const DAYS = 95;
+const HOURS = { 0: null, 1: [9, 18], 2: [9, 18], 3: [9, 18], 4: [9, 18], 5: [9, 18], 6: [9, 13] };
+const STAFF = [&#x27;Maya&#x27;, &#x27;Jordan&#x27;, &#x27;Priya&#x27;, &#x27;Sam&#x27;];
+
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a &gt;&gt;&gt; 15), 1 | a);
+    t = (t + Math.imul(t ^ (t &gt;&gt;&gt; 7), 61 | t)) ^ t;
+    return ((t ^ (t &gt;&gt;&gt; 14)) &gt;&gt;&gt; 0) / 4294967296;
+  };
+}
+
+function generate(seed) {
+  const rnd = mulberry32(seed || 20261022);
+  const pick = a =&gt; a[Math.floor(rnd() * a.length)];
+  const weighted = obj =&gt; {
+    const keys = Object.keys(obj), total = keys.reduce((s, k) =&gt; s + obj[k], 0);
+    let x = rnd() * total;
+    for (const k of keys) { x -= obj[k]; if (x &lt;= 0) return k; }
+    return keys[keys.length - 1];
+  };
+  const normal = () =&gt; Math.sqrt(-2 * Math.log(1 - rnd())) * Math.cos(2 * Math.PI * rnd());
+  const lognormal = (medianMin, sigma) =&gt; Math.max(3, medianMin * Math.exp(sigma * normal()));
+
+  const MIX = { trial: 22, schedule: 18, billing: 14, cancel: 10, freeze: 9, training: 10, vendor: 7, general: 10 };
+  // Arrival hour weights: peaks before work and after evening workouts.
+  const HOUR_W = [0.1, 0.05, 0.05, 0.05, 0.1, 0.3, 0.8, 1.2, 1.6, 1.8, 1.7, 1.6, 1.8, 1.7, 1.5, 1.4, 1.4, 1.3, 1.2, 1.2, 1.3, 1.1, 0.6, 0.3];
+  // Who answers what (before any ownership rules exist).
+  const RESPONDER = {
+    trial: { Jordan: 5, Priya: 3, Maya: 2 }, schedule: { Jordan: 5, Priya: 4, Maya: 1 },
+    billing: { Maya: 8, Jordan: 2 }, cancel: { Maya: 9, Jordan: 1 }, freeze: { Maya: 7, Jordan: 3 },
+    training: { Sam: 6, Maya: 3, Jordan: 1 }, vendor: { Maya: 10 }, general: { Jordan: 4, Priya: 4, Maya: 2 },
+  };
+  // Median first-reply delay in BUSINESS minutes, and chance of never replying.
+  const DELAY = { trial: 70, schedule: 110, billing: 280, cancel: 900, freeze: 520, training: 300, vendor: 1300, general: 380 };
+  const NEVER = { trial: 0.02, schedule: 0.04, billing: 0.03, cancel: 0.16, freeze: 0.1, training: 0.04, vendor: 0.22, general: 0.1 };
+  const DUP = { trial: 0.15, schedule: 0.09, general: 0.05 };
+  const GREET = [&#x27;&#x27;, &#x27;&#x27;, &#x27;Hi, &#x27;, &#x27;Hello, &#x27;, &#x27;Hey there, &#x27;, &#x27;Good morning, &#x27;];
+  const SIGN = [&#x27;&#x27;, &#x27;&#x27;, &#x27; Thanks!&#x27;, &#x27; Thank you.&#x27;, &#x27; Thx&#x27;, &#x27; Appreciate it.&#x27;];
+  const NOISE = [&#x27;&#x27;, &#x27;&#x27;, &#x27;&#x27;, &#x27;&#x27;, &quot; I&#x27;ve been a member for two years.&quot;, &#x27; Love the classes by the way.&#x27;, &#x27; Sorry if this is the wrong email.&#x27;, &#x27; I emailed last week too.&#x27;];
+  const FIRST = [&#x27;Alex&#x27;, &#x27;Sam&#x27;, &#x27;Jamie&#x27;, &#x27;Taylor&#x27;, &#x27;Morgan&#x27;, &#x27;Riley&#x27;, &#x27;Casey&#x27;, &#x27;Avery&#x27;, &#x27;Quinn&#x27;, &#x27;Rowan&#x27;, &#x27;Dakota&#x27;, &#x27;Reese&#x27;, &#x27;Emerson&#x27;, &#x27;Skyler&#x27;, &#x27;Kai&#x27;, &#x27;Noor&#x27;, &#x27;Lena&#x27;, &#x27;Mateo&#x27;, &#x27;Hana&#x27;, &#x27;Theo&#x27;];
+  const LAST = [&#x27;Nguyen&#x27;, &#x27;Garcia&#x27;, &#x27;Okafor&#x27;, &#x27;Larsen&#x27;, &#x27;Haddad&#x27;, &#x27;Ito&#x27;, &#x27;Moreno&#x27;, &#x27;Kowalski&#x27;, &#x27;Silva&#x27;, &#x27;Fischer&#x27;, &#x27;Achebe&#x27;, &#x27;Lindqvist&#x27;, &#x27;Patel&#x27;, &#x27;Duval&#x27;, &#x27;Tanaka&#x27;, &#x27;Romero&#x27;];
+
+  const threads = [];
+  let n = 0;
+  for (let day = DAYS; day &gt;= 0; day--) {
+    const dayStart = Date.UTC(2026, 9, 22) - day * C.DAY;
+    const dow = new Date(dayStart).getUTCDay();
+    const mean = dow === 0 ? 4 : dow === 6 ? 5 : dow === 1 ? 7.5 : 6;
+    // Poisson draw
+    let k = 0, p = Math.exp(-mean), s = p; const u = rnd();
+    while (u &gt; s) { k++; p *= mean / k; s += p; }
+    for (let i = 0; i &lt; k; i++) {
+      const hour = Number(weighted(Object.fromEntries(HOUR_W.map((w, h) =&gt; [h, w]))));
+      const at = dayStart + hour * C.HOUR + Math.floor(rnd() * 60) * C.MIN;
+      if (at &gt; AS_OF) continue;
+      const category = weighted(MIX);
+      const split = rnd() &lt; 0.5 ? &#x27;dev&#x27; : &#x27;test&#x27;;
+      const [subject, body] = pick(PHRASINGS[category][split]);
+      const first = pick(FIRST), last = pick(LAST);
+      let text = pick(GREET) + body + pick(NOISE) + pick(SIGN);
+      if (rnd() &lt; 0.12) text = text.toLowerCase();
+      const thread = {
+        id: &#x27;T&#x27; + String(++n).padStart(4, &#x27;0&#x27;), category, split, subject,
+        customer: { name: first + &#x27; &#x27; + last, email: `${first}.${last}@mail.example`.toLowerCase() },
+        messages: [{ from: &#x27;customer&#x27;, at, text }],
+      };
+
+      // First reply
+      const responder = weighted(RESPONDER[category]);
+      let replyAt = rnd() &lt; NEVER[category] ? null : C.addBusinessMinutes(at, lognormal(DELAY[category], 0.9), HOURS);
+      replyAt = replyAt === null ? null : Math.round(replyAt / C.MIN) * C.MIN;
+
+      // Customer chases if nothing came back within a day
+      if ((replyAt === null || replyAt - at &gt; 24 * C.HOUR) &amp;&amp; rnd() &lt; 0.45) {
+        const fu = at + (26 + Math.floor(rnd() * 14)) * C.HOUR;
+        if (fu &lt;= AS_OF &amp;&amp; (replyAt === null || fu &lt; replyAt)) thread.messages.push({ from: &#x27;customer&#x27;, at: fu, text: pick(FOLLOW_UPS) });
+      }
+      if (replyAt !== null &amp;&amp; replyAt &lt;= AS_OF) {
+        thread.messages.push({ from: &#x27;staff&#x27;, staff: responder, at: replyAt, text: STAFF_REPLIES[category] });
+        // Second person answers too, unaware someone already did
+        if (DUP[category] &amp;&amp; rnd() &lt; DUP[category]) {
+          const other = pick(STAFF.filter(x =&gt; x !== responder &amp;&amp; x !== &#x27;Sam&#x27;));
+          const dupAt = replyAt + (5 + Math.floor(rnd() * 40)) * C.MIN;
+          if (dupAt &lt;= AS_OF) thread.messages.push({ from: &#x27;staff&#x27;, staff: other, at: dupAt, text: STAFF_REPLIES[category] });
+        }
+        // Conversation continues
+        if (rnd() &lt; 0.3) {
+          const back = replyAt + (1 + Math.floor(rnd() * 30)) * C.HOUR;
+          if (back &lt;= AS_OF) {
+            thread.messages.push({ from: &#x27;customer&#x27;, at: back, text: &#x27;Thanks. One more question about this.&#x27; });
+            if (rnd() &lt; 0.85) {
+              const again = Math.round(C.addBusinessMinutes(back, lognormal(DELAY[category] / 2, 0.8), HOURS) / C.MIN) * C.MIN;
+              if (again &lt;= AS_OF) thread.messages.push({ from: &#x27;staff&#x27;, staff: responder, at: again, text: &#x27;Answered below.&#x27; });
+            }
+          }
+        }
+      }
+      thread.messages.sort((a, b) =&gt; a.at - b.at);
+      threads.push(thread);
+    }
+  }
+  return threads;
+}
+
+const CONFIG = {
+  business: &#x27;Cedar &amp; Iron Fitness&#x27;,
+  inbox: &#x27;info@cedariron.example&#x27;,
+  asOf: AS_OF,
+  lookbackDays: 90,
+  hours: HOURS,
+  team: STAFF,
+  categories: CATEGORIES,
+  // Plural nouns for generated sentences (&quot;67% of cancellation requests …&quot;).
+  nouns: { trial: &#x27;trial inquiries&#x27;, schedule: &#x27;schedule questions&#x27;, billing: &#x27;billing emails&#x27;, cancel: &#x27;cancellation requests&#x27;,
+    freeze: &#x27;freeze requests&#x27;, training: &#x27;training inquiries&#x27;, vendor: &#x27;vendor emails&#x27;, general: &#x27;general questions&#x27; },
+  // Proposed routing after the audit: default owner + first-reply SLA in business hours.
+  routing: {
+    trial: { owner: &#x27;Jordan&#x27;, slaHours: 2 },
+    schedule: { owner: &#x27;Priya&#x27;, slaHours: 4 },
+    billing: { owner: &#x27;Maya&#x27;, slaHours: 8 },
+    cancel: { owner: &#x27;Maya&#x27;, slaHours: 8 },
+    freeze: { owner: &#x27;Jordan&#x27;, slaHours: 8 },
+    training: { owner: &#x27;Sam&#x27;, slaHours: 8 },
+    vendor: { owner: &#x27;Maya&#x27;, slaHours: 24 },
+    general: { owner: &#x27;Priya&#x27;, slaHours: 8 },
+  },
+  defaultRoute: { owner: null, slaHours: 8 },
+  dueSoonHours: 1,
+  escalateUnclaimedHours: 24,
+  staleDays: 14,
+  internalCategories: [&#x27;vendor&#x27;],
+  triageThreshold: 0.6,
+};
+
+if (require.main === module) {
+  const threads = generate();
+  const out = path.join(__dirname, &#x27;..&#x27;, &#x27;web&#x27;, &#x27;data&#x27;);
+  fs.mkdirSync(out, { recursive: true });
+  fs.writeFileSync(path.join(out, &#x27;inbox.json&#x27;), JSON.stringify({ config: CONFIG, threads }));
+  console.log(`wrote ${threads.length} threads (${threads.reduce((s, t) =&gt; s + t.messages.length, 0)} messages)`);
+}
+
+module.exports = { generate, CONFIG };
+</code></pre>
+<h2 id="f4">test/core.test.js</h2><p class="muted">Unit tests with hand-worked answers.</p><pre><code>// Unit tests for core/inbox-core.js. Expected values are worked out by hand
+// in the comments, not copied from the code&#x27;s output.
+const assert = require(&#x27;node:assert/strict&#x27;);
+const C = require(&#x27;../core/inbox-core.js&#x27;);
+
+const T = (y, mo, d, h, mi) =&gt; Date.UTC(y, mo - 1, d, h || 0, mi || 0); // wall clock
+// Studio hours: Mon–Fri 9–18, Sat 9–13, Sun closed. 2026-10-19 is a Monday.
+const HOURS = { 0: null, 1: [9, 18], 2: [9, 18], 3: [9, 18], 4: [9, 18], 5: [9, 18], 6: [9, 13] };
+let passed = 0;
+const test = (name, fn) =&gt; { fn(); passed++; console.log(&#x27;  ✓ &#x27; + name); };
+
+console.log(&#x27;business hours&#x27;);
+test(&#x27;same day inside hours&#x27;, () =&gt; assert.equal(C.businessMinutes(T(2026, 10, 19, 10), T(2026, 10, 19, 11, 30), HOURS), 90));
+test(&#x27;overnight: Mon 17:00 → Tue 10:00 = 60 + 60&#x27;, () =&gt; assert.equal(C.businessMinutes(T(2026, 10, 19, 17), T(2026, 10, 20, 10), HOURS), 120));
+test(&#x27;weekend: Fri 17:00 → Mon 10:00 = 60 (Fri) + 240 (Sat) + 0 (Sun) + 60 (Mon)&#x27;, () =&gt;
+  assert.equal(C.businessMinutes(T(2026, 10, 23, 17), T(2026, 10, 26, 10), HOURS), 360));
+test(&#x27;after-hours arrival: Sat 20:00 → Mon 9:30 = 30&#x27;, () =&gt; assert.equal(C.businessMinutes(T(2026, 10, 24, 20), T(2026, 10, 26, 9, 30), HOURS), 30));
+test(&#x27;end before start = 0&#x27;, () =&gt; assert.equal(C.businessMinutes(T(2026, 10, 20, 10), T(2026, 10, 19, 10), HOURS), 0));
+test(&#x27;add 120 business min to Fri 17:00 → Sat 10:00&#x27;, () =&gt; assert.equal(C.addBusinessMinutes(T(2026, 10, 23, 17), 120, HOURS), T(2026, 10, 24, 10)));
+test(&#x27;add 4h to Sat 12:00 → Mon 12:00 (1h Sat, Sun closed, 3h Mon)&#x27;, () =&gt; assert.equal(C.addBusinessMinutes(T(2026, 10, 24, 12), 240, HOURS), T(2026, 10, 26, 12)));
+test(&#x27;add from before opening starts at opening: Tue 07:00 + 30 → 09:30&#x27;, () =&gt; assert.equal(C.addBusinessMinutes(T(2026, 10, 20, 7), 30, HOURS), T(2026, 10, 20, 9, 30)));
+test(&#x27;add/measure are inverses over 500 random starts&#x27;, () =&gt; {
+  let seed = 7; const rnd = () =&gt; (seed = (seed * 16807) % 2147483647) / 2147483647;
+  for (let i = 0; i &lt; 500; i++) {
+    const start = T(2026, 10, 1) + Math.floor(rnd() * 20 * 24 * 60) * C.MIN;
+    const mins = Math.floor(rnd() * 3000) + 1;
+    const end = C.addBusinessMinutes(start, mins, HOURS);
+    assert.equal(C.businessMinutes(start, end, HOURS), mins);
+  }
+});
+
+console.log(&#x27;thread analysis&#x27;);
+const cfg = { asOf: T(2026, 10, 22, 16), hours: HOURS, lookbackDays: 90 };
+test(&#x27;first response in business hours, and who replied&#x27;, () =&gt; {
+  const r = C.analyzeThread({ id: &#x27;a&#x27;, messages: [{ from: &#x27;customer&#x27;, at: T(2026, 10, 19, 17) }, { from: &#x27;staff&#x27;, staff: &#x27;Jordan&#x27;, at: T(2026, 10, 20, 10) }] }, cfg);
+  assert.equal(r.frtMinutes, 120); assert.equal(r.frtClockHours, 17); assert.equal(r.firstReplyBy, &#x27;Jordan&#x27;);
+  assert.equal(r.unanswered24, false); assert.equal(r.duplicate, false); assert.equal(r.awaiting, false);
+});
+test(&#x27;two staff answering the same message = duplicate&#x27;, () =&gt; {
+  const r = C.analyzeThread({ id: &#x27;b&#x27;, messages: [{ from: &#x27;customer&#x27;, at: T(2026, 10, 19, 10) }, { from: &#x27;staff&#x27;, staff: &#x27;Jordan&#x27;, at: T(2026, 10, 19, 10, 20) }, { from: &#x27;staff&#x27;, staff: &#x27;Priya&#x27;, at: T(2026, 10, 19, 10, 25) }] }, cfg);
+  assert.equal(r.duplicate, true);
+});
+test(&#x27;same staffer replying twice is NOT a duplicate&#x27;, () =&gt; {
+  const r = C.analyzeThread({ id: &#x27;c&#x27;, messages: [{ from: &#x27;customer&#x27;, at: T(2026, 10, 19, 10) }, { from: &#x27;staff&#x27;, staff: &#x27;Jordan&#x27;, at: T(2026, 10, 19, 11) }, { from: &#x27;staff&#x27;, staff: &#x27;Jordan&#x27;, at: T(2026, 10, 19, 12) }] }, cfg);
+  assert.equal(r.duplicate, false);
+});
+test(&#x27;different staff on different customer messages is NOT a duplicate&#x27;, () =&gt; {
+  const r = C.analyzeThread({ id: &#x27;d&#x27;, messages: [{ from: &#x27;customer&#x27;, at: T(2026, 10, 19, 10) }, { from: &#x27;staff&#x27;, staff: &#x27;Jordan&#x27;, at: T(2026, 10, 19, 11) }, { from: &#x27;customer&#x27;, at: T(2026, 10, 19, 12) }, { from: &#x27;staff&#x27;, staff: &#x27;Priya&#x27;, at: T(2026, 10, 19, 13) }] }, cfg);
+  assert.equal(r.duplicate, false);
+});
+test(&#x27;no reply after 3 days: unanswered at 24h and 48h, awaiting since the FIRST unanswered message&#x27;, () =&gt; {
+  const r = C.analyzeThread({ id: &#x27;e&#x27;, messages: [{ from: &#x27;customer&#x27;, at: T(2026, 10, 19, 9) }, { from: &#x27;customer&#x27;, at: T(2026, 10, 21, 9) }] }, cfg);
+  assert.equal(r.unanswered24, true); assert.equal(r.unanswered48, true); assert.equal(r.neverAnswered, true);
+  assert.equal(r.awaiting, true); assert.equal(r.waitingSince, T(2026, 10, 19, 9)); assert.equal(r.frtMinutes, null);
+});
+test(&#x27;a thread only 5 hours old is not judged at 24h/48h yet&#x27;, () =&gt; {
+  const r = C.analyzeThread({ id: &#x27;f&#x27;, messages: [{ from: &#x27;customer&#x27;, at: T(2026, 10, 22, 11) }] }, cfg);
+  assert.equal(r.unanswered24, null); assert.equal(r.unanswered48, null);
+});
+test(&#x27;reply after 30 clock hours: unanswered at 24h but not at 48h&#x27;, () =&gt; {
+  const r = C.analyzeThread({ id: &#x27;g&#x27;, messages: [{ from: &#x27;customer&#x27;, at: T(2026, 10, 19, 9) }, { from: &#x27;staff&#x27;, staff: &#x27;Maya&#x27;, at: T(2026, 10, 20, 15) }] }, cfg);
+  assert.equal(r.unanswered24, true); assert.equal(r.unanswered48, false);
+});
+test(&#x27;outbound-only thread is ignored&#x27;, () =&gt; assert.equal(C.analyzeThread({ id: &#x27;h&#x27;, messages: [{ from: &#x27;staff&#x27;, staff: &#x27;Maya&#x27;, at: T(2026, 10, 19, 9) }] }, cfg), null));
+
+console.log(&#x27;audit&#x27;);
+test(&#x27;median and p90 of first-response hours&#x27;, () =&gt; {
+  // FRTs (business hours): 1, 2, 3, 4, 10 → median 3; p90 = 4 + 0.6×(10−4) = 7.6
+  const mk = (id, h) =&gt; ({ id, category: &#x27;x&#x27;, messages: [{ from: &#x27;customer&#x27;, at: T(2026, 10, 20, 9) }, { from: &#x27;staff&#x27;, staff: &#x27;Jordan&#x27;, at: C.addBusinessMinutes(T(2026, 10, 20, 9), h * 60, HOURS) }] });
+  const a = C.audit([mk(1, 1), mk(2, 2), mk(3, 3), mk(4, 4), mk(5, 10)], cfg);
+  assert.equal(a.medianFrtHours, 3); assert.equal(a.p90FrtHours, 7.6); assert.equal(a.threads, 5);
+});
+test(&#x27;lookback window excludes older threads&#x27;, () =&gt; {
+  const old = { id: &#x27;o&#x27;, messages: [{ from: &#x27;customer&#x27;, at: T(2026, 6, 1, 9) }] };
+  const recent = { id: &#x27;r&#x27;, messages: [{ from: &#x27;customer&#x27;, at: T(2026, 10, 20, 9) }] };
+  assert.equal(C.audit([old, recent], cfg).threads, 1);
+});
+test(&#x27;staff share and outside-hours share&#x27;, () =&gt; {
+  const ts = [
+    { id: 1, messages: [{ from: &#x27;customer&#x27;, at: T(2026, 10, 19, 8) }, { from: &#x27;staff&#x27;, staff: &#x27;Maya&#x27;, at: T(2026, 10, 19, 10) }] },  // 8am = outside
+    { id: 2, messages: [{ from: &#x27;customer&#x27;, at: T(2026, 10, 19, 12) }, { from: &#x27;staff&#x27;, staff: &#x27;Maya&#x27;, at: T(2026, 10, 19, 13) }] },
+    { id: 3, messages: [{ from: &#x27;customer&#x27;, at: T(2026, 10, 25, 12) }, { from: &#x27;staff&#x27;, staff: &#x27;Jordan&#x27;, at: T(2026, 10, 26, 9) }] }, // Sunday = outside
+  ];
+  const a = C.audit(ts, Object.assign({}, cfg, { asOf: T(2026, 10, 27, 12) }));
+  assert.equal(a.staff[0].staff, &#x27;Maya&#x27;); assert.equal(a.staff[0].share, 0.6667); assert.equal(round2(a.outsideHoursShare), 0.67);
+});
+function round2(x) { return Math.round(x * 100) / 100; }
+
+test(&#x27;findings: ratio is computed from the displayed (rounded) medians&#x27;, () =&gt; {
+  // Medians 18.68 h and 1.23 h display as 18.7 and 1.2 → ratio must read 15.6 (not 15.2).
+  const f = C.findings({ categories: [
+    { category: &#x27;cancel&#x27;, threads: 20, medianFrtHours: 18.68, unanswered48: 0, duplicateRate: 0 },
+    { category: &#x27;trial&#x27;, threads: 20, medianFrtHours: 1.23, unanswered48: 0, duplicateRate: 0 },
+  ], staff: [], outsideHoursShare: null });
+  const slow = f.find(x =&gt; x.kind === &#x27;slowest&#x27;);
+  assert.equal(slow.ratio, 15.6);
+  assert.match(slow.text, /15\.6× longer .*median 18\.7 vs 1\.2/);
+});
+
+console.log(&#x27;queue and nudges&#x27;);
+const routing = { cancel: { owner: &#x27;Maya&#x27;, slaHours: 4 }, trial: { owner: &#x27;Jordan&#x27;, slaHours: 2 } };
+const qcfg = Object.assign({}, cfg, { routing, team: [&#x27;Maya&#x27;, &#x27;Jordan&#x27;, &#x27;Priya&#x27;], escalateUnclaimedHours: 24, dueSoonHours: 1 });
+test(&#x27;SLA due time and status at 16:00 Thu&#x27;, () =&gt; {
+  const threads = [
+    { id: &#x27;late&#x27;, category: &#x27;cancel&#x27;, messages: [{ from: &#x27;customer&#x27;, at: T(2026, 10, 22, 9) }] },   // due 13:00 → overdue by 3h
+    { id: &#x27;soon&#x27;, category: &#x27;trial&#x27;, messages: [{ from: &#x27;customer&#x27;, at: T(2026, 10, 22, 14, 30) }] }, // due 16:30 → 30 min left
+    { id: &#x27;ok&#x27;, category: &#x27;cancel&#x27;, messages: [{ from: &#x27;customer&#x27;, at: T(2026, 10, 22, 15, 30) }] },  // due Fri 10:30 → 120 (Thu) + 90 (Fri) = 210 min left
+    { id: &#x27;done&#x27;, category: &#x27;trial&#x27;, messages: [{ from: &#x27;customer&#x27;, at: T(2026, 10, 22, 10) }, { from: &#x27;staff&#x27;, staff: &#x27;Jordan&#x27;, at: T(2026, 10, 22, 10, 5) }] },
+  ];
+  const q = C.queue(threads, qcfg, { late: &#x27;Maya&#x27; });
+  assert.deepEqual(q.map(x =&gt; x.id), [&#x27;late&#x27;, &#x27;soon&#x27;, &#x27;ok&#x27;]);
+  assert.deepEqual(q.map(x =&gt; x.status), [&#x27;overdue&#x27;, &#x27;due-soon&#x27;, &#x27;on-track&#x27;]);
+  assert.deepEqual(q.map(x =&gt; x.businessMinutesLeft), [-180, 30, 210]);
+  assert.equal(q[2].due, T(2026, 10, 23, 10, 30));
+  assert.equal(q[1].suggestedOwner, &#x27;Jordan&#x27;); assert.equal(q[1].owner, null);
+});
+test(&#x27;nudges: owner gets overdue items; old unclaimed items go to the whole team&#x27;, () =&gt; {
+  const threads = [
+    { id: &#x27;late&#x27;, category: &#x27;cancel&#x27;, messages: [{ from: &#x27;customer&#x27;, at: T(2026, 10, 22, 9) }] },
+    { id: &#x27;orphan&#x27;, category: &#x27;trial&#x27;, messages: [{ from: &#x27;customer&#x27;, at: T(2026, 10, 20, 9) }] }, // unclaimed 55h
+    { id: &#x27;fresh&#x27;, category: &#x27;trial&#x27;, messages: [{ from: &#x27;customer&#x27;, at: T(2026, 10, 22, 15, 45) }] },
+  ];
+  const plan = C.nudges(C.queue(threads, qcfg, { late: &#x27;Maya&#x27; }), qcfg);
+  const maya = plan.find(p =&gt; p.to === &#x27;Maya&#x27;);
+  assert.deepEqual(maya.items.map(i =&gt; i.id).sort(), [&#x27;late&#x27;, &#x27;orphan&#x27;]);
+  assert.deepEqual(plan.find(p =&gt; p.to === &#x27;Priya&#x27;).items, [{ id: &#x27;orphan&#x27;, why: &#x27;unclaimed&#x27; }]);
+  assert.equal(plan.length, 3);
+});
+
+test(&#x27;requests older than staleDays are backlog, not nudged&#x27;, () =&gt; {
+  const threads = [
+    { id: &#x27;ancient&#x27;, category: &#x27;cancel&#x27;, messages: [{ from: &#x27;customer&#x27;, at: T(2026, 9, 1, 9) }] },
+    { id: &#x27;late&#x27;, category: &#x27;cancel&#x27;, messages: [{ from: &#x27;customer&#x27;, at: T(2026, 10, 22, 9) }] },
+  ];
+  const c = Object.assign({}, qcfg, { staleDays: 14 });
+  const q = C.queue(threads, c, { late: &#x27;Maya&#x27;, ancient: &#x27;Maya&#x27; });
+  assert.deepEqual(q.map(x =&gt; [x.id, x.status]), [[&#x27;late&#x27;, &#x27;overdue&#x27;], [&#x27;ancient&#x27;, &#x27;stale&#x27;]]);
+  assert.deepEqual(C.nudges(q, c), [{ to: &#x27;Maya&#x27;, items: [{ id: &#x27;late&#x27;, why: &#x27;overdue&#x27; }] }]);
+});
+
+console.log(&#x27;triage&#x27;);
+const rules = C.compileRules({ cancel: [[&#x27;\\bcancel&#x27;, 3], [&#x27;\\bquit\\b&#x27;, 2]], trial: [[&#x27;\\btrial\\b&#x27;, 3], [&#x27;first class&#x27;, 2]] });
+test(&#x27;clear match routes automatically with confidence 1&#x27;, () =&gt; {
+  const r = C.classify(&#x27;I want to cancel my membership&#x27;, rules, 0.6);
+  assert.equal(r.category, &#x27;cancel&#x27;); assert.equal(r.confidence, 1); assert.equal(r.needsHuman, false);
+});
+test(&#x27;mixed signals: 3 vs 3 → confidence 0.5 → human&#x27;, () =&gt; {
+  const r = C.classify(&#x27;cancel my trial&#x27;, rules, 0.6);
+  assert.equal(r.confidence, 0.5); assert.equal(r.needsHuman, true);
+});
+test(&#x27;no keyword → human&#x27;, () =&gt; assert.equal(C.classify(&#x27;hello?&#x27;, rules, 0.6).needsHuman, true));
+test(&#x27;evaluation counts precision/recall correctly&#x27;, () =&gt; {
+  const ev = C.evaluate([
+    { text: &#x27;cancel please&#x27;, label: &#x27;cancel&#x27; }, { text: &#x27;free trial?&#x27;, label: &#x27;trial&#x27; },
+    { text: &#x27;I quit&#x27;, label: &#x27;cancel&#x27; }, { text: &#x27;first class trial cancel&#x27;, label: &#x27;trial&#x27; }, // 5 vs 3 → trial, correct
+    { text: &#x27;is my trial cancelled&#x27;, label: &#x27;cancel&#x27; },                                      // 3 vs 3 → human
+  ], rules, 0.6);
+  assert.equal(ev.autoRouted, 4); assert.equal(ev.humanQueue, 1); assert.equal(ev.autoPrecision, 1);
+  const cancel = ev.perClass.find(p =&gt; p.category === &#x27;cancel&#x27;);
+  assert.equal(cancel.recall, 0.667); assert.equal(cancel.precision, 1);
+});
+
+console.log(`\n${passed} tests passed`);
+</code></pre>
+<h2 id="f5">test/pilot.test.js</h2><p class="muted">Runs the Gmail version against a fake inbox, including the privacy check.</p><pre><code>// Runs apps-script/Pilot.gs against mocked GmailApp / SpreadsheetApp to check
+// the Gmail → metadata conversion, the audit/queue sheets, nudges, and that no
+// message body text is ever written to the spreadsheet.
+const assert = require(&#x27;node:assert/strict&#x27;);
+const fs = require(&#x27;fs&#x27;);
+const path = require(&#x27;path&#x27;);
+const vm = require(&#x27;vm&#x27;);
+
+const ROOT = path.join(__dirname, &#x27;..&#x27;);
+const TZ = &#x27;America/Los_Angeles&#x27;;
+// Real instants → Gmail messages. 2026-10-19 is a Monday (PDT = UTC−7).
+const at = (d, h, m) =&gt; new Date(Date.UTC(2026, 9, d, h + 7, m || 0));
+const SECRET = &#x27;MY-CARD-ENDS-4242&#x27;;
+const SPEC = [
+  { id: &#x27;g1&#x27;, subject: &#x27;Cancel&#x27;, msgs: [[&#x27;pat@mail.example&#x27;, at(19, 10), `Please cancel my membership. ${SECRET}`], [&#x27;maya@studio.example&#x27;, at(19, 15)]] },
+  { id: &#x27;g2&#x27;, subject: &#x27;Free trial?&#x27;, msgs: [[&#x27;lee@mail.example&#x27;, at(20, 9), &#x27;Do you offer a free trial week?&#x27;], [&#x27;jordan@studio.example&#x27;, at(20, 9, 30)], [&#x27;priya@studio.example&#x27;, at(20, 9, 40)]] },
+  { id: &#x27;g3&#x27;, subject: &#x27;Charged twice&#x27;, msgs: [[&#x27;kim@mail.example&#x27;, at(21, 10), &#x27;I was charged twice, refund please&#x27;]] }, // unanswered
+  { id: &#x27;g4&#x27;, subject: &#x27;hello&#x27;, msgs: [[&#x27;ash@mail.example&#x27;, at(22, 8), &#x27;hello?&#x27;]] },                                      // ambiguous → needs-review
+];
+
+function gmailMock() {
+  const labels = { &#x27;owner/Maya&#x27;: [&#x27;g3&#x27;] };
+  const threads = SPEC.map(s =&gt; ({
+    getId: () =&gt; s.id,
+    getFirstMessageSubject: () =&gt; s.subject,
+    getMessages: () =&gt; s.msgs.map(([from, date, body]) =&gt; ({ getFrom: () =&gt; `Someone &lt;${from}&gt;`, getDate: () =&gt; date, getPlainBody: () =&gt; body || &#x27;reply&#x27; })),
+  }));
+  return {
+    search: (q, start) =&gt; (start === 0 ? threads : []),
+    getUserLabelByName: n =&gt; (labels[n] !== undefined || n.startsWith(&#x27;owner/&#x27;) ? { getThreads: () =&gt; (labels[n] || []).map(id =&gt; threads.find(t =&gt; t.getId() === id)) } : null),
+    createLabel: n =&gt; { labels[n] = []; },
+  };
+}
+
+function sheetsMock() {
+  const sheets = {};
+  const mk = name =&gt; {
+    const cells = {};
+    const sh = {
+      cells, getName: () =&gt; name,
+      getRange(r, c, nr, nc) {
+        if (typeof r === &#x27;string&#x27;) { const m = /^([A-Z])(\d+)/.exec(r); return sh.getRange(Number(m[2]), m[1].charCodeAt(0) - 64, 1, 1); }
+        nr = nr || 1; nc = nc || 1;
+        const rng = {
+          setValues(v) { v.forEach((row, i) =&gt; row.forEach((x, j) =&gt; { cells[`${r + i},${c + j}`] = x; })); return rng; },
+          setValue(x) { cells[`${r},${c}`] = x; return rng; },
+          getValues() { return Array.from({ length: nr }, (_, i) =&gt; Array.from({ length: nc }, (_, j) =&gt; (cells[`${r + i},${c + j}`] ?? &#x27;&#x27;))); },
+          setFontWeight: () =&gt; rng, setFontSize: () =&gt; rng,
+        };
+        return rng;
+      },
+      getLastRow() { return Math.max(0, ...Object.keys(cells).filter(k =&gt; cells[k] !== &#x27;&#x27;).map(k =&gt; Number(k.split(&#x27;,&#x27;)[0]))); },
+      clear() { Object.keys(cells).forEach(k =&gt; delete cells[k]); },
+      setColumnWidth() {}, appendRow(row) { const r = sh.getLastRow() + 1; row.forEach((x, j) =&gt; { cells[`${r},${j + 1}`] = x; }); },
+    };
+    sheets[name] = sh;
+    return sh;
+  };
+  return { sheets, ss: { getSheetByName: n =&gt; sheets[n] || null, insertSheet: mk } };
+}
+
+const sent = [];
+const { sheets, ss } = sheetsMock();
+const ctx = {
+  console,
+  GmailApp: gmailMock(),
+  SpreadsheetApp: { getActive: () =&gt; ss, getUi: () =&gt; ({ alert() {}, createMenu: () =&gt; ({}) }) },
+  Session: { getEffectiveUser: () =&gt; ({ getEmail: () =&gt; &#x27;info@studio.example&#x27; }), getScriptTimeZone: () =&gt; TZ },
+  Utilities: {
+    formatDate(date, tz, fmt) {
+      const p = Object.fromEntries(new Intl.DateTimeFormat(&#x27;en-CA&#x27;, { timeZone: tz, year: &#x27;numeric&#x27;, month: &#x27;2-digit&#x27;, day: &#x27;2-digit&#x27;, hour: &#x27;2-digit&#x27;, minute: &#x27;2-digit&#x27;, second: &#x27;2-digit&#x27;, hourCycle: &#x27;h23&#x27; }).formatToParts(date).map(x =&gt; [x.type, x.value]));
+      return fmt === &quot;yyyy-MM-dd&#x27;T&#x27;HH:mm:ss&quot; ? `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}:${p.second}` : `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute}`;
+    },
+  },
+  MailApp: { sendEmail: (to, subject, body) =&gt; sent.push({ to, subject, body }) },
+  ScriptApp: { getProjectTriggers: () =&gt; [], newTrigger: () =&gt; ({}), WeekDay: {} },
+  Date,
+};
+vm.createContext(ctx);
+for (const f of [&#x27;core/inbox-core.js&#x27;, &#x27;core/triage-rules.js&#x27;, &#x27;apps-script/Pilot.gs&#x27;]) vm.runInContext(fs.readFileSync(path.join(ROOT, f), &#x27;utf8&#x27;), ctx, { filename: f });
+
+// Objects built inside the vm have a different Array prototype; compare as plain JSON.
+const eq = (a, b) =&gt; assert.deepEqual(JSON.parse(JSON.stringify(a)), b);
+let passed = 0;
+const test = (name, fn) =&gt; { fn(); passed++; console.log(&#x27;  ✓ &#x27; + name); };
+
+ctx.setupPilot();
+const S = sheets.Settings;
+S.getRange(11, 1, 3, 2).setValues([[&#x27;Maya&#x27;, &#x27;maya@studio.example&#x27;], [&#x27;Jordan&#x27;, &#x27;jordan@studio.example&#x27;], [&#x27;Priya&#x27;, &#x27;priya@studio.example&#x27;]]);
+S.getRange(11, 5, 8, 1).setValues([[&#x27;Maya&#x27;], [&#x27;Jordan&#x27;], [&#x27;Maya&#x27;], [&#x27;Maya&#x27;], [&#x27;Jordan&#x27;], [&#x27;Maya&#x27;], [&#x27;Maya&#x27;], [&#x27;Jordan&#x27;]]);
+S.getRange(1, 2).setValue(&#x27;info@studio.example&#x27;);
+
+// Freeze &quot;now&quot; at Thu Oct 22, 2026 16:00 PDT for deterministic results.
+const realNow = Date.now;
+ctx.Date = class extends Date { constructor(...a) { if (a.length) super(...a); else super(Date.UTC(2026, 9, 22, 23, 0)); } static now() { return Date.UTC(2026, 9, 22, 23, 0); } };
+vm.runInContext(&#x27;Date = this.Date&#x27;, ctx);
+
+console.log(&#x27;pilot&#x27;);
+const st = ctx.readPilotSettings();
+test(&#x27;settings parse: team, hours, routing&#x27;, () =&gt; {
+  eq(st.teamNames, [&#x27;Maya&#x27;, &#x27;Jordan&#x27;, &#x27;Priya&#x27;]);
+  assert.equal(st.hours[0], null); eq(st.hours[1], [9, 18]); eq(st.hours[6], [9, 13]);
+  assert.equal(st.routing.cancel.owner, &#x27;Maya&#x27;); assert.equal(st.routing.trial.slaHours, 2);
+});
+test(&#x27;time conversion uses the studio time zone (10:00 PDT stays 10:00)&#x27;, () =&gt; {
+  assert.equal(ctx.toWallClock(at(19, 10), TZ), Date.UTC(2026, 9, 19, 10));
+});
+const threads = ctx.fetchThreads(st);
+test(&#x27;Gmail threads convert: staff vs customer by address, category by triage&#x27;, () =&gt; {
+  const g2 = threads.find(t =&gt; t.id === &#x27;g2&#x27;);
+  eq(g2.messages.map(m =&gt; [m.from, m.staff]), [[&#x27;customer&#x27;, null], [&#x27;staff&#x27;, &#x27;Jordan&#x27;], [&#x27;staff&#x27;, &#x27;Priya&#x27;]]);
+  assert.equal(g2.category, &#x27;trial&#x27;);
+  assert.equal(threads.find(t =&gt; t.id === &#x27;g1&#x27;).category, &#x27;cancel&#x27;);
+  assert.equal(threads.find(t =&gt; t.id === &#x27;g4&#x27;).category, &#x27;needs-review&#x27;);
+  assert.equal(g2.subject, undefined); // subjects off by default
+});
+const a = ctx.runAudit();
+test(&#x27;audit numbers: g1 5h, g2 0.5h → median 2.75h; g2 duplicate; g3/g4 awaiting&#x27;, () =&gt; {
+  assert.equal(a.threads, 4); assert.equal(a.medianFrtHours, 2.75); assert.equal(a.duplicateRate, 0.25); assert.equal(a.awaitingNow, 2);
+});
+test(&#x27;PRIVACY: no message body text anywhere in the spreadsheet&#x27;, () =&gt; {
+  const all = Object.values(sheets).flatMap(s =&gt; Object.values(s.cells)).map(String).join(&#x27; | &#x27;);
+  assert.ok(!all.includes(SECRET), &#x27;body text leaked&#x27;); assert.ok(!all.includes(&#x27;refund please&#x27;), &#x27;body text leaked&#x27;);
+});
+const q = ctx.refreshQueue();
+test(&#x27;queue: claimed via owner/Maya label; statuses at Thu 16:00&#x27;, () =&gt; {
+  const g3 = q.find(x =&gt; x.id === &#x27;g3&#x27;), g4 = q.find(x =&gt; x.id === &#x27;g4&#x27;);
+  assert.equal(g3.owner, &#x27;Maya&#x27;); assert.equal(g3.status, &#x27;overdue&#x27;);     // billing SLA 8h from Wed 10:00 → Wed 18:00
+  assert.equal(g4.owner, null); assert.equal(g4.category, &#x27;needs-review&#x27;); // default 8h from Thu 09:00 (arrived 08:00) → Thu 17:00, 60 min left
+  assert.equal(g4.status, &#x27;due-soon&#x27;); // 60 business min left
+});
+ctx.hourlyNudge();
+test(&#x27;nudge: one batched email to Maya for her overdue thread; nobody else yet&#x27;, () =&gt; {
+  assert.equal(sent.length, 1); assert.equal(sent[0].to, &#x27;maya@studio.example&#x27;); assert.match(sent[0].body, /Overdue: .*g3/);
+});
+console.log(`\n${passed} pilot tests passed`);
+</code></pre>
+<h2 id="f6">test/triage-eval.js</h2><p class="muted">Scores each rule version on the four test sets.</p><pre><code>// Triage evaluation on unique phrasings (body text only, so every split is
+// scored the same way). Writes web/data/triage-eval.json for the demo.
+const fs = require(&#x27;fs&#x27;);
+const path = require(&#x27;path&#x27;);
+const C = require(&#x27;../core/inbox-core.js&#x27;);
+const V1 = require(&#x27;../core/triage-rules.v1.js&#x27;);
+const V2 = require(&#x27;../core/triage-rules.v2.js&#x27;);
+const V21 = require(&#x27;../core/triage-rules.js&#x27;);
+const { PHRASINGS, CATEGORIES } = require(&#x27;../data/phrasings.js&#x27;);
+const HOLDOUT = require(&#x27;../data/holdout.js&#x27;);
+
+const cats = Object.keys(CATEGORIES);
+const split = name =&gt; cats.flatMap(c =&gt; PHRASINGS[c][name].map(([, body]) =&gt; ({ text: body, label: c })));
+const sets = {
+  dev: split(&#x27;dev&#x27;),
+  test: split(&#x27;test&#x27;),
+  // Written during the build just before v2; words from it leaked into v2, so
+  // this is development data now, not a fair test.
+  holdout: cats.flatMap(c =&gt; HOLDOUT[c].map(text =&gt; ({ text, label: c }))),
+  // Written by an independent author who never saw the rules or any examples.
+  blind: require(&#x27;../data/blind.json&#x27;).items,
+};
+const THRESHOLD = 0.6;
+const results = {};
+for (const [ver, rules] of [[&#x27;v1&#x27;, V1], [&#x27;v2&#x27;, V2], [&#x27;v2.1&#x27;, V21]]) {
+  const compiled = C.compileRules(rules);
+  results[ver] = {};
+  for (const [name, items] of Object.entries(sets)) {
+    const ev = C.evaluate(items, compiled, THRESHOLD, cats);
+    results[ver][name] = ev;
+  }
+}
+
+const pct = x =&gt; (x === null ? &#x27;—&#x27; : Math.round(x * 100) + &#x27;%&#x27;);
+console.log(&#x27;version  split     n   top-label  auto-routed  auto-precision  to-human&#x27;);
+for (const ver of [&#x27;v1&#x27;, &#x27;v2&#x27;, &#x27;v2.1&#x27;]) for (const name of Object.keys(sets)) {
+  const e = results[ver][name];
+  console.log(`${ver.padEnd(8)} ${name.padEnd(8)} ${String(e.n).padStart(3)}   ${pct(e.topLabelAccuracy).padStart(6)}     ${pct(e.autoRate).padStart(6)}        ${pct(e.autoPrecision).padStart(6)}       ${String(e.humanQueue).padStart(3)}`);
+}
+const h = results.v2.blind;
+console.log(&#x27;\nv2 BLIND per class:&#x27;, h.perClass.map(p =&gt; `${p.category} P${pct(p.precision)} R${pct(p.recall)}`).join(&#x27; | &#x27;));
+console.log(&#x27;v2 BLIND auto-routed mistakes:&#x27;);
+h.errors.forEach(e =&gt; console.log(`  ✗ ${e.label} → ${e.predicted} (${e.confidence}) ${e.text}`));
+
+fs.writeFileSync(path.join(__dirname, &#x27;..&#x27;, &#x27;web&#x27;, &#x27;data&#x27;, &#x27;triage-eval.json&#x27;), JSON.stringify({
+  threshold: THRESHOLD, categories: CATEGORIES,
+  summary: Object.fromEntries([&#x27;v1&#x27;, &#x27;v2&#x27;, &#x27;v2.1&#x27;].map(v =&gt; [v, Object.fromEntries(Object.entries(results[v]).map(([k, e]) =&gt; [k, {
+    n: e.n, topLabelAccuracy: e.topLabelAccuracy, autoRate: e.autoRate, autoPrecision: e.autoPrecision, humanQueue: e.humanQueue,
+  }]))])),
+  blind: { perClass: h.perClass, matrix: h.matrix, errors: h.errors },
+}, null, 1));
+module.exports = results;
+</code></pre>
+<footer>
+<p>Built in plain HTML and CSS with Claude Code, which I directed and fact-checked.</p>
+<p>tylerbunn.netlify.app · <a href="https://www.linkedin.com/in/tdbunn">linkedin.com/in/tdbunn</a> · <a href="mailto:itstylerbunn@gmail.com">itstylerbunn@gmail.com</a></p>
+</footer>
+</div>
+</body>
+</html>
