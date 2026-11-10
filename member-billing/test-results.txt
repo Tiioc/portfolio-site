@@ -1,0 +1,98 @@
+# Test run 2026-11-10 
+
+## Formulas recalculated by LibreOffice
+1. Answer key vs the Python version of the rules (lookups by member ID)
+  by ID: caught 15 of 15 planted, missed 0, wrong label 0, false flags 0
+PASS python: every planted problem caught with the right label
+PASS python: no false flags
+PASS python same-name 1: active Chris Morgan (M-1012) October charge is not flagged
+PASS python same-name 2: paused Chris Morgan (M-1031) October charge is flagged
+PASS python same-name 3: M-1031's refund is still owed even though M-1012 got a $95 refund
+PASS python same-name 4: M-1012's refund counts as sent
+PASS python same-name 5: M-1031's earlier charges are not flagged as another member's card
+
+2. What goes wrong if you look members up by name instead (for comparison only)
+  by name: caught 13 of 15 planted, missed 1, wrong label 1, false flags 2
+  missed: ['R-04']  false flags: ['T-2031', 'T-2067']
+
+3. Spreadsheet results from out/member-billing.xlsx
+  sheet: caught 15 of 15 planted, missed 0, wrong label 0, false flags 0
+PASS sheet: every planted problem caught with the right label
+PASS sheet: no false flags
+PASS sheet: matches the Python version row for row
+PASS sheet same-name 1: active Chris Morgan (M-1012) October charge is not flagged
+PASS sheet same-name 2: paused Chris Morgan (M-1031) October charge is flagged
+PASS sheet same-name 3: M-1031's refund is still owed even though M-1012 got a $95 refund
+PASS sheet same-name 4: M-1012's refund counts as sent
+PASS sheet same-name 5: M-1031's earlier charges are not flagged as another member's card
+PASS sheet: fix list has one row per problem
+PASS sheet: fix list covers every planted problem
+PASS sheet: fix list names and phones come from the member ID
+PASS sheet: wrong-account fix points to M-1018
+  header line: 15 things to fix. Every lookup uses the member ID, never the name.
+  sample fix list rows:
+    (1, 'M-1013', 'Mia Shaw', '(661) 555-0112', 'Disputed charge', 'Call member about this $189 charge', 'T-2013')
+    (2, 'M-1019', 'Sam Jensen', '(661) 555-0118', 'Card failed, not retried', 'Call to update card, then retry $95', 'T-2055')
+    (3, 'M-1030', 'Dana Udall', '(661) 555-0129', 'Charged after cancelling', 'Refund $95', 'T-2066')
+    (4, 'M-1006', 'Felix Reyes', '(661) 555-0105', 'Charged twice this month', 'Refund the extra $189', 'T-2073')
+    (5, 'M-1004', 'Dev Brooks', '(661) 555-0103', 'Card failed, not retried', 'Call to update card, then retry $189', 'T-2078')
+    (6, 'M-1011', 'Kira Lund', '(661) 555-0110', 'Card failed, not retried', 'Call to update card, then retry $189', 'T-2085')
+    (7, 'M-1015', 'Olive Fox', '(661) 555-0114', 'Charged after pausing', 'Refund $260', 'T-2089')
+    (8, 'M-1025', 'Yara Park', '(661) 555-0124', 'Disputed charge', 'Call member about this $189 charge', 'T-2098')
+    (9, 'M-1027', 'Amir Ruiz', '(661) 555-0126', 'Card failed, not retried', 'Call to update card, then retry $189', 'T-2100')
+    (10, 'M-1030', 'Dana Udall', '(661) 555-0129', 'Charged after cancelling', 'Refund $95', 'T-2103')
+    (11, 'M-1031', 'Chris Morgan', '(661) 555-0130', 'Charged after pausing', 'Refund $95', 'T-2104')
+    (12, 'M-1021', 'Uma Lowe', '(661) 555-0120', 'Charged twice this month', 'Refund the extra $95', 'T-2109')
+    (13, 'M-1017', 'Quinn Hayes', '(661) 555-0116', "Paid with another member's card", 'Move this payment to M-1018', 'T-2110')
+    (14, 'M-1009', 'Iris Sato', '(661) 555-0108', 'Refund approved but never sent', 'Send the $260 refund', 'R-03')
+    (15, 'M-1031', 'Chris Morgan', '(661) 555-0130', 'Refund approved but never sent', 'Send the $95 refund', 'R-04')
+
+RESULT: all passed
+
+## Formulas recalculated by Google Sheets (file converted in Google Drive, then exported)
+3. Spreadsheet results from out/google-sheets-export.xlsx
+  sheet: caught 15 of 15 planted, missed 0, wrong label 0, false flags 0
+PASS sheet: every planted problem caught with the right label
+PASS sheet: no false flags
+PASS sheet: matches the Python version row for row
+PASS sheet same-name 1: active Chris Morgan (M-1012) October charge is not flagged
+PASS sheet same-name 2: paused Chris Morgan (M-1031) October charge is flagged
+PASS sheet same-name 3: M-1031's refund is still owed even though M-1012 got a $95 refund
+PASS sheet same-name 4: M-1012's refund counts as sent
+PASS sheet same-name 5: M-1031's earlier charges are not flagged as another member's card
+PASS sheet: fix list has one row per problem
+PASS sheet: fix list covers every planted problem
+PASS sheet: fix list names and phones come from the member ID
+PASS sheet: wrong-account fix points to M-1018
+  header line: 15 things to fix. Every lookup uses the member ID, never the name.
+  sample fix list rows:
+    (1.0, 'M-1013', 'Mia Shaw', '(661) 555-0112', 'Disputed charge', 'Call member about this $189 charge', 'T-2013')
+    (2.0, 'M-1019', 'Sam Jensen', '(661) 555-0118', 'Card failed, not retried', 'Call to update card, then retry $95', 'T-2055')
+    (3.0, 'M-1030', 'Dana Udall', '(661) 555-0129', 'Charged after cancelling', 'Refund $95', 'T-2066')
+    (4.0, 'M-1006', 'Felix Reyes', '(661) 555-0105', 'Charged twice this month', 'Refund the extra $189', 'T-2073')
+    (5.0, 'M-1004', 'Dev Brooks', '(661) 555-0103', 'Card failed, not retried', 'Call to update card, then retry $189', 'T-2078')
+    (6.0, 'M-1011', 'Kira Lund', '(661) 555-0110', 'Card failed, not retried', 'Call to update card, then retry $189', 'T-2085')
+    (7.0, 'M-1015', 'Olive Fox', '(661) 555-0114', 'Charged after pausing', 'Refund $260', 'T-2089')
+    (8.0, 'M-1025', 'Yara Park', '(661) 555-0124', 'Disputed charge', 'Call member about this $189 charge', 'T-2098')
+    (9.0, 'M-1027', 'Amir Ruiz', '(661) 555-0126', 'Card failed, not retried', 'Call to update card, then retry $189', 'T-2100')
+    (10.0, 'M-1030', 'Dana Udall', '(661) 555-0129', 'Charged after cancelling', 'Refund $95', 'T-2103')
+    (11.0, 'M-1031', 'Chris Morgan', '(661) 555-0130', 'Charged after pausing', 'Refund $95', 'T-2104')
+    (12.0, 'M-1021', 'Uma Lowe', '(661) 555-0120', 'Charged twice this month', 'Refund the extra $95', 'T-2109')
+    (13.0, 'M-1017', 'Quinn Hayes', '(661) 555-0116', "Paid with another member's card", 'Move this payment to M-1018', 'T-2110')
+    (14.0, 'M-1009', 'Iris Sato', '(661) 555-0108', 'Refund approved but never sent', 'Send the $260 refund', 'R-03')
+    (15.0, 'M-1031', 'Chris Morgan', '(661) 555-0130', 'Refund approved but never sent', 'Send the $95 refund', 'R-04')
+
+RESULT: all passed
+
+## Apps Script (Code.gs) with stand-ins for Google services, using the Google Sheets fix list
+PASS sends exactly one email
+PASS subject has the count: Fix list for Oct 31, 2026: 15 things to fix
+PASS one line per problem
+PASS same-name member is listed with their ID
+PASS the other Chris Morgan (M-1012) is not on the list
+PASS empty list gets a clear subject
+PASS turning it on twice leaves one daily trigger
+PASS other triggers are left alone
+PASS trigger runs at 8am
+
+9 script checks passed

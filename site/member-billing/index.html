@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Member Billing Tracker, by Tyler Bunn</title>
+<meta name="description" content="A Google Sheet that catches billing mistakes at a members' club and turns them into a daily fix list for the front desk. Tested on fake data.">
+<meta name="author" content="Tyler Bunn">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap">
+<link rel="stylesheet" href="../style.css">
+<link rel="icon" href="data:,">
+</head>
+<body>
+<div class="page">
+<nav class="site" aria-label="Site"><a href="../#projects" aria-current="page">Projects</a><a href="../#paseo">The Paseo Club</a><a href="../#how">How I work</a><a href="../#contact">Contact</a></nav>
+
+<h1>Member Billing Tracker</h1>
+<ul class="tags" aria-label="Tags">
+  <li class="tag">Self-initiated</li>
+  <li class="tag">Fake test data</li>
+  <li class="tag accent">v1</li>
+</ul>
+<p class="lead">A Google Sheet that catches billing mistakes at a members' club and turns them into a daily fix list for the front desk.</p>
+
+<h2>The problem</h2>
+<p>At The Paseo Club I handled monthly dues, failed payments, refunds and disputes in HubSpot. I once charged the wrong member because two members had the exact same name.</p>
+
+<h2>What I built</h2>
+<ul>
+  <li>Looks up every member by ID, never by name.</li>
+  <li>Flags failed cards, double charges and refunds never sent.</li>
+  <li>Builds a daily fix list: who to call, refund or retry.</li>
+</ul>
+
+<h2>What happened</h2>
+<div class="stats two">
+  <div class="stat"><div class="value">15 <small>/</small> 15</div><p class="desc">Planted billing problems caught, with 0 false flags</p></div>
+  <div class="stat"><div class="value">4</div><p class="desc">Mistakes a look-up-by-name version made on the same data</p></div>
+</div>
+<p class="note">Tested on fake data made for it, in a real Google Sheet.</p>
+
+<h2>What I learned</h2>
+<p>Looking people up by name breaks fast. A version that did it made 4 mistakes on one shared name: it missed a refund that was still owed, gave one charge the wrong reason and flagged two normal charges.</p>
+
+<h2>How I made it</h2>
+<p>I picked the problem, set the rules and tested everything. Claude Code wrote the code.</p>
+
+<div class="actions">
+  <a class="btn primary" href="https://docs.google.com/spreadsheets/d/10E7Y1xSkgj9oXrpKes64kobsTme5ljlY7F1EERrffCU/edit?usp=sharing">Open the sheet</a>
+  <a class="btn" href="code/">Read the code</a>
+</div>
+<p class="note">[CONFIRM: the sheet is private right now. Share it as "Anyone with the link can view" before this goes live.]</p>
+
+<details>
+<summary>The details</summary>
+<ul>
+  <li><strong>The fake data.</strong> A made-up club with 36 members, August to October 2026: 113 payments and 4 approved refunds. I planted 15 problems: 4 failed cards, 4 charges after a pause or cancel, 2 double charges, 2 refunds never sent, 2 disputes and 1 payment on the wrong account.</li>
+  <li><strong>The same-name test.</strong> Two members are both named Chris Morgan, one active and one paused. 5 tests check that each one only gets their own flags and refunds.</li>
+  <li><strong>How it's checked.</strong> Every result is compared to the list of planted problems and to a separate version of the rules. LibreOffice and Google Sheets both matched it row for row. 40 checks, all passing.</li>
+  <li><strong>The morning email.</strong> A short Apps Script emails the fix list at 8am. It's tested with stand-ins for Google, but I haven't run it inside the sheet yet.</li>
+  <li><strong>The weak spot.</strong> It catches 15 of 15 because I planted them. A mistake it has no rule for, like the wrong price, would get through.</li>
+</ul>
+</details>
+
+<footer>
+<p>Built in plain HTML and CSS with Claude Code, which I directed and fact-checked.</p>
+<p>tylerbunn.netlify.app · <a href="https://www.linkedin.com/in/tdbunn">linkedin.com/in/tdbunn</a> · <a href="mailto:itstylerbunn@gmail.com">itstylerbunn@gmail.com</a></p>
+</footer>
+</div>
+</body>
+</html>
