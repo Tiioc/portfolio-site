@@ -6,9 +6,11 @@
 <title>Tyler Bunn</title>
 <meta name="description" content="Tyler Bunn, Project Management student at Boise State, looking for operations, coordinator and customer-facing roles in Seattle.">
 <meta name="author" content="Tyler Bunn">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap">
 <link rel="stylesheet" href="style.css">
 <link rel="icon" href="data:,">
-
 </head>
 <body>
 <div class="page">
@@ -35,8 +37,9 @@
 
 <section class="project">
   <h3>Order-to-Cash Tracker</h3>
-  <p class="label">Self-initiated. Simulated data.</p>
-  <p>I handled a lot of payment disputes at the front desk, and once I charged the wrong member because two people had the same name. This tracker follows an order from signed contract to collected cash, checks it against the customer's contract before anyone enters it, matches every payment to an invoice by customer ID, and drafts the escalation when something sticks. On a made-up company's orders, with mistakes planted to test it, it held 22 of 150 before entry and spotted that 41% of the "past due" money had already been paid under the wrong reference.</p>
+  <ul class="tags" aria-label="Tags"><li class="tag">Self-initiated</li><li class="tag">Simulated data</li><li class="tag accent">v2</li></ul>
+  <p>A Google Sheet that follows each order from "signed" to "paid" and catches mistakes along the way. I built it after charging the wrong member at the front desk because two people had the same name.</p>
+  <ul class="tags" aria-label="Results on made-up test data"><li class="chip"><b>22 / 150</b> held before entry</li><li class="chip"><b>41%</b> of "past due" already paid</li><li class="chip"><b>0</b> same-name mix-ups</li></ul>
   <p class="links"><a href="order-to-cash/">Read the case study</a></p>
 </section>
 
