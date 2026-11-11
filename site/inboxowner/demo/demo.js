@@ -816,7 +816,7 @@ window.TRIAGE_EVAL={
     }).join('');
     const plan = C.nudges(q, CFG);
     $('#p-owners').innerHTML = `
-      ${note(`Emails still waiting on ${when(CFG.asOf)}. Pick a name to claim one. In Gmail this is just a label with your name.`)}
+      ${note(`Emails still waiting on ${when(CFG.asOf)}. Pick a name to claim one. That person owns the reply.`)}
       ${tiles([[live.length, 'waiting'], [live.filter(x => x.owner).length, 'claimed', 'ok'], [live.filter(x => x.status === 'overdue').length, 'late', 'warn']])}
       <p class="btn-row"><button class="plain" id="q-suggest">Claim all with suggested names</button> <button class="plain" id="q-reset">Start over</button></p>
       <div class="email-list">${cards || '<p>Nothing waiting.</p>'}</div>

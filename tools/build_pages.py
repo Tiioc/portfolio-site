@@ -169,7 +169,8 @@ inbox = f"""
         ("tag", "Sorts new mail", "Guesses the topic or asks a person.", "amber")])}</section>
 
 <section class="block"><h2><span class="num">4</span>What happened</h2>
-{chart_waits()}</section>
+{chart_waits()}
+<p>So the fix is clear: give cancellation emails an owner and a reply deadline. The demo does that.</p></section>
 
 <section class="block"><h2><span class="num">5</span>What I learned</h2>
 <p>My first rules only knew old examples. One even matched "lease" inside "please."</p></section>
@@ -193,8 +194,8 @@ def chart_billing():
     def row(label, cells, value, tone=""):
         dots = "".join(f'<span class="d {c}"></span>' for c in cells)
         return f'<div class="dots-row {tone}"><span class="dots-label">{label}</span><span class="dots">{dots}</span><span class="dots-value">{value}</span></div>'
-    return f'''<figure class="chart" aria-label="15 planted mistakes. Looking members up by ID: 15 caught, 0 mistakes. Looking them up by name: 4 mistakes.">
-  <figcaption>15 planted mistakes</figcaption>
+    return f'''<figure class="chart" aria-label="15 mistakes I put in on purpose. Looking members up by ID: 15 caught, 0 mistakes. Looking them up by name: 4 mistakes.">
+  <figcaption>15 mistakes I put in on purpose</figcaption>
   {row("My sheet, by member ID", ["ok"] * 15, "15 caught")}
   {row("If it looked people up by name", ["ok"] * 13 + ["bad"] * 2 + ["bad extra"] * 2, "4 mistakes", "worse")}
   <p class="legend"><span><i class="d ok"></i>Caught right</span><span><i class="d bad"></i>Wrong</span><span><i class="d bad extra"></i>False alarm</span></p>
@@ -220,7 +221,8 @@ billing = f"""
         ("list", "Makes a fix list", "Who to call, refund or retry.", "teal")])}</section>
 
 <section class="block"><h2><span class="num">4</span>What happened</h2>
-{chart_billing()}</section>
+{chart_billing()}
+<p>Each row of the fix list says what to do: call, refund, or retry the card.</p></section>
 
 <section class="block"><h2><span class="num">5</span>What I learned</h2>
 <p>Looking people up by name breaks fast, even with one shared name.</p></section>
@@ -246,7 +248,7 @@ demo = f"""
   <h1>InboxOwner demo</h1>
   <p class="pc-tags">Fake test data</p>
 </header>
-<p>A made-up gym's shared inbox with four staff: Maya, Jordan, Priya and Sam. It's frozen at Thursday, October 22, 2026, 4:00 PM. <a href="../">Back to the project</a></p>
+<p>A made-up gym's shared inbox with four staff: Maya, Jordan, Priya and Sam. This snapshot is from Thursday, October 22, 2026, 4:00 PM. <a href="../">Back to the project</a></p>
 <noscript><p><strong>This demo needs JavaScript to run.</strong> The project page works without it.</p></noscript>
 <div class="tabs" id="demo-tabs" role="tablist">
   <button role="tab" data-tab="waits" aria-selected="true">Wait times</button>
