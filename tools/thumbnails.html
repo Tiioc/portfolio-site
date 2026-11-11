@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>LinkedIn thumbnails</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+  :root {
+    --bg: #050814; --line: #1b2540; --line-2: #2a3758; --fg: #e8edf8; --muted: #98a4bd;
+    --cyan: #22d3ee; --cyan-t: #7fe7f5; --coral: #fb6f7d; --coral-t: #ffa9b1; --indigo: #6d7cff; --indigo-t: #aab3ff;
+    --green: #34d399; --green-t: #8ff0c6;
+    --sans: "Inter", system-ui, sans-serif; --mono: "JetBrains Mono", ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { background: #000; font-family: var(--sans); color: var(--fg); }
+  .card {
+    width: 1200px; height: 627px; position: relative; overflow: hidden; padding: 64px 72px;
+    background:
+      radial-gradient(ellipse 60% 70% at 85% -10%, rgba(109,124,255,0.30), transparent 60%),
+      radial-gradient(ellipse 50% 60% at 0% 0%, rgba(34,211,238,0.16), transparent 60%),
+      linear-gradient(180deg, #0a0f1f, var(--bg) 60%);
+    display: flex; flex-direction: column;
+  }
+  .card::before { /* engineering grid */
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background-image: linear-gradient(rgba(143,227,239,0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(143,227,239,0.07) 1px, transparent 1px);
+    background-size: 56px 56px;
+    -webkit-mask-image: radial-gradient(ellipse 90% 80% at 70% 10%, #000 30%, transparent 100%);
+  }
+  .card::after { /* stars */
+    content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0.7;
+    background-image:
+      radial-gradient(1.5px 1.5px at 12% 22%, #fff 50%, transparent 51%), radial-gradient(1px 1px at 33% 78%, #fff 50%, transparent 51%),
+      radial-gradient(2px 2px at 58% 14%, #cfe8ff 50%, transparent 51%), radial-gradient(1px 1px at 76% 64%, #fff 50%, transparent 51%),
+      radial-gradient(1.5px 1.5px at 91% 30%, #fff 50%, transparent 51%), radial-gradient(1px 1px at 47% 52%, #fff 50%, transparent 51%),
+      radial-gradient(1px 1px at 22% 58%, #fff 50%, transparent 51%), radial-gradient(1.5px 1.5px at 84% 88%, #cfe8ff 50%, transparent 51%),
+      radial-gradient(1px 1px at 66% 36%, #fff 50%, transparent 51%), radial-gradient(1px 1px at 6% 86%, #fff 50%, transparent 51%);
+  }
+  .card > * { position: relative; z-index: 1; }
+  .tick { position: absolute; width: 34px; height: 34px; border: solid var(--cyan); z-index: 2; }
+  .tick.tl { top: 28px; left: 28px; border-width: 3px 0 0 3px; }
+  .tick.br { bottom: 28px; right: 28px; border-width: 0 3px 3px 0; }
+  .top { display: flex; justify-content: space-between; align-items: center; }
+  .brand { font-family: var(--mono); font-weight: 700; font-size: 22px; letter-spacing: 0.12em; text-transform: uppercase; display: flex; align-items: center; gap: 14px; }
+  .brand::before { content: ""; width: 12px; height: 12px; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 14px var(--cyan); }
+  .url { font-family: var(--mono); font-size: 22px; color: var(--cyan-t); letter-spacing: 0.02em; }
+  .label { font-family: var(--mono); font-size: 20px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+  h1 { font-weight: 800; letter-spacing: -0.04em; line-height: 1.02; }
+  .grad { background: linear-gradient(100deg, #fff 35%, var(--cyan-t) 75%, var(--indigo-t)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .lead { font-size: 30px; line-height: 1.35; color: var(--muted); }
+  .icon { width: 1em; height: 1em; }
+  .chip { display: inline-flex; align-items: center; gap: 12px; padding: 12px 20px; border-radius: 8px; border: 1px solid var(--line-2); background: rgba(255,255,255,0.03);
+    font-family: var(--mono); font-size: 21px; color: var(--muted); }
+  .chip b { color: var(--cyan-t); }
+
+  /* General */
+  .general .body { flex: 1; display: grid; grid-template-columns: 220px 1fr; gap: 56px; align-items: center; }
+  .avatar { width: 220px; height: 220px; border-radius: 50%; object-fit: cover; border: 4px solid transparent;
+    background: linear-gradient(var(--bg), var(--bg)) padding-box, conic-gradient(from 200deg, var(--cyan), var(--indigo), #f5a524, var(--cyan)) border-box;
+    box-shadow: 0 0 0 10px rgba(34,211,238,0.08), 0 0 70px -10px rgba(34,211,238,0.6); }
+  .general h1 { font-size: 92px; margin: 10px 0 18px; }
+  .general .lead { margin-bottom: 26px; max-width: 640px; }
+  .roles { display: flex; gap: 12px; flex-wrap: wrap; }
+  .status { display: inline-flex; align-items: center; gap: 12px; padding: 12px 20px; border-radius: 999px; font-family: var(--mono); font-size: 20px; letter-spacing: 0.08em;
+    text-transform: uppercase; font-weight: 700; color: var(--green-t); background: rgba(52,211,153,0.1); border: 1px solid rgba(52,211,153,0.5); }
+  .status::before { content: ""; width: 12px; height: 12px; border-radius: 50%; background: var(--green); box-shadow: 0 0 12px var(--green); }
+
+  /* Project */
+  .project .body { flex: 1; display: grid; grid-template-columns: 1fr 480px; gap: 56px; align-items: center; }
+  .pi { display: inline-grid; place-items: center; width: 76px; height: 76px; border-radius: 18px; font-size: 40px; margin-bottom: 22px;
+    color: var(--cyan-t); background: rgba(34,211,238,0.1); border: 1px solid rgba(34,211,238,0.6); box-shadow: 0 0 34px -8px var(--cyan); }
+  .pi.coral { color: var(--coral-t); background: rgba(251,111,125,0.12); border-color: rgba(251,111,125,0.6); box-shadow: 0 0 34px -8px var(--coral); }
+  .project h1 { font-size: 72px; margin: 10px 0 20px; }
+  .project .lead { font-size: 28px; }
+  .panel { position: relative; padding: 30px 30px 26px; border-radius: 16px; border: 1px solid var(--line); background: rgba(13,19,38,0.85); }
+  .panel::before, .panel::after { content: ""; position: absolute; width: 20px; height: 20px; border: solid var(--cyan); }
+  .panel::before { top: -1px; left: -1px; border-width: 3px 0 0 3px; border-top-left-radius: 5px; }
+  .panel::after { bottom: -1px; right: -1px; border-width: 0 3px 3px 0; border-bottom-right-radius: 5px; }
+  .panel .cap { font-family: var(--mono); font-weight: 700; font-size: 17px; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 24px; display: flex; align-items: center; gap: 12px; }
+  .panel .cap::before { content: ""; width: 11px; height: 11px; border-radius: 2px; background: var(--cyan); box-shadow: 0 0 10px var(--cyan); }
+  .row { margin-bottom: 22px; }
+  .row .k { font-family: var(--mono); font-size: 17px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
+  .bar { display: grid; grid-template-columns: 1fr auto; gap: 18px; align-items: center; }
+  .track { height: 30px; border-radius: 4px; background: repeating-linear-gradient(90deg, rgba(255,255,255,0.06) 0 1px, transparent 1px 10%); }
+  .fill { height: 100%; border-radius: 4px; }
+  .fill.coral { background: linear-gradient(90deg, #8a2f3a, var(--coral)); box-shadow: 0 0 24px -4px var(--coral); }
+  .fill.cyan { background: linear-gradient(90deg, #0d6f80, var(--cyan)); box-shadow: 0 0 24px -4px var(--cyan); }
+  .v { font-family: var(--mono); font-weight: 700; font-size: 28px; white-space: nowrap; }
+  .v.coral { color: var(--coral-t); } .v.cyan { color: var(--cyan-t); }
+  .note { font-family: var(--mono); font-size: 16px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+  .dots { display: flex; flex-wrap: wrap; gap: 7px; width: 248px; }
+  .d { width: 21px; height: 21px; border-radius: 50%; }
+  .d.ok { background: var(--cyan); box-shadow: 0 0 10px -1px var(--cyan); }
+  .d.bad { background: var(--coral); box-shadow: 0 0 10px -1px var(--coral); }
+  .d.extra { background: transparent; border: 3px solid var(--coral); box-shadow: none; }
+  .dotrow { display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: center; }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="inbox" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></symbol>
+  <symbol id="card" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/><path d="M6 15h4"/></symbol>
+</svg>
+
+<!-- 1. General -->
+<div class="card general" id="general">
+  <span class="tick tl"></span><span class="tick br"></span>
+  <div class="top"><span class="brand">Portfolio</span><span class="url">tylerbunn.netlify.app</span></div>
+  <div class="body">
+    <img class="avatar" src="../site/me.jpg" alt="">
+    <div>
+      <p class="label">Project Management · Boise State</p>
+      <h1 class="grad">Tyler Bunn</h1>
+      <p class="lead">Looking for operations, coordinator or front office roles in Seattle.</p>
+      <div class="roles"><span class="status">Available now</span><span class="chip">2 projects: <b>InboxOwner</b> · <b>Member Billing</b></span></div>
+    </div>
+  </div>
+</div>
+
+<!-- 2. InboxOwner -->
+<div class="card project" id="inboxowner">
+  <span class="tick tl"></span><span class="tick br"></span>
+  <div class="top"><span class="brand">Tyler Bunn</span><span class="url">tylerbunn.netlify.app/inboxowner</span></div>
+  <div class="body">
+    <div>
+      <span class="pi"><svg class="icon"><use href="#inbox"/></svg></span>
+      <h1 class="grad">InboxOwner</h1>
+      <p class="lead">Shows who owns each email in a shared inbox, and who is still waiting.</p>
+    </div>
+    <div class="panel">
+      <p class="cap">Wait for a first reply</p>
+      <div class="row"><p class="k">Cancellation emails</p><div class="bar"><div class="track"><div class="fill coral" style="width:100%"></div></div><span class="v coral">18.7 hrs</span></div></div>
+      <div class="row"><p class="k">Trial questions</p><div class="bar"><div class="track"><div class="fill cyan" style="width:6.4%"></div></div><span class="v cyan">1.2 hrs</span></div></div>
+      <p class="note">Tested on made-up data</p>
+    </div>
+  </div>
+</div>
+
+<!-- 3. Member Billing -->
+<div class="card project" id="member-billing">
+  <span class="tick tl"></span><span class="tick br"></span>
+  <div class="top"><span class="brand">Tyler Bunn</span><span class="url">tylerbunn.netlify.app/member-billing</span></div>
+  <div class="body">
+    <div>
+      <span class="pi coral"><svg class="icon"><use href="#card"/></svg></span>
+      <h1 class="grad">Member Billing Tracker</h1>
+      <p class="lead">Catches billing mistakes and makes a daily fix list for the front desk.</p>
+    </div>
+    <div class="panel">
+      <p class="cap">15 mistakes I put in on purpose</p>
+      <div class="row"><p class="k">By member ID</p><div class="dotrow"><div class="dots" id="d1"></div><span class="v cyan">15 caught</span></div></div>
+      <div class="row"><p class="k">If it looked people up by name</p><div class="dotrow"><div class="dots" id="d2"></div><span class="v coral">4 mistakes</span></div></div>
+      <p class="note">Tested on made-up data</p>
+    </div>
+  </div>
+</div>
+<script>
+  const put = (id, list) => { document.getElementById(id).innerHTML = list.map(c => `<span class="d ${c}"></span>`).join(''); };
+  put('d1', Array(15).fill('ok'));
+  put('d2', [...Array(13).fill('ok'), 'bad', 'bad', 'bad extra', 'bad extra']);
+</script>
+</body>
+</html>
