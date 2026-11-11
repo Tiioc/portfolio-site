@@ -222,7 +222,7 @@ billing = f"""
 
 <section class="block"><h2><span class="num">4</span>What happened</h2>
 {chart_billing()}
-<p>Each row of the fix list says what to do: call, refund, or retry the card.</p></section>
+<p>Each row of the fix list says what to do: call, refund, or retry.</p></section>
 
 <section class="block"><h2><span class="num">5</span>What I learned</h2>
 <p>Looking people up by name breaks fast, even with one shared name.</p></section>
