@@ -87,7 +87,7 @@ home = f"""
   <p class="hello">Hi, I'm</p>
   <h1>Tyler Bunn</h1>
   <p class="role">Project Management student at Boise State, living in Mukilteo. I'm looking for operations, coordinator or front office roles in Seattle.</p>
-  <p class="role">At The Paseo Club I pitched fixes and got moved into membership.</p>
+  <p class="role">At Paseo I learned how everything worked first, then shared ideas with my manager.</p>
   <p class="status"><span class="live-dot" aria-hidden="true"></span>Available now</p>
 </header>
 
@@ -118,16 +118,16 @@ home = f"""
   <div class="cards3">
     <div class="mini-card violet">{ic("mail")}<p>All department emails came through the front desk, which got messy.</p></div>
     <div class="mini-card pink">{ic("users")}<p>I once charged the wrong member. Two members had the exact same name.</p></div>
-    <div class="mini-card teal">{ic("up")}<p>I pitched fixes to the head manager and got moved into membership.</p></div>
+    <div class="mini-card teal">{ic("up")}<p>I learned how everything worked first, then shared ideas with my manager. I later moved into membership.</p></div>
   </div>
 
   <h2 class="sub">How I work</h2>
-  <p>I fix the process first, then find a tool. When I build with AI, I set the rules and check every number myself.</p>
+  <p>I learn how things work before I suggest changes. When I build with AI, I set the rules and check every number myself.</p>
 
   <h2 class="sub">Experience and school</h2>
   <ul class="timeline">
     <li><span class="t-icon teal">{ic("briefcase")}</span><div><strong>Outback Steakhouse</strong><span class="when">Dec 2025 – Jun 2026 · Santa Clarita</span><span>Busser, promoted to food runner within six months.</span></div></li>
-    <li><span class="t-icon violet">{ic("briefcase")}</span><div><strong>The Paseo Club</strong><span class="when">Dec 2024 – Dec 2025 · Santa Clarita, CA</span><span>Front Desk, then Membership Advisor. Check-ins, email routing, billing fixes, payment disputes and refunds in HubSpot.</span></div></li>
+    <li><span class="t-icon violet">{ic("briefcase")}</span><div><strong>The Paseo Club</strong><span class="when">Dec 2024 – Oct 2025 · Santa Clarita, CA</span><span>Front Desk, then Membership Advisor. Check-ins, email routing, billing fixes, payment disputes and refunds in HubSpot.</span></div></li>
     <li><span class="t-icon amber">{ic("briefcase")}</span><div><strong>Cooksey's Lifeguard &amp; Swim Academy</strong><span class="when">Mar 2023 – Mar 2024 · Santa Clarita</span><span>Lifeguard and swim instructor. Often the only staff member on duty making safety calls.</span></div></li>
     <li><span class="t-icon pink">{ic("school")}</span><div><strong>Boise State University</strong><span class="when">Expected Spring 2028</span><span>B.S. in Project Management.</span></div></li>
   </ul>
