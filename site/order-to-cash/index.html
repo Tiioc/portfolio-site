@@ -4,166 +4,32 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Order-to-Cash Tracker, by Tyler Bunn</title>
-<meta name="description" content="A Google Sheet that follows each order from signed to paid and catches mistakes along the way. Built on simulated data.">
+<meta name="description" content="An earlier project, since reworked into the Member Billing Tracker.">
 <meta name="author" content="Tyler Bunn">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap">
 <link rel="stylesheet" href="../style.css">
-<link rel="icon" href="data:,">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%237c3aed'/%3E%3Ctext x='16' y='21' font-family='Arial' font-weight='700' font-size='14' fill='white' text-anchor='middle'%3ETB%3C/text%3E%3C/svg%3E">
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><symbol id="i-inbox" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></symbol><symbol id="i-user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/></symbol><symbol id="i-users" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2 20a7 7 0 0 1 14 0"/><circle cx="17" cy="8" r="3"/><path d="M17 14a5 5 0 0 1 5 5"/></symbol><symbol id="i-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></symbol><symbol id="i-tag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><circle cx="7" cy="7" r="1.5"/></symbol><symbol id="i-card" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/><path d="M6 15h4"/></symbol><symbol id="i-alert" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></symbol><symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></symbol><symbol id="i-list" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11M9 12h11M9 18h11"/><path d="m3 6 1 1 2-2M3 12l1 1 2-2M3 18l1 1 2-2"/></symbol><symbol id="i-id" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="11" r="2"/><path d="M15 9h3M15 13h3M6 16h6"/></symbol><symbol id="i-mail" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></symbol><symbol id="i-sheet" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></symbol><symbol id="i-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></symbol><symbol id="i-play" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4v16l13-8z"/></symbol><symbol id="i-code" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 18 6-6-6-6M8 6l-6 6 6 6"/></symbol><symbol id="i-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M8 7h9v9"/></symbol><symbol id="i-school" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10 12 5 2 10l10 5 10-5z"/><path d="M6 12v5c3 2 9 2 12 0v-5"/></symbol><symbol id="i-briefcase" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></symbol><symbol id="i-link" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></symbol></svg>
 <div class="page">
-<nav class="site" aria-label="Site"><a href="../#projects" aria-current="page">Projects</a><a href="../#paseo">The Paseo Club</a><a href="../#how">How I work</a><a href="../#contact">Contact</a></nav>
+<nav class="site" aria-label="Site"><a class="brand" href="../">Tyler Bunn</a><span class="nav-links"><a href="../#projects">Projects</a><a href="../#work">Work</a><a href="../#contact">Contact</a></span></nav>
 
-<p class="eyebrow">Case study</p>
-<h1>Order-to-Cash Tracker</h1>
-<ul class="tags" aria-label="Tags">
-  <li class="tag">Self-initiated</li>
-  <li class="tag">Simulated data</li>
-  <li class="tag accent">v2</li>
-</ul>
-
-<div class="overview">
-  <dl class="tldr">
-    <div><dt>In one sentence</dt><dd>A Google Sheet that follows each order from "signed" to "paid" and catches mistakes along the way.</dd></div>
-    <div><dt>Why I built it</dt><dd>At The Paseo Club I once charged the wrong member because two people had the same name.</dd></div>
-    <div><dt>My role</dt><dd>I picked the problem, set the rules, made the design decisions and checked every result. Claude Code wrote the code.</dd></div>
-  </dl>
-</div>
-
-<h2>Who would use this</h2>
-<p>An operations or billing coordinator at a small company that sells on contracts. They open the sheet each morning, or read the morning summary email, and see three lists: orders on hold, orders that are stuck, and payments that need fixing. Each item says what's wrong and who should act, so the day starts with a short to-do list instead of a hunt.</p>
-<p class="note">Honest limit: it has only been tested on made-up data, not with a real team.</p>
-
-<h2>What it does</h2>
-<ol class="steps">
-  <li>Checks orders against the customer's contract before they go in.</li>
-  <li>Flags anything stuck.</li>
-  <li>Matches payments by customer ID, never by name.</li>
-  <li>Drafts the follow-up email and sends a morning summary.</li>
-</ol>
-
-<h2>Results</h2>
-<div class="stats">
-  <div class="stat"><div class="value">22<small> / 150</small></div><p class="desc">problem orders held before entry</p></div>
-  <div class="stat"><div class="value">41%</div><p class="desc">of "past due" money had already been paid</p></div>
-  <div class="stat"><div class="value">0</div><p class="desc">same-name mix-ups</p></div>
-</div>
-<p class="note">Made-up test data: a fictional company's 150 orders, with mistakes planted on purpose to test the rules.</p>
-
-<h2>How I built it</h2>
-<ol class="steps">
-  <li><strong>Started from a problem I'd lived.</strong> I handled payment disputes at the front desk, and I once charged the wrong member because two people had the same name.</li>
-  <li><strong>Wrote the rules.</strong> What to check before entry, the time limit for each stage, and one rule from the start: every lookup uses the customer's ID, never the name.</li>
-  <li><strong>Had Claude Code build it.</strong> One script builds the whole workbook from a blank Google Sheet: 13 tabs, about 4,700 formulas, a dashboard and a daily timer.</li>
-  <li><strong>Tested it against planted mistakes and fixed what broke.</strong> 37 checks, all passing, then a run in a real Google Sheet. The biggest thing that broke is below.</li>
-</ol>
-
-<h2>The biggest lesson</h2>
-<div class="callout">
-  <p>The first follow-up drafts would have sent Collections after a customer who had already paid $112,740. They paid in full but wrote their own PO number on the payment instead of the invoice number, so the money sat unmatched while the invoice looked past due.</p>
-  <p><strong>The fix:</strong> before chasing anyone, check for a payment on file from the same customer for the same amount. If there is one, the ask becomes "verify and re-apply this payment."</p>
-  <p class="motto">Check before you chase.</p>
-</div>
-
-<h2>What I'd add next</h2>
-<ul>
-  <li>Check quantities against the signed order.</li>
-  <li>Let one payment cover several invoices.</li>
-  <li>Follow up automatically after a missed deadline.</li>
-</ul>
-
-<div class="actions">
-  <a class="btn primary" href="https://docs.google.com/spreadsheets/d/1ybGkLNDfxm6iTDOLq87-4cT5WuMaxYJ3lXviGJ6sH2s/edit?usp=sharing">Open the live tracker</a>
-  <a class="btn" href="code/">Read the code</a>
-</div>
-<p class="note">The live tracker is view-only.</p>
-
-<h2>Screenshots</h2>
-<p class="label">From the live Google Sheet. Tap to see full size.</p>
-<figure class="shot"><a href="img/o2c-dashboard.webp"><img src="img/o2c-dashboard.webp" width="1600" height="856" loading="lazy" alt="Dashboard tab of the tracker in Google Sheets, with tables for pipeline by stage, invoice aging, orders on hold, revenue at risk by success manager and payment matching, plus two bar charts."></a>
-<figcaption>Dashboard: orders by stage, unpaid invoices, holds and dollars at risk.</figcaption></figure>
-<figure class="shot"><a href="img/o2c-orders.webp"><img src="img/o2c-orders.webp" width="1600" height="816" loading="lazy" alt="Orders tab in Google Sheets. Several rows are shaded red, and the Validation Issues column lists problems such as price mismatches and missing billing contacts."></a>
-<figcaption>Orders: red rows are stuck; the last column says why an order is on hold.</figcaption></figure>
-<figure class="shot"><a href="img/o2c-escalations.webp"><img src="img/o2c-escalations.webp" width="1600" height="847" loading="lazy" alt="Escalations tab in Google Sheets showing four drafted escalations, each with a problem, actions already taken and a specific ask."></a>
-<figcaption>Escalations: each draft has the problem, the dollars, what's been tried and a clear ask. The second one re-applies a payment instead of chasing.</figcaption></figure>
-
-<details>
-<summary>More details</summary>
-
-<h3>What changed in v2</h3>
-<ul>
-  <li>The follow-up drafts now check for a payment on file before asking anyone to chase a customer (the "check before you chase" fix above).</li>
-  <li>[CONFIRM: the current site doesn't say what v1 was or what else changed in v2. Add the other changes here, or tell me to drop this list.]</li>
-</ul>
-
-<h3>Data note</h3>
-<p>The company and every record are made up. The sample is 150 orders from 26 customers and 87 payments, frozen at October 22, 2026. Errors were planted on purpose: 22 orders with intake problems (8 wrong prices, 6 missing or invalid billing contacts, 5 wrong payment terms, 3 products not on the customer's contract, 2 unknown product codes), 7 orders shipped but never activated, 7 other stuck orders, 4 duplicate payments, 2 overpayments, 3 payments with the wrong reference, 2 payments nobody could identify, 4 short payments, and 7 invoices that simply weren't paid. The numbers describe what the tool does on that sample, not business results.</p>
-
-<h3>The same-name test</h3>
-<p>Because of the same-name mistake at The Paseo Club, the sample includes two customers both named Ospreyvale Marine Logistics, with different IDs, regions, billing contacts and contract prices. One of them has an order and a payment. The tracker checks that order against its own contract price ($1,395), not the namesake's ($1,500), and applies the payment to the right account. Four tests enforce that. Matching on the name could have picked either one.</p>
-
-<h3>Decisions I made</h3>
-<ul>
-  <li><strong>An order is flagged as stalled after 10 days without activation, not 14.</strong> At Paseo, a new member going quiet in the first week was already a red flag; a false alarm costs one phone call.</li>
-  <li><strong>The morning digest leads with the money.</strong> A manager at 7am has two minutes; show the money first. The first section is the biggest dollars at risk, whatever the cause.</li>
-  <li><strong>The customer's success manager calls before Collections does.</strong> I've been on the front-desk side of disputes; the person who knows the customer should call before a collections notice does. Collections is involved only after 60 days.</li>
-</ul>
-
-<h3>How it's built and tested</h3>
-<ul>
-  <li><strong>How it's built.</strong> One script builds the whole workbook from a blank Google Sheet: 13 tabs, the sample data, about 4,700 formulas, the color rules, a dashboard with charts, a menu and the daily timer. Every check is a visible spreadsheet formula, so anyone can click a cell and read the rule. Time limits live on a Settings tab, not in code.</li>
-  <li><strong>How it's tested.</strong> The real script is run against a stand-in for Google Sheets, every formula is recalculated in a separate spreadsheet engine, and the results are compared three ways: against the list of planted errors (nothing missed, nothing extra), against a separate re-implementation of every rule, and by checking that the totals tie out. 37 checks, all passing. I then ran the script in a real Google Sheet. It built every tab, and the live totals match the tested ones. The morning email has only been previewed in the Digest Log tab, not sent on a schedule yet.</li>
-  <li><strong>The "past due but paid" cases.</strong> Payments PMT-50024 (Aldmoor Timber Co, $10,192), PMT-50035 and PMT-50045 (Larkhaven Barge Lines, $13,015 and $112,740) all carried a PO number instead of the invoice number.</li>
-  <li><strong>Aging.</strong> Unpaid invoices are bucketed by days past due: 1–30, 31–60, 61–90, 90+. On the sample, 14 invoices are past due.</li>
-  <li><strong>Revenue at risk.</strong> Open dollars on any order with a flag, counted once per order: $1,575,383 across 50 orders on the sample.</li>
-  <li><strong>Stack.</strong> Google Sheets with a bound Apps Script; the digest goes out through a time-driven trigger; the script's permissions are limited to its own spreadsheet and sending mail.</li>
-</ul>
-
-<h3>The full write-up</h3>
-<p class="muted">The longer version of this case study, kept word for word.</p>
-<p><strong>My role:</strong> I chose the problem, set the requirements, made the decisions listed below, and checked the work. Claude Code wrote the code and generated the sample data.</p>
-<p><strong>Goal:</strong> follow an order from signed contract to collected cash, catch mistakes before they're entered, and never confuse two customers.</p>
-<p><strong>Three results:</strong> 22 of 150 orders held before entry. Every planted error caught, with nothing flagged that wasn't planted. 41% of the "past due" dollars had actually been paid.</p>
-
-<p><strong>Situation.</strong> I kept seeing "order-to-cash" in job postings and recognized it as the problem I dealt with at The Paseo Club, where I worked the front desk. There I handled a lot of payment disputes myself, and once I charged the wrong member because two people were entered with exactly the same name. That one stuck with me. I wanted tools that prevent mistakes, not just more careful people.</p>
-
-<p><strong>Task.</strong> Build a tracker in Google Sheets that follows an order the whole way from signed contract to money in the bank, checks each order against the customer's contract before anyone enters it, keeps track of which customers never turned their service on, ages the unpaid invoices, matches payments to invoices, and drafts the escalation when something sticks. And one rule from the start: every lookup uses the customer's ID, never the name.</p>
-
-<p><strong>Action.</strong></p>
-<ol>
-  <li><strong>Check before entry.</strong> Each order is compared with the customer's contract: price, payment terms, whether the product is on the contract at all, and whether there's a valid billing contact. Anything wrong puts the order on hold with the reason spelled out.</li>
-  <li><strong>Watch the hand-offs.</strong> Each stage (received, checked, account set up, shipped, activated, invoiced, paid) has a time limit, and a row turns red when it sits too long. An order shipped more than ten days ago with no activation gets flagged, with the name of the person who should call.</li>
-  <li><strong>Match the money by ID.</strong> Every payment is matched to an invoice by the invoice number and the customer ID. Duplicates, overpayments and payments nobody can place are set aside, and for each one the tracker suggests the invoice with the same customer and the same amount.</li>
-  <li><strong>Draft the escalation.</strong> One click writes it in a fixed shape: the problem, the dollars at risk, what's already been tried, and a specific ask with a name and a deadline.</li>
-  <li><strong>Send a morning digest.</strong> A timed script emails a summary each morning, leading with the biggest dollars at risk.</li>
-</ol>
-
-<p><strong>What went wrong.</strong> The first escalation drafts would have told Collections to go after a customer who had already paid $112,740. The customer had paid in full but written their own purchase-order number on the payment instead of the invoice number, so the money sat in a pile of unmatched cash while the invoice aged past due and the draft asked for a collections call.</p>
-<p>The fix was a check before any collections ask: look at the unmatched cash first, and if there's a payment from the same customer for the same amount, the ask becomes "verify and re-apply this payment" and the subject line says "payment likely on file" instead of "at risk." Across the sample, that was 3 payments from 2 customers, $135,947 in total, which is 41% of everything that looked past due. Reconcile before you chase.</p>
-
-<p><strong>Result.</strong> On the sample: 22 of 150 orders held before entry (worth $877,737), and every planted error caught with nothing extra flagged. 7 orders flagged as shipped but never activated. $328,680 showing as past due, of which $135,947 had already been paid under the wrong reference.</p>
-<p>The 100% catch rate is by design, since the errors were planted, so it shows the rules do what they were written to do and nothing more. A wrong quantity at the right price would get through.</p>
-
-<p><strong>What I'd do next.</strong></p>
-<ol>
-  <li>Check quantity against the signed order. Right now a wrong quantity at the right price passes.</li>
-  <li>Let one payment cover several invoices. Today that shows up as a short payment plus a pile of unmatched cash.</li>
-  <li>Re-escalate automatically if nobody replies by the deadline in the ask.</li>
-</ol>
-
-<h3>Screenshot captions, in full</h3>
-<ul>
-  <li>The Dashboard tab: orders by stage, unpaid invoices by age, orders held at entry and why, dollars at risk per success manager, and how every payment was matched.</li>
-  <li>The Orders tab. Rows shaded red have sat in a stage longer than its time limit. The last column says why an order is on hold, such as a price that doesn't match the contract.</li>
-  <li>The Escalations tab. Each draft names the problem, the dollars at risk, what's been tried and a specific ask with a deadline. The Larkhaven draft, second, asks to re-apply a payment already on file instead of chasing the customer.</li>
-</ul>
-</details>
+<section class="retired">
+<header class="page-head blue">
+  <span class="pc-icon big"><svg class="icon " aria-hidden="true"><use href="#i-sheet"/></svg></span>
+  <h1>Order-to-Cash Tracker (2026)</h1>
+</header>
+<p class="lead">I've since reworked this project into the Member Billing Tracker, which fits my front desk experience better.</p>
+<p class="actions"><a class="btn primary" href="../member-billing/"><svg class="icon " aria-hidden="true"><use href="#i-card"/></svg>See the Member Billing Tracker</a></p>
+<p class="small-link"><a href="original/">View the original version</a></p>
+</section>
 
 <footer>
 <p>Built in plain HTML and CSS with Claude Code, which I directed and fact-checked.</p>
-<p>tylerbunn.netlify.app · <a href="https://www.linkedin.com/in/tdbunn">linkedin.com/in/tdbunn</a> · <a href="mailto:itstylerbunn@gmail.com">itstylerbunn@gmail.com</a></p>
+<p><a href="mailto:itstylerbunn@gmail.com">itstylerbunn@gmail.com</a> · <a href="https://www.linkedin.com/in/tdbunn">linkedin.com/in/tdbunn</a></p>
 </footer>
 </div>
 </body>

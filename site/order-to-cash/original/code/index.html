@@ -1,0 +1,1734 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Order-to-Cash Tracker: the code</title>
+<meta name="description" content="Source code for the Order-to-Cash Tracker.">
+<meta name="author" content="Tyler Bunn">
+<link rel="stylesheet" href="../../style.css">
+<link rel="icon" href="data:,">
+
+</head>
+<body>
+<div class="page">
+<nav class="site" aria-label="Site"><a href="../../#projects" aria-current="page">Projects</a><a href="../../#paseo">The Paseo Club</a><a href="../../#how">How I work</a><a href="../../#contact">Contact</a></nav>
+<h1>Order-to-Cash Tracker: the code</h1><p><a href="../">Back to the case study</a></p><p>Written with Claude Code to my requirements. I directed and fact-checked it; I didn't write it. Paste the files into a blank Google Sheet's script editor and run setup to build the whole workbook. All data it generates is made up.</p><ul>
+<li><a href="#f0">Config.gs</a>: Sheet layout and every row-level formula (checks before entry, stages, time limits, aging, payment matching).</li>
+<li><a href="#f1">Data.gs</a>: Seeded generator for the sample orders, with the planted errors and an answer key, plus the same-name test case.</li>
+<li><a href="#f2">Setup.gs</a>: Builds all the tabs, formatting, dashboard and charts from a blank Sheet. Settings tab holds the decisions.</li>
+<li><a href="#f3">Escalation.gs</a>: Drafts escalations: problem, dollars at risk, actions taken, specific ask. Checks for cash on file first.</li>
+<li><a href="#f4">Digest.gs</a>: Builds and emails the morning digest, leading with the biggest dollars at risk.</li>
+<li><a href="#f5">Menu.gs</a>: Custom menu, the one-click Escalate checkbox, the daily timer, new-order rows.</li>
+<li><a href="#f6">appsscript.json</a>: Permissions: this spreadsheet plus sending mail.</li>
+</ul>
+<h2 id="f0">Config.gs</h2><p class="muted">Sheet layout and every row-level formula (checks before entry, stages, time limits, aging, payment matching).</p><pre><code>/**
+ * Order-to-Cash Operations Tracker — configuration.
+ *
+ * Sheet names, column layouts and every row-level formula live here, so the
+ * workbook&#x27;s logic can be read in one place. Formulas are built from column
+ * keys (not hard-coded letters), so adding a column never breaks a reference.
+ */
+
+const SHEET = {
+  README: &#x27;Start Here&#x27;,
+  DASH: &#x27;Dashboard&#x27;,
+  ORDERS: &#x27;Orders&#x27;,
+  QUEUE: &#x27;Action Queue&#x27;,
+  PAYMENTS: &#x27;Payments&#x27;,
+  UNAPPLIED: &#x27;Unapplied Cash&#x27;,
+  AGING: &#x27;AR Aging&#x27;,
+  ESC: &#x27;Escalations&#x27;,
+  DIGEST: &#x27;Digest Log&#x27;,
+  CUSTOMERS: &#x27;Customers&#x27;,
+  PRODUCTS: &#x27;Products&#x27;,
+  PRICES: &#x27;Contract Prices&#x27;,
+  SETTINGS: &#x27;Settings&#x27;,
+};
+
+const STAGES = [&#x27;Received&#x27;, &#x27;Validated&#x27;, &#x27;Account Set Up&#x27;, &#x27;Shipped&#x27;, &#x27;Activated&#x27;, &#x27;Invoiced&#x27;, &#x27;Paid&#x27;];
+const AGING_BUCKETS = [&#x27;Current&#x27;, &#x27;1–30&#x27;, &#x27;31–60&#x27;, &#x27;61–90&#x27;, &#x27;90+&#x27;];
+const HOLD = &#x27;✖ Hold&#x27;;
+const PASS = &#x27;✔ Pass&#x27;;
+const BREACH = &#x27;BREACH&#x27;;
+
+const COLOR = {
+  ink: &#x27;#1f2933&#x27;,
+  muted: &#x27;#616e7c&#x27;,
+  header: &#x27;#243b53&#x27;,
+  headerText: &#x27;#ffffff&#x27;,
+  intake: &#x27;#334e68&#x27;,
+  pipeline: &#x27;#2f6f5e&#x27;,
+  billing: &#x27;#7c5e10&#x27;,
+  risk: &#x27;#8a2c2c&#x27;,
+  helper: &#x27;#9aa5b1&#x27;,
+  band: &#x27;#f5f7fa&#x27;,
+  red: &#x27;#fde2e1&#x27;,
+  redText: &#x27;#9b1c1c&#x27;,
+  amber: &#x27;#fff1d6&#x27;,
+  amberText: &#x27;#8a5300&#x27;,
+  green: &#x27;#e3f6ea&#x27;,
+  greenText: &#x27;#1e6b3a&#x27;,
+  tile: &#x27;#f0f4f8&#x27;,
+};
+
+// Converts a 1-based column index to its A1 letter.
+function colLetter(n) {
+  let s = &#x27;&#x27;;
+  while (n &gt; 0) {
+    const m = (n - 1) % 26;
+    s = String.fromCharCode(65 + m) + s;
+    n = Math.floor((n - 1) / 26);
+  }
+  return s;
+}
+
+// Builds {key: letter} and {key: index} lookups from a column spec.
+function indexColumns(spec) {
+  const L = {}, I = {};
+  spec.forEach((c, i) =&gt; { L[c.key] = colLetter(i + 1); I[c.key] = i + 1; });
+  return { L, I };
+}
+
+/* ---------------------------------------------------------------- Orders */
+
+// group drives the header colour: intake | pipeline | billing | risk | helper
+const ORDER_COLS = [
+  { key: &#x27;order_id&#x27;, header: &#x27;Order ID&#x27;, group: &#x27;intake&#x27;, width: 80 },
+  { key: &#x27;received&#x27;, header: &#x27;Received&#x27;, group: &#x27;intake&#x27;, width: 82, fmt: &#x27;date&#x27; },
+  { key: &#x27;cust_id&#x27;, header: &#x27;Customer ID&#x27;, group: &#x27;intake&#x27;, width: 78 },
+  { key: &#x27;customer&#x27;, header: &#x27;Customer&#x27;, group: &#x27;intake&#x27;, width: 190, f: true, note: &#x27;Looked up from Customers by Customer ID.&#x27; },
+  { key: &#x27;csm&#x27;, header: &#x27;CSM&#x27;, group: &#x27;intake&#x27;, width: 105, f: true, note: &#x27;Customer Success Manager who owns the account.&#x27; },
+  { key: &#x27;sku&#x27;, header: &#x27;SKU&#x27;, group: &#x27;intake&#x27;, width: 78 },
+  { key: &#x27;product&#x27;, header: &#x27;Product&#x27;, group: &#x27;intake&#x27;, width: 170, f: true },
+  { key: &#x27;qty&#x27;, header: &#x27;Qty&#x27;, group: &#x27;intake&#x27;, width: 45, fmt: &#x27;int&#x27; },
+  { key: &#x27;unit_price&#x27;, header: &#x27;Quoted Unit Price&#x27;, group: &#x27;intake&#x27;, width: 90, fmt: &#x27;money&#x27; },
+  { key: &#x27;order_value&#x27;, header: &#x27;Order Value&#x27;, group: &#x27;intake&#x27;, width: 95, fmt: &#x27;money&#x27;, f: true },
+  { key: &#x27;bill_name&#x27;, header: &#x27;Billing Contact&#x27;, group: &#x27;intake&#x27;, width: 120 },
+  { key: &#x27;bill_email&#x27;, header: &#x27;Billing Email&#x27;, group: &#x27;intake&#x27;, width: 190 },
+  { key: &#x27;terms&#x27;, header: &#x27;Order Terms&#x27;, group: &#x27;intake&#x27;, width: 70 },
+  { key: &#x27;contract_price&#x27;, header: &#x27;Contract Price&#x27;, group: &#x27;intake&#x27;, width: 85, fmt: &#x27;money&#x27;, f: true, note: &#x27;Negotiated unit price for this customer + SKU (Contract Prices tab). Blank = SKU is not on the contract.&#x27; },
+  { key: &#x27;contract_terms&#x27;, header: &#x27;Contract Terms&#x27;, group: &#x27;intake&#x27;, width: 70, f: true },
+  { key: &#x27;val_issues&#x27;, header: &#x27;Validation Issues&#x27;, group: &#x27;intake&#x27;, width: 240, f: true, note: &#x27;Pre-entry order review. Checks: unknown SKU, product not on contract, price ≠ contract price, missing/invalid billing contact, payment terms ≠ contract terms.&#x27; },
+  { key: &#x27;val_status&#x27;, header: &#x27;Intake Check&#x27;, group: &#x27;intake&#x27;, width: 80, f: true, note: &#x27;Hold = do not enter into the system until the issues are resolved.&#x27; },
+  { key: &#x27;validated&#x27;, header: &#x27;Validated&#x27;, group: &#x27;pipeline&#x27;, width: 82, fmt: &#x27;date&#x27; },
+  { key: &#x27;acct_setup&#x27;, header: &#x27;Account Set Up&#x27;, group: &#x27;pipeline&#x27;, width: 82, fmt: &#x27;date&#x27; },
+  { key: &#x27;shipped&#x27;, header: &#x27;Shipped&#x27;, group: &#x27;pipeline&#x27;, width: 82, fmt: &#x27;date&#x27; },
+  { key: &#x27;activated&#x27;, header: &#x27;Activated&#x27;, group: &#x27;pipeline&#x27;, width: 82, fmt: &#x27;date&#x27; },
+  { key: &#x27;invoiced&#x27;, header: &#x27;Invoiced&#x27;, group: &#x27;pipeline&#x27;, width: 82, fmt: &#x27;date&#x27; },
+  { key: &#x27;paid&#x27;, header: &#x27;Paid&#x27;, group: &#x27;pipeline&#x27;, width: 82, fmt: &#x27;date&#x27; },
+  { key: &#x27;invoice_no&#x27;, header: &#x27;Invoice #&#x27;, group: &#x27;billing&#x27;, width: 88 },
+  { key: &#x27;due_date&#x27;, header: &#x27;Due Date&#x27;, group: &#x27;billing&#x27;, width: 82, fmt: &#x27;date&#x27;, f: true },
+  { key: &#x27;stage&#x27;, header: &#x27;Current Stage&#x27;, group: &#x27;pipeline&#x27;, width: 105, f: true, note: &#x27;Latest stage with a date.&#x27; },
+  { key: &#x27;stage_date&#x27;, header: &#x27;Stage Date&#x27;, group: &#x27;pipeline&#x27;, width: 82, fmt: &#x27;date&#x27;, f: true },
+  { key: &#x27;days_in_stage&#x27;, header: &#x27;Days in Stage&#x27;, group: &#x27;pipeline&#x27;, width: 62, fmt: &#x27;int&#x27;, f: true },
+  { key: &#x27;sla&#x27;, header: &#x27;Stage SLA (days)&#x27;, group: &#x27;pipeline&#x27;, width: 62, fmt: &#x27;int&#x27;, f: true, note: &#x27;Max days allowed in this stage (Settings tab). Invoiced is governed by payment terms instead.&#x27; },
+  { key: &#x27;sla_breach&#x27;, header: &#x27;SLA Breach&#x27;, group: &#x27;pipeline&#x27;, width: 70, f: true, note: &#x27;BREACH turns the whole row red.&#x27; },
+  { key: &#x27;activation_watch&#x27;, header: &#x27;Activation Watch&#x27;, group: &#x27;pipeline&#x27;, width: 230, f: true, note: &#x27;Shipped more than STALL_DAYS ago (Settings) with no activation = stalled customer. Notify the CSM.&#x27; },
+  { key: &#x27;cycle_days&#x27;, header: &#x27;Order→Activation (days)&#x27;, group: &#x27;pipeline&#x27;, width: 80, fmt: &#x27;int&#x27;, f: true },
+  { key: &#x27;amt_paid&#x27;, header: &#x27;Cash Applied&#x27;, group: &#x27;billing&#x27;, width: 95, fmt: &#x27;money&#x27;, f: true, note: &#x27;Sum of payments applied to this invoice on the Payments tab.&#x27; },
+  { key: &#x27;balance&#x27;, header: &#x27;Open Balance&#x27;, group: &#x27;billing&#x27;, width: 95, fmt: &#x27;money&#x27;, f: true },
+  { key: &#x27;dpd&#x27;, header: &#x27;Days Past Due&#x27;, group: &#x27;billing&#x27;, width: 62, fmt: &#x27;int&#x27;, f: true },
+  { key: &#x27;aging&#x27;, header: &#x27;Aging Bucket&#x27;, group: &#x27;billing&#x27;, width: 70, f: true },
+  { key: &#x27;risk_reasons&#x27;, header: &#x27;Risk Reasons&#x27;, group: &#x27;risk&#x27;, width: 230, f: true },
+  { key: &#x27;rar&#x27;, header: &#x27;Revenue at Risk&#x27;, group: &#x27;risk&#x27;, width: 100, fmt: &#x27;money&#x27;, f: true, note: &#x27;Open dollars on any order with a risk flag: uninvoiced orders count their full value, invoiced orders count the open balance. Each order counted once.&#x27; },
+  { key: &#x27;actions&#x27;, header: &#x27;Actions Taken&#x27;, group: &#x27;risk&#x27;, width: 300, note: &#x27;Log what has already been done (date — action). The escalation draft quotes this.&#x27; },
+  { key: &#x27;escalate&#x27;, header: &#x27;Escalate&#x27;, group: &#x27;risk&#x27;, width: 62, note: &#x27;Tick to auto-draft an escalation into the Escalations tab.&#x27; },
+  { key: &#x27;last_escalation&#x27;, header: &#x27;Last Escalation&#x27;, group: &#x27;risk&#x27;, width: 120 },
+  { key: &#x27;match_key&#x27;, header: &#x27;match key&#x27;, group: &#x27;helper&#x27;, width: 60, f: true, note: &#x27;Helper: Customer|open balance. Lets the Payments tab suggest which invoice an unapplied payment belongs to.&#x27; },
+];
+const OC = indexColumns(ORDER_COLS);
+
+/* -------------------------------------------------------------- Payments */
+
+const PAY_COLS = [
+  { key: &#x27;pay_id&#x27;, header: &#x27;Payment ID&#x27;, width: 85 },
+  { key: &#x27;pay_date&#x27;, header: &#x27;Received&#x27;, width: 82, fmt: &#x27;date&#x27; },
+  { key: &#x27;cust_id&#x27;, header: &#x27;Customer ID&#x27;, width: 78 },
+  { key: &#x27;customer&#x27;, header: &#x27;Customer&#x27;, width: 180, f: true },
+  { key: &#x27;remit_ref&#x27;, header: &#x27;Remittance Ref&#x27;, width: 100, note: &#x27;What the customer wrote on the payment. Should be an invoice number.&#x27; },
+  { key: &#x27;amount&#x27;, header: &#x27;Amount&#x27;, width: 95, fmt: &#x27;money&#x27; },
+  { key: &#x27;method&#x27;, header: &#x27;Method&#x27;, width: 60 },
+  { key: &#x27;matched_inv&#x27;, header: &#x27;Matched Invoice&#x27;, width: 95, f: true, note: &#x27;Remittance ref is a real invoice AND belongs to the paying customer.&#x27; },
+  { key: &#x27;inv_amount&#x27;, header: &#x27;Invoice Amount&#x27;, width: 95, fmt: &#x27;money&#x27;, f: true },
+  { key: &#x27;prior_applied&#x27;, header: &#x27;Previously Applied&#x27;, width: 95, fmt: &#x27;money&#x27;, f: true, note: &#x27;Cash applied to the same invoice by earlier payment rows.&#x27; },
+  { key: &#x27;applied&#x27;, header: &#x27;Applied&#x27;, width: 95, fmt: &#x27;money&#x27;, f: true },
+  { key: &#x27;unapplied&#x27;, header: &#x27;Unapplied&#x27;, width: 95, fmt: &#x27;money&#x27;, f: true, note: &#x27;Cash received that could not be applied to an invoice. Must be reconciled.&#x27; },
+  { key: &#x27;match_status&#x27;, header: &#x27;Match Status&#x27;, width: 140, f: true },
+  { key: &#x27;recon_action&#x27;, header: &#x27;Reconciliation Action&#x27;, width: 300, f: true },
+];
+const PC = indexColumns(PAY_COLS);
+
+/* ------------------------------------------------- Reference tab layouts */
+
+const CUSTOMER_HEADERS = [&#x27;Customer ID&#x27;, &#x27;Customer&#x27;, &#x27;Segment&#x27;, &#x27;Region&#x27;, &#x27;CSM&#x27;, &#x27;CSM Email&#x27;, &#x27;Contract Terms&#x27;, &#x27;Billing Contact&#x27;, &#x27;Billing Email&#x27;];
+const PRODUCT_HEADERS = [&#x27;SKU&#x27;, &#x27;Product&#x27;, &#x27;List Price&#x27;, &#x27;Category&#x27;];
+const PRICE_HEADERS = [&#x27;Key&#x27;, &#x27;Customer ID&#x27;, &#x27;Customer&#x27;, &#x27;SKU&#x27;, &#x27;Product&#x27;, &#x27;List Price&#x27;, &#x27;Contract Price&#x27;, &#x27;Discount&#x27;];
+const ESC_HEADERS = [&#x27;Drafted&#x27;, &#x27;Order ID&#x27;, &#x27;Customer&#x27;, &#x27;CSM&#x27;, &#x27;Revenue at Risk&#x27;, &#x27;Problem&#x27;, &#x27;Actions Already Taken&#x27;, &#x27;Specific Ask&#x27;, &#x27;Full Draft&#x27;, &#x27;Email&#x27;, &#x27;Status&#x27;];
+const DIGEST_HEADERS = [&#x27;Sent&#x27;, &#x27;Recipient&#x27;, &#x27;New Intake Errors&#x27;, &#x27;Open Holds&#x27;, &#x27;Stalled Activations&#x27;, &#x27;Past-Due $&#x27;, &#x27;Unapplied Cash $&#x27;, &#x27;Revenue at Risk $&#x27;, &#x27;Delivery&#x27;];
+
+/* ------------------------------------------------------ Row-level formulas */
+
+// Returns the formula for an Orders cell at row r. `o` = Orders column letters.
+function orderFormula(key, r) {
+  const o = OC.L;
+  const c = k =&gt; o[k] + r;
+  const pay = k =&gt; `Payments!$${PC.L[k]}:$${PC.L[k]}`;
+  switch (key) {
+    case &#x27;customer&#x27;:
+      return `=IF(${c(&#x27;cust_id&#x27;)}=&quot;&quot;,&quot;&quot;,IFERROR(VLOOKUP(${c(&#x27;cust_id&#x27;)},Customers!$A:$B,2,FALSE),&quot;Unknown customer&quot;))`;
+    case &#x27;csm&#x27;:
+      return `=IF(${c(&#x27;cust_id&#x27;)}=&quot;&quot;,&quot;&quot;,IFERROR(VLOOKUP(${c(&#x27;cust_id&#x27;)},Customers!$A:$E,5,FALSE),&quot;&quot;))`;
+    case &#x27;product&#x27;:
+      return `=IF(${c(&#x27;sku&#x27;)}=&quot;&quot;,&quot;&quot;,IFERROR(VLOOKUP(${c(&#x27;sku&#x27;)},Products!$A:$B,2,FALSE),&quot;Unknown SKU&quot;))`;
+    case &#x27;order_value&#x27;:
+      return `=IF(${c(&#x27;qty&#x27;)}=&quot;&quot;,&quot;&quot;,${c(&#x27;qty&#x27;)}*${c(&#x27;unit_price&#x27;)})`;
+    case &#x27;contract_price&#x27;:
+      return `=IFERROR(INDEX(&#x27;Contract Prices&#x27;!$G:$G,MATCH(${c(&#x27;cust_id&#x27;)}&amp;&quot;|&quot;&amp;${c(&#x27;sku&#x27;)},&#x27;Contract Prices&#x27;!$A:$A,0)),&quot;&quot;)`;
+    case &#x27;contract_terms&#x27;:
+      return `=IF(${c(&#x27;cust_id&#x27;)}=&quot;&quot;,&quot;&quot;,IFERROR(VLOOKUP(${c(&#x27;cust_id&#x27;)},Customers!$A:$G,7,FALSE),&quot;&quot;))`;
+    case &#x27;val_issues&#x27;:
+      return `=IF(${c(&#x27;order_id&#x27;)}=&quot;&quot;,&quot;&quot;,TEXTJOIN(&quot;; &quot;,TRUE,` +
+        `IF(${c(&#x27;product&#x27;)}=&quot;Unknown SKU&quot;,&quot;Unknown SKU&quot;,IF(${c(&#x27;contract_price&#x27;)}=&quot;&quot;,&quot;Product not on contract&quot;,&quot;&quot;)),` +
+        `IF(AND(N(${c(&#x27;contract_price&#x27;)})&gt;0,ABS(${c(&#x27;unit_price&#x27;)}-N(${c(&#x27;contract_price&#x27;)}))&gt;0.005),&quot;Price mismatch (&quot;&amp;TEXT(${c(&#x27;unit_price&#x27;)}-N(${c(&#x27;contract_price&#x27;)}),&quot;+$#,##0;-$#,##0&quot;)&amp;&quot;/unit vs contract)&quot;,&quot;&quot;),` +
+        `IF(OR(${c(&#x27;bill_name&#x27;)}=&quot;&quot;,${c(&#x27;bill_email&#x27;)}=&quot;&quot;,ISERROR(SEARCH(&quot;@&quot;,${c(&#x27;bill_email&#x27;)}))),&quot;Missing/invalid billing contact&quot;,&quot;&quot;),` +
+        `IF(${c(&#x27;terms&#x27;)}&lt;&gt;${c(&#x27;contract_terms&#x27;)},&quot;Terms &quot;&amp;${c(&#x27;terms&#x27;)}&amp;&quot; ≠ contract &quot;&amp;${c(&#x27;contract_terms&#x27;)},&quot;&quot;)))`;
+    case &#x27;val_status&#x27;:
+      return `=IF(${c(&#x27;order_id&#x27;)}=&quot;&quot;,&quot;&quot;,IF(${c(&#x27;val_issues&#x27;)}=&quot;&quot;,&quot;${PASS}&quot;,&quot;${HOLD}&quot;))`;
+    case &#x27;due_date&#x27;:
+      return `=IF(${c(&#x27;invoiced&#x27;)}=&quot;&quot;,&quot;&quot;,${c(&#x27;invoiced&#x27;)}+IFERROR(VALUE(SUBSTITUTE(${c(&#x27;terms&#x27;)},&quot;Net &quot;,&quot;&quot;)),30))`;
+    case &#x27;stage&#x27;:
+      return `=IF(${c(&#x27;order_id&#x27;)}=&quot;&quot;,&quot;&quot;,IF(${c(&#x27;paid&#x27;)}&lt;&gt;&quot;&quot;,&quot;Paid&quot;,IF(${c(&#x27;invoiced&#x27;)}&lt;&gt;&quot;&quot;,&quot;Invoiced&quot;,IF(${c(&#x27;activated&#x27;)}&lt;&gt;&quot;&quot;,&quot;Activated&quot;,IF(${c(&#x27;shipped&#x27;)}&lt;&gt;&quot;&quot;,&quot;Shipped&quot;,IF(${c(&#x27;acct_setup&#x27;)}&lt;&gt;&quot;&quot;,&quot;Account Set Up&quot;,IF(${c(&#x27;validated&#x27;)}&lt;&gt;&quot;&quot;,&quot;Validated&quot;,&quot;Received&quot;)))))))`;
+    case &#x27;stage_date&#x27;:
+      return `=IF(${c(&#x27;order_id&#x27;)}=&quot;&quot;,&quot;&quot;,MAX(${c(&#x27;received&#x27;)},${o.validated}${r}:${o.paid}${r}))`;
+    case &#x27;days_in_stage&#x27;:
+      return `=IF(OR(${c(&#x27;order_id&#x27;)}=&quot;&quot;,${c(&#x27;stage&#x27;)}=&quot;Paid&quot;),&quot;&quot;,AS_OF-${c(&#x27;stage_date&#x27;)})`;
+    case &#x27;sla&#x27;:
+      return `=IFERROR(VLOOKUP(${c(&#x27;stage&#x27;)},SLA_TABLE,2,FALSE),&quot;&quot;)`;
+    case &#x27;sla_breach&#x27;:
+      return `=IF(OR(${c(&#x27;sla&#x27;)}=&quot;&quot;,${c(&#x27;days_in_stage&#x27;)}=&quot;&quot;),&quot;&quot;,IF(${c(&#x27;days_in_stage&#x27;)}&gt;${c(&#x27;sla&#x27;)},&quot;${BREACH}&quot;,&quot;&quot;))`;
+    case &#x27;activation_watch&#x27;:
+      return `=IF(AND(${c(&#x27;stage&#x27;)}=&quot;Shipped&quot;,AS_OF-N(${c(&#x27;shipped&#x27;)})&gt;STALL_DAYS),&quot;Stalled &quot;&amp;(AS_OF-${c(&#x27;shipped&#x27;)})&amp;&quot;d since ship — notify CSM &quot;&amp;${c(&#x27;csm&#x27;)},&quot;&quot;)`;
+    case &#x27;cycle_days&#x27;:
+      return `=IF(${c(&#x27;activated&#x27;)}=&quot;&quot;,&quot;&quot;,${c(&#x27;activated&#x27;)}-${c(&#x27;received&#x27;)})`;
+    case &#x27;amt_paid&#x27;:
+      return `=IF(${c(&#x27;invoice_no&#x27;)}=&quot;&quot;,0,SUMIFS(${pay(&#x27;applied&#x27;)},${pay(&#x27;matched_inv&#x27;)},${c(&#x27;invoice_no&#x27;)}))`;
+    case &#x27;balance&#x27;:
+      return `=IF(${c(&#x27;invoice_no&#x27;)}=&quot;&quot;,&quot;&quot;,ROUND(${c(&#x27;order_value&#x27;)}-${c(&#x27;amt_paid&#x27;)},2))`;
+    case &#x27;dpd&#x27;:
+      return `=IF(OR(${c(&#x27;due_date&#x27;)}=&quot;&quot;,N(${c(&#x27;balance&#x27;)})&lt;=0.005),&quot;&quot;,MAX(0,AS_OF-${c(&#x27;due_date&#x27;)}))`;
+    case &#x27;aging&#x27;:
+      return `=IF(OR(${c(&#x27;due_date&#x27;)}=&quot;&quot;,N(${c(&#x27;balance&#x27;)})&lt;=0.005),&quot;&quot;,IF(${c(&#x27;dpd&#x27;)}=0,&quot;Current&quot;,IF(${c(&#x27;dpd&#x27;)}&lt;=30,&quot;1–30&quot;,IF(${c(&#x27;dpd&#x27;)}&lt;=60,&quot;31–60&quot;,IF(${c(&#x27;dpd&#x27;)}&lt;=90,&quot;61–90&quot;,&quot;90+&quot;)))))`;
+    case &#x27;risk_reasons&#x27;:
+      return `=IF(${c(&#x27;order_id&#x27;)}=&quot;&quot;,&quot;&quot;,TEXTJOIN(&quot;; &quot;,TRUE,` +
+        `IF(${c(&#x27;val_status&#x27;)}=&quot;${HOLD}&quot;,&quot;Intake hold&quot;,&quot;&quot;),` +
+        `IF(${c(&#x27;activation_watch&#x27;)}&lt;&gt;&quot;&quot;,&quot;Stalled activation&quot;,IF(${c(&#x27;sla_breach&#x27;)}=&quot;${BREACH}&quot;,&quot;SLA breach: &quot;&amp;${c(&#x27;stage&#x27;)},&quot;&quot;)),` +
+        `IF(N(${c(&#x27;dpd&#x27;)})&gt;0,&quot;Past due &quot;&amp;${c(&#x27;dpd&#x27;)}&amp;&quot;d&quot;,&quot;&quot;)))`;
+    case &#x27;rar&#x27;:
+      return `=IF(OR(${c(&#x27;order_id&#x27;)}=&quot;&quot;,${c(&#x27;risk_reasons&#x27;)}=&quot;&quot;),0,IF(${c(&#x27;invoice_no&#x27;)}=&quot;&quot;,${c(&#x27;order_value&#x27;)},N(${c(&#x27;balance&#x27;)})))`;
+    case &#x27;match_key&#x27;:
+      return `=IF(N(${c(&#x27;balance&#x27;)})&gt;0.005,${c(&#x27;cust_id&#x27;)}&amp;&quot;|&quot;&amp;TEXT(${c(&#x27;balance&#x27;)},&quot;0.00&quot;),&quot;&quot;)`;
+  }
+  throw new Error(&#x27;No formula for Orders.&#x27; + key);
+}
+
+// Returns the formula for a Payments cell at row r.
+function paymentFormula(key, r) {
+  const p = PC.L;
+  const c = k =&gt; p[k] + r;
+  const ord = k =&gt; `Orders!$${OC.L[k]}:$${OC.L[k]}`;
+  const above = k =&gt; `${p[k]}$1:${p[k]}${r - 1}`;
+  switch (key) {
+    case &#x27;customer&#x27;:
+      return `=IF(${c(&#x27;cust_id&#x27;)}=&quot;&quot;,&quot;&quot;,IFERROR(VLOOKUP(${c(&#x27;cust_id&#x27;)},Customers!$A:$B,2,FALSE),&quot;Unknown customer&quot;))`;
+    case &#x27;matched_inv&#x27;:
+      return `=IF(${c(&#x27;remit_ref&#x27;)}=&quot;&quot;,&quot;&quot;,IFERROR(IF(INDEX(${ord(&#x27;cust_id&#x27;)},MATCH(${c(&#x27;remit_ref&#x27;)},${ord(&#x27;invoice_no&#x27;)},0))=${c(&#x27;cust_id&#x27;)},${c(&#x27;remit_ref&#x27;)},&quot;&quot;),&quot;&quot;))`;
+    case &#x27;inv_amount&#x27;:
+      return `=IF(${c(&#x27;matched_inv&#x27;)}=&quot;&quot;,&quot;&quot;,INDEX(${ord(&#x27;order_value&#x27;)},MATCH(${c(&#x27;matched_inv&#x27;)},${ord(&#x27;invoice_no&#x27;)},0)))`;
+    case &#x27;prior_applied&#x27;:
+      return `=IF(${c(&#x27;matched_inv&#x27;)}=&quot;&quot;,&quot;&quot;,SUMIFS(${above(&#x27;applied&#x27;)},${above(&#x27;matched_inv&#x27;)},${c(&#x27;matched_inv&#x27;)}))`;
+    case &#x27;applied&#x27;:
+      return `=IF(${c(&#x27;matched_inv&#x27;)}=&quot;&quot;,0,ROUND(MAX(0,MIN(${c(&#x27;amount&#x27;)},${c(&#x27;inv_amount&#x27;)}-${c(&#x27;prior_applied&#x27;)})),2))`;
+    case &#x27;unapplied&#x27;:
+      return `=ROUND(${c(&#x27;amount&#x27;)}-${c(&#x27;applied&#x27;)},2)`;
+    case &#x27;match_status&#x27;:
+      return `=IF(${c(&#x27;pay_id&#x27;)}=&quot;&quot;,&quot;&quot;,IF(${c(&#x27;matched_inv&#x27;)}&lt;&gt;&quot;&quot;,` +
+        `IF(${c(&#x27;unapplied&#x27;)}&lt;=0.005,IF(${c(&#x27;applied&#x27;)}&lt;${c(&#x27;inv_amount&#x27;)}-${c(&#x27;prior_applied&#x27;)}-0.005,&quot;Short-paid (partial)&quot;,&quot;Applied&quot;),` +
+        `IF(${c(&#x27;applied&#x27;)}=0,&quot;Duplicate payment&quot;,&quot;Overpayment&quot;)),` +
+        `IF(${c(&#x27;remit_ref&#x27;)}=&quot;&quot;,&quot;No remittance ref&quot;,IF(COUNTIF(${ord(&#x27;invoice_no&#x27;)},${c(&#x27;remit_ref&#x27;)})&gt;0,&quot;Customer mismatch&quot;,&quot;No matching invoice&quot;))))`;
+    case &#x27;recon_action&#x27;:
+      return `=IF(${c(&#x27;unapplied&#x27;)}&lt;=0.005,&quot;&quot;,IF(${c(&#x27;match_status&#x27;)}=&quot;Duplicate payment&quot;,&quot;Invoice already paid — confirm duplicate with customer; refund or hold as credit&quot;,` +
+        `IF(${c(&#x27;match_status&#x27;)}=&quot;Overpayment&quot;,&quot;Paid more than invoiced — confirm with customer; refund or hold as credit&quot;,` +
+        `IFERROR(&quot;Likely match: &quot;&amp;INDEX(${ord(&#x27;invoice_no&#x27;)},MATCH(${c(&#x27;cust_id&#x27;)}&amp;&quot;|&quot;&amp;TEXT(${c(&#x27;amount&#x27;)},&quot;0.00&quot;),${ord(&#x27;match_key&#x27;)},0))&amp;&quot; (same customer, same open amount) — verify and re-apply&quot;,` +
+        `&quot;Research — no open invoice for this customer and amount; contact customer AP&quot;))))`;
+  }
+  throw new Error(&#x27;No formula for Payments.&#x27; + key);
+}
+</code></pre>
+<h2 id="f1">Data.gs</h2><p class="muted">Seeded generator for the sample orders, with the planted errors and an answer key, plus the same-name test case.</p><pre><code>/**
+ * Demo data generator. Deterministic (seeded): every rebuild produces the same
+ * 150 orders, so the numbers quoted in the write-up stay true.
+ *
+ * Dates are spreadsheet serial numbers (days since 1899-12-30) to avoid
+ * time-zone drift between the script and the spreadsheet.
+ *
+ * Planted problems (recorded in `truth` so tests can check the formulas catch
+ * exactly these and nothing else):
+ *   - intake errors: wrong price, product not on contract, unknown SKU,
+ *     missing/invalid billing contact, terms that don&#x27;t match the contract
+ *   - stalled activations, stage SLA breaches, a billing miss
+ *   - payments: duplicates, wrong/missing remittance refs, overpayments,
+ *     short-pays, and invoices that are simply not being paid
+ */
+
+const DEMO_AS_OF = 46317; // 2026-10-22
+const DEMO_SEED = 20261022;
+
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a &gt;&gt;&gt; 15), 1 | a);
+    t = (t + Math.imul(t ^ (t &gt;&gt;&gt; 7), 61 | t)) ^ t;
+    return ((t ^ (t &gt;&gt;&gt; 14)) &gt;&gt;&gt; 0) / 4294967296;
+  };
+}
+
+const PRODUCTS = [
+  [&#x27;TRM-STD&#x27;, &#x27;Standard Terminal Kit&#x27;, 1199, &#x27;Hardware&#x27;],
+  [&#x27;TRM-HP&#x27;, &#x27;High Performance Terminal&#x27;, 2999, &#x27;Hardware&#x27;],
+  [&#x27;TRM-MAR&#x27;, &#x27;Maritime Terminal Kit&#x27;, 9995, &#x27;Hardware&#x27;],
+  [&#x27;TRM-AVN&#x27;, &#x27;Aviation Terminal Kit&#x27;, 24995, &#x27;Hardware&#x27;],
+  [&#x27;ACC-MNT&#x27;, &#x27;Pipe Mount Adapter&#x27;, 129, &#x27;Accessory&#x27;],
+  [&#x27;ACC-CBL&#x27;, &#x27;45m Terminal Cable&#x27;, 149, &#x27;Accessory&#x27;],
+  [&#x27;SVC-ONB&#x27;, &#x27;Enterprise Onboarding (per site)&#x27;, 1500, &#x27;Service&#x27;],
+];
+
+const SEGMENT_SKUS = {
+  Maritime: [&#x27;TRM-MAR&#x27;, &#x27;ACC-CBL&#x27;, &#x27;SVC-ONB&#x27;],
+  Aviation: [&#x27;TRM-AVN&#x27;, &#x27;SVC-ONB&#x27;],
+  Energy: [&#x27;TRM-HP&#x27;, &#x27;TRM-STD&#x27;, &#x27;ACC-MNT&#x27;, &#x27;SVC-ONB&#x27;],
+  Transit: [&#x27;TRM-HP&#x27;, &#x27;TRM-STD&#x27;, &#x27;ACC-MNT&#x27;, &#x27;SVC-ONB&#x27;],
+  &#x27;Public Sector&#x27;: [&#x27;TRM-STD&#x27;, &#x27;TRM-HP&#x27;, &#x27;ACC-CBL&#x27;, &#x27;SVC-ONB&#x27;],
+};
+
+const CUSTOMER_SEED = [
+  [&#x27;Ospreyvale Marine Logistics&#x27;, &#x27;Maritime&#x27;, &#x27;Pacific NW&#x27;],
+  [&#x27;Quillmere Ferryworks&#x27;, &#x27;Maritime&#x27;, &#x27;Pacific NW&#x27;],
+  [&#x27;Brannock Ridge Energy&#x27;, &#x27;Energy&#x27;, &#x27;Canada West&#x27;],
+  [&#x27;Tessaly Air Charter&#x27;, &#x27;Aviation&#x27;, &#x27;Pacific NW&#x27;],
+  [&#x27;Varrow Transit Authority&#x27;, &#x27;Transit&#x27;, &#x27;Midwest&#x27;],
+  [&#x27;Halloway Fisheries Co-op&#x27;, &#x27;Maritime&#x27;, &#x27;Alaska&#x27;],
+  [&#x27;Corrin Peak Mining&#x27;, &#x27;Energy&#x27;, &#x27;Mountain West&#x27;],
+  [&#x27;Marrowbay Health Network&#x27;, &#x27;Public Sector&#x27;, &#x27;Pacific NW&#x27;],
+  [&#x27;Tidecrest Shipping&#x27;, &#x27;Maritime&#x27;, &#x27;Gulf Coast&#x27;],
+  [&#x27;Aldmoor Timber Co&#x27;, &#x27;Energy&#x27;, &#x27;Pacific NW&#x27;],
+  [&#x27;Pellam Regional Air&#x27;, &#x27;Aviation&#x27;, &#x27;Mountain West&#x27;],
+  [&#x27;Oxbane Grid Utilities&#x27;, &#x27;Energy&#x27;, &#x27;Pacific NW&#x27;],
+  [&#x27;Iselby Bay Voyages&#x27;, &#x27;Maritime&#x27;, &#x27;Alaska&#x27;],
+  [&#x27;Thornquill Builders&#x27;, &#x27;Transit&#x27;, &#x27;California&#x27;],
+  [&#x27;Westmere Sound Research Lab&#x27;, &#x27;Public Sector&#x27;, &#x27;Pacific NW&#x27;],
+  [&#x27;Dunleath Field Agritech&#x27;, &#x27;Energy&#x27;, &#x27;Midwest&#x27;],
+  [&#x27;Larkhaven Barge Lines&#x27;, &#x27;Maritime&#x27;, &#x27;Pacific NW&#x27;],
+  [&#x27;Calder Rescue Services&#x27;, &#x27;Public Sector&#x27;, &#x27;Pacific NW&#x27;],
+  [&#x27;Velmar Offshore Drilling&#x27;, &#x27;Maritime&#x27;, &#x27;Gulf Coast&#x27;],
+  [&#x27;Orrin Sound Seafoods&#x27;, &#x27;Maritime&#x27;, &#x27;Alaska&#x27;],
+  [&#x27;Kettlerun Field Operations&#x27;, &#x27;Energy&#x27;, &#x27;Canada West&#x27;],
+  [&#x27;Highdesert Freight Rail&#x27;, &#x27;Transit&#x27;, &#x27;Mountain West&#x27;],
+  [&#x27;Saltmere Island School District&#x27;, &#x27;Public Sector&#x27;, &#x27;Pacific NW&#x27;],
+  [&#x27;Copperline Exploration&#x27;, &#x27;Energy&#x27;, &#x27;Mountain West&#x27;],
+  [&#x27;Sandreach Disaster Relief Corps&#x27;, &#x27;Public Sector&#x27;, &#x27;Southwest&#x27;],
+];
+
+const CSMS = [
+  [&#x27;Avery Chen&#x27;, &#x27;avery.chen@quillsat.example&#x27;],
+  [&#x27;Jordan Patel&#x27;, &#x27;jordan.patel@quillsat.example&#x27;],
+  [&#x27;Morgan Reyes&#x27;, &#x27;morgan.reyes@quillsat.example&#x27;],
+  [&#x27;Taylor Brooks&#x27;, &#x27;taylor.brooks@quillsat.example&#x27;],
+];
+
+const FIRST = [&#x27;Dana&#x27;, &#x27;Riley&#x27;, &#x27;Casey&#x27;, &#x27;Jamie&#x27;, &#x27;Alex&#x27;, &#x27;Sam&#x27;, &#x27;Robin&#x27;, &#x27;Drew&#x27;, &#x27;Kai&#x27;, &#x27;Quinn&#x27;, &#x27;Reese&#x27;, &#x27;Hayden&#x27;, &#x27;Emerson&#x27;, &#x27;Rowan&#x27;, &#x27;Sage&#x27;, &#x27;Parker&#x27;];
+const LAST = [&#x27;Nguyen&#x27;, &#x27;Okafor&#x27;, &#x27;Larsen&#x27;, &#x27;Haddad&#x27;, &#x27;Moreno&#x27;, &#x27;Kowalski&#x27;, &#x27;Ito&#x27;, &#x27;Fischer&#x27;, &#x27;Silva&#x27;, &#x27;Mbeki&#x27;, &#x27;Sorensen&#x27;, &#x27;Ramirez&#x27;, &#x27;Lindqvist&#x27;, &#x27;Achebe&#x27;, &#x27;Tanaka&#x27;, &#x27;Duval&#x27;];
+
+/**
+ * Builds the full demo dataset.
+ * @return {{customers, prices, orders, payments, truth}}
+ */
+function generateDemoData(asOf, seed) {
+  asOf = asOf || DEMO_AS_OF;
+  const rnd = mulberry32(seed || DEMO_SEED);
+  const ri = (a, b) =&gt; a + Math.floor(rnd() * (b - a + 1)); // inclusive int
+  const pick = arr =&gt; arr[Math.floor(rnd() * arr.length)];
+  const listPrice = {};
+  PRODUCTS.forEach(p =&gt; { listPrice[p[0]] = p[2]; });
+  const productName = {};
+  PRODUCTS.forEach(p =&gt; { productName[p[0]] = p[1]; });
+
+  /* ---------- customers + contract prices */
+  const customers = CUSTOMER_SEED.map((c, i) =&gt; {
+    const slug = c[0].toLowerCase().replace(/[^a-z]/g, &#x27;&#x27;).slice(0, 16);
+    const first = pick(FIRST), last = pick(LAST);
+    const csm = CSMS[i % CSMS.length];
+    const contractSkus = {};
+    SEGMENT_SKUS[c[1]].forEach(sku =&gt; {
+      const disc = sku === &#x27;SVC-ONB&#x27; ? ri(0, 2) * 5 : ri(3, 18); // percent
+      contractSkus[sku] = Math.round(listPrice[sku] * (1 - disc / 100));
+    });
+    return {
+      id: &#x27;C-&#x27; + (101 + i), name: c[0], segment: c[1], region: c[2],
+      csm: csm[0], csmEmail: csm[1],
+      terms: pick([&#x27;Net 30&#x27;, &#x27;Net 30&#x27;, &#x27;Net 30&#x27;, &#x27;Net 45&#x27;, &#x27;Net 60&#x27;]),
+      billName: first + &#x27; &#x27; + last,
+      billEmail: &#x27;ap.&#x27; + first.toLowerCase() + &#x27;@&#x27; + slug + &#x27;.example&#x27;,
+      skus: contractSkus,
+    };
+  });
+  const prices = [];
+  customers.forEach(c =&gt; Object.keys(c.skus).forEach(sku =&gt; {
+    prices.push([c.id, c.name, sku, productName[sku], listPrice[sku], c.skus[sku]]);
+  }));
+
+  const qtyFor = sku =&gt; sku.startsWith(&#x27;ACC&#x27;) ? ri(10, 120)
+    : sku === &#x27;SVC-ONB&#x27; ? ri(1, 8)
+    : sku === &#x27;TRM-AVN&#x27; ? ri(1, 6)
+    : sku === &#x27;TRM-MAR&#x27; ? ri(2, 14)
+    : ri(5, 60);
+  const termDays = t =&gt; parseInt(String(t).replace(&#x27;Net &#x27;, &#x27;&#x27;), 10) || 30;
+
+  /* ---------- scenario plan */
+  const N = 150;
+  const scen = [];
+  const push = (s, n) =&gt; { for (let i = 0; i &lt; n; i++) scen.push(s); };
+  push(&#x27;hold&#x27;, 22);
+  push(&#x27;stalled&#x27;, 7);
+  push(&#x27;sla_validated&#x27;, 3);   // account set-up backlog
+  push(&#x27;sla_setup&#x27;, 2);       // set up but not shipped
+  push(&#x27;sla_activated&#x27;, 2);   // activated but never invoiced = billing miss
+  push(&#x27;normal&#x27;, N - scen.length);
+  // shuffle
+  for (let i = scen.length - 1; i &gt; 0; i--) { const j = Math.floor(rnd() * (i + 1)); [scen[i], scen[j]] = [scen[j], scen[i]]; }
+
+  const holdIssues = [];
+  [&#x27;price&#x27;, &#x27;price&#x27;, &#x27;price&#x27;, &#x27;price&#x27;, &#x27;price&#x27;, &#x27;price&#x27;, &#x27;price&#x27;, &#x27;price&#x27;,
+    &#x27;not_on_contract&#x27;, &#x27;not_on_contract&#x27;, &#x27;not_on_contract&#x27;, &#x27;unknown_sku&#x27;, &#x27;unknown_sku&#x27;,
+    &#x27;billing&#x27;, &#x27;billing&#x27;, &#x27;billing&#x27;, &#x27;billing&#x27;, &#x27;billing&#x27;,
+    &#x27;terms&#x27;, &#x27;terms&#x27;, &#x27;terms&#x27;, &#x27;terms&#x27;].forEach(x =&gt; holdIssues.push([x]));
+  holdIssues[1].push(&#x27;billing&#x27;);   // two orders carry two problems
+  holdIssues[14].push(&#x27;terms&#x27;);
+
+  const DUR = { val: [0, 2], setup: [1, 3], ship: [2, 6], act: [3, 12], inv: [1, 3] };
+  const d = k =&gt; ri(DUR[k][0], DUR[k][1]);
+
+  /* ---------- orders */
+  let holdIdx = 0;
+  const orders = scen.map(s =&gt; {
+    const c = pick(customers);
+    const skus = Object.keys(c.skus);
+    const sku = pick(skus);
+    const o = {
+      scenario: s, cust: c, cust_id: c.id, sku, qty: qtyFor(sku),
+      unit_price: c.skus[sku], bill_name: c.billName, bill_email: c.billEmail, terms: c.terms,
+      issues: [], received: null, validated: &#x27;&#x27;, acct_setup: &#x27;&#x27;, shipped: &#x27;&#x27;, activated: &#x27;&#x27;, invoiced: &#x27;&#x27;, paid: &#x27;&#x27;,
+      invoice_no: &#x27;&#x27;, actions: &#x27;&#x27;, payBehavior: null,
+    };
+    if (s === &#x27;hold&#x27;) {
+      o.received = asOf - ri(0, 20);
+      o.issues = holdIssues[holdIdx++];
+      o.issues.forEach(issue =&gt; applyIssue(o, issue));
+    } else if (s === &#x27;stalled&#x27;) {
+      o.shipped = asOf - ri(17, 52);
+      backfill(o, &#x27;shipped&#x27;);
+    } else if (s === &#x27;sla_validated&#x27;) {
+      o.validated = asOf - ri(6, 11);
+      backfill(o, &#x27;validated&#x27;);
+    } else if (s === &#x27;sla_setup&#x27;) {
+      o.acct_setup = asOf - ri(12, 21);
+      backfill(o, &#x27;acct_setup&#x27;);
+    } else if (s === &#x27;sla_activated&#x27;) {
+      o.activated = asOf - ri(9, 16);
+      backfill(o, &#x27;activated&#x27;);
+    } else {
+      o.received = asOf - ri(0, 210);
+      forward(o);
+    }
+    return o;
+  });
+
+  function applyIssue(o, issue) {
+    const c = o.cust;
+    if (issue === &#x27;price&#x27;) {
+      // Most common real-world miss: rep quotes list price instead of contract price.
+      o.unit_price = rnd() &lt; 0.6 ? listPrice[o.sku] : Math.round(c.skus[o.sku] * (1 + pick([-0.12, -0.08, 0.07, 0.1, 0.15])));
+      if (o.unit_price === c.skus[o.sku]) o.unit_price += 50;
+    } else if (issue === &#x27;not_on_contract&#x27;) {
+      const off = PRODUCTS.map(p =&gt; p[0]).filter(s =&gt; !(s in c.skus));
+      o.sku = pick(off); o.qty = qtyFor(o.sku); o.unit_price = listPrice[o.sku];
+    } else if (issue === &#x27;unknown_sku&#x27;) {
+      o.sku = pick([&#x27;TRM-HP2&#x27;, &#x27;TRM-STD-X&#x27;, &#x27;SVC-ONBD&#x27;]); o.unit_price = c.skus[Object.keys(c.skus)[0]];
+    } else if (issue === &#x27;billing&#x27;) {
+      const k = ri(0, 2);
+      if (k === 0) o.bill_name = &#x27;&#x27;;
+      else if (k === 1) o.bill_email = &#x27;&#x27;;
+      else o.bill_email = o.bill_email.replace(&#x27;@&#x27;, &#x27;.&#x27;); // malformed address
+    } else if (issue === &#x27;terms&#x27;) {
+      o.terms = pick([&#x27;Net 60&#x27;, &#x27;Net 90&#x27;].filter(t =&gt; t !== c.terms));
+    }
+  }
+
+  // Walks back from a known stage date to fill earlier stages.
+  function backfill(o, stageKey) {
+    const order = [&#x27;received&#x27;, &#x27;validated&#x27;, &#x27;acct_setup&#x27;, &#x27;shipped&#x27;, &#x27;activated&#x27;];
+    const back = { validated: &#x27;val&#x27;, acct_setup: &#x27;setup&#x27;, shipped: &#x27;ship&#x27;, activated: &#x27;act&#x27; };
+    for (let i = order.indexOf(stageKey); i &gt; 0; i--) {
+      o[order[i - 1]] = o[order[i]] - d(back[order[i]]);
+    }
+  }
+
+  // Moves a clean order forward through the pipeline until it reaches as-of.
+  function forward(o) {
+    const steps = [[&#x27;validated&#x27;, &#x27;val&#x27;], [&#x27;acct_setup&#x27;, &#x27;setup&#x27;], [&#x27;shipped&#x27;, &#x27;ship&#x27;], [&#x27;activated&#x27;, &#x27;act&#x27;], [&#x27;invoiced&#x27;, &#x27;inv&#x27;]];
+    let t = o.received;
+    for (const [k, dk] of steps) {
+      t += d(dk);
+      if (t &gt; asOf) return;
+      o[k] = t;
+    }
+  }
+
+  orders.sort((a, b) =&gt; a.received - b.received || (a.cust_id &lt; b.cust_id ? -1 : 1));
+  orders.forEach((o, i) =&gt; { o.order_id = &#x27;SO-&#x27; + (10001 + i); });
+
+  /* ---------- invoices */
+  const invoiced = orders.filter(o =&gt; o.invoiced !== &#x27;&#x27;).sort((a, b) =&gt; a.invoiced - b.invoiced);
+  invoiced.forEach((o, i) =&gt; {
+    o.invoice_no = &#x27;INV-&#x27; + (20301 + i);
+    o.value = o.qty * o.unit_price;
+    o.due = o.invoiced + termDays(o.terms);
+  });
+
+  /* ---------- payment behaviour */
+  const payments = [];
+  const pay = (o, date, amount, ref, method) =&gt; payments.push({ cust_id: o ? o.cust_id : null, date, amount: Math.round(amount * 100) / 100, ref, method: method || pick([&#x27;ACH&#x27;, &#x27;ACH&#x27;, &#x27;Wire&#x27;, &#x27;Check&#x27;]) });
+
+  // Planted cash-application problems, chosen from invoices whose story makes sense.
+  const paidCandidates = invoiced.filter(o =&gt; o.due - 12 &lt;= asOf - 10);
+  const pastDueCandidates = invoiced.filter(o =&gt; o.due &lt; asOf - 5);
+  const taken = new Set();
+  const choose = (pool, n) =&gt; {
+    const out = [];
+    const avail = pool.filter(o =&gt; !taken.has(o));
+    while (out.length &lt; n &amp;&amp; avail.length) {
+      const o = avail.splice(Math.floor(rnd() * avail.length), 1)[0];
+      taken.add(o); out.push(o);
+    }
+    return out;
+  };
+  choose(paidCandidates, 4).forEach(o =&gt; { o.payBehavior = &#x27;duplicate&#x27;; });
+  choose(paidCandidates, 2).forEach(o =&gt; { o.payBehavior = &#x27;overpay&#x27;; });
+  choose(pastDueCandidates, 3).forEach(o =&gt; { o.payBehavior = &#x27;misref&#x27;; });
+  choose(pastDueCandidates, 4).forEach(o =&gt; { o.payBehavior = &#x27;partial&#x27;; });
+  // Deliberately non-paying accounts, spread across aging buckets.
+  const byAge = pastDueCandidates.filter(o =&gt; !taken.has(o)).sort((a, b) =&gt; a.due - b.due);
+  const nonPay = [];
+  [0.02, 0.1, 0.22, 0.4, 0.6, 0.78, 0.9].forEach(q =&gt; {
+    const o = byAge[Math.floor(q * (byAge.length - 1))];
+    if (o &amp;&amp; !taken.has(o)) { taken.add(o); nonPay.push(o); o.payBehavior = &#x27;nonpay&#x27;; }
+  });
+
+  invoiced.forEach(o =&gt; {
+    if (!o.payBehavior) o.payBehavior = rnd() &lt; 0.82 ? &#x27;ontime&#x27; : &#x27;late&#x27;;
+    let payDate;
+    switch (o.payBehavior) {
+      case &#x27;ontime&#x27;: payDate = o.due - ri(0, 12); break;
+      case &#x27;late&#x27;: payDate = o.due + ri(4, 35); break;
+      case &#x27;duplicate&#x27;: case &#x27;overpay&#x27;: payDate = Math.min(o.due - ri(0, 10), asOf - 10); break;
+      case &#x27;misref&#x27;: payDate = Math.min(o.due + ri(0, 10), asOf - 2); break;
+      case &#x27;partial&#x27;: payDate = Math.min(o.due + ri(-5, 5), asOf - 3); break;
+      default: payDate = null;
+    }
+    if (payDate === null) return;
+    payDate = Math.max(payDate, o.invoiced + 1);
+    if (payDate &gt; asOf) return; // not paid yet
+    if (o.payBehavior === &#x27;partial&#x27;) {
+      pay(o, payDate, Math.round(o.value * pick([0.5, 0.6, 0.75, 0.8])), o.invoice_no);
+      return;
+    }
+    if (o.payBehavior === &#x27;misref&#x27;) {
+      // Customer paid the right amount but referenced their own PO / mistyped the invoice.
+      const bad = pick([&#x27;po&#x27;, &#x27;typo&#x27;, &#x27;blank&#x27;]);
+      const ref = bad === &#x27;po&#x27; ? &#x27;PO-&#x27; + ri(40000, 49999) : bad === &#x27;typo&#x27; ? o.invoice_no.replace(&#x27;INV-20&#x27;, &#x27;INV-2O&#x27;) : &#x27;&#x27;;
+      pay(o, payDate, o.value, ref);
+      return;
+    }
+    if (o.payBehavior === &#x27;overpay&#x27;) {
+      // Paid list price instead of contract price (or a rounding overage when they&#x27;re equal).
+      const listTotal = o.qty * (listPrice[o.sku] || o.unit_price);
+      pay(o, payDate, listTotal &gt; o.value ? listTotal : o.value + 250, o.invoice_no);
+      o.paid = payDate;
+      return;
+    }
+    pay(o, payDate, o.value, o.invoice_no);
+    o.paid = payDate;
+    if (o.payBehavior === &#x27;duplicate&#x27;) pay(o, Math.min(payDate + ri(4, 9), asOf), o.value, o.invoice_no);
+  });
+
+  // Two receipts nobody can identify (no invoice for that customer at that amount).
+  const mystery = [pick(customers), pick(customers)];
+  pay({ cust_id: mystery[0].id }, asOf - ri(3, 20), 18450, &#x27;&#x27;, &#x27;Wire&#x27;);
+  pay({ cust_id: mystery[1].id }, asOf - ri(3, 20), 7342.5, &#x27;DEPOSIT&#x27;, &#x27;Check&#x27;);
+
+  payments.sort((a, b) =&gt; a.date - b.date);
+  payments.forEach((p, i) =&gt; { p.pay_id = &#x27;PMT-&#x27; + (50001 + i); });
+
+  /* ---------- actions-taken notes (some intentionally blank) */
+  const fmt = s =&gt; serialToIso(s);
+  orders.forEach(o =&gt; {
+    const notes = [];
+    if (o.scenario === &#x27;stalled&#x27; &amp;&amp; rnd() &lt; 0.75) {
+      notes.push(fmt(o.shipped + 15) + &#x27; — Emailed site contact to confirm install date&#x27;);
+      if (asOf - o.shipped &gt; 25) notes.push(fmt(o.shipped + 22) + &#x27; — Called site lead, left voicemail&#x27;);
+    }
+    if (o.scenario === &#x27;hold&#x27; &amp;&amp; rnd() &lt; 0.6) notes.push(fmt(o.received) + &#x27; — Returned order to account rep for correction&#x27;);
+    if (o.scenario === &#x27;sla_validated&#x27;) notes.push(fmt(o.validated + 3) + &#x27; — Account set-up ticket opened with Billing Ops&#x27;);
+    if (o.scenario === &#x27;sla_setup&#x27;) notes.push(fmt(o.acct_setup + 5) + &#x27; — Warehouse reports backorder on terminal kits&#x27;);
+    if (o.payBehavior === &#x27;nonpay&#x27; &amp;&amp; o.due &lt; asOf - 20 &amp;&amp; rnd() &lt; 0.8) {
+      notes.push(fmt(o.due + 7) + &#x27; — Automated past-due reminder sent&#x27;);
+      if (asOf - o.due &gt; 45) notes.push(fmt(o.due + 30) + &#x27; — Second notice emailed to billing contact&#x27;);
+    }
+    if (o.payBehavior === &#x27;partial&#x27;) notes.push(fmt(o.due + 10) + &#x27; — Short-pay noticed; asked customer AP for remittance detail&#x27;);
+    o.actions = notes.join(&#x27;\n&#x27;);
+  });
+
+  /* ---------- deliberate test case: two customers with the same name */
+  // A second company with exactly the same name as an existing customer, but
+  // its own Customer ID, region, billing contact and contract prices. One
+  // clean, paid order (and its payment) is moved onto the new ID at the new
+  // contract price, so every lookup in the workbook has to use Customer ID.
+  // Matching on the name would be ambiguous. Added after the random
+  // generation so no other number in the dataset changes.
+  let original = null, mover = null;
+  for (const c of customers) {
+    mover = orders.find(o =&gt; o.cust_id === c.id &amp;&amp; o.scenario === &#x27;normal&#x27; &amp;&amp; o.paid !== &#x27;&#x27; &amp;&amp; o.payBehavior === &#x27;ontime&#x27;);
+    if (mover) { original = c; break; }
+  }
+  const twin = Object.assign({}, original, {
+    id: &#x27;C-&#x27; + (101 + customers.length), region: &#x27;Gulf Coast&#x27;, csm: CSMS[(CSMS.findIndex(x =&gt; x[0] === original.csm) + 1) % CSMS.length][0],
+    csmEmail: CSMS[(CSMS.findIndex(x =&gt; x[0] === original.csm) + 1) % CSMS.length][1],
+    billName: &#x27;Rowan Haddad&#x27;, billEmail: &#x27;ap.rowan@&#x27; + original.billEmail.split(&#x27;@&#x27;)[1].replace(&#x27;.example&#x27;, &#x27;-gulf.example&#x27;), skus: {},
+  });
+  Object.keys(original.skus).forEach(sku =&gt; { twin.skus[sku] = Math.round(original.skus[sku] * 0.93); });
+  customers.push(twin);
+  Object.keys(twin.skus).forEach(sku =&gt; prices.push([twin.id, twin.name, sku, productName[sku], listPrice[sku], twin.skus[sku]]));
+  mover.cust = twin; mover.cust_id = twin.id; mover.bill_name = twin.billName; mover.bill_email = twin.billEmail;
+  mover.unit_price = twin.skus[mover.sku]; mover.value = mover.qty * mover.unit_price;
+  const moverPayment = payments.find(p =&gt; p.ref === mover.invoice_no);
+  moverPayment.cust_id = twin.id; moverPayment.amount = mover.value;
+
+  /* ---------- ground truth for tests and the write-up */
+  const truth = {
+    sameName: { name: twin.name, ids: [original.id, twin.id], movedOrder: mover.order_id, invoice: mover.invoice_no, payment: moverPayment.pay_id,
+      originalPrice: original.skus[mover.sku], twinPrice: twin.skus[mover.sku], sku: mover.sku },
+    asOf,
+    holdOrders: orders.filter(o =&gt; o.scenario === &#x27;hold&#x27;).map(o =&gt; o.order_id),
+    issuesByType: holdIssues.flat().reduce((m, x) =&gt; { m[x] = (m[x] || 0) + 1; return m; }, {}),
+    stalled: orders.filter(o =&gt; o.scenario === &#x27;stalled&#x27;).map(o =&gt; o.order_id),
+    slaBreach: orders.filter(o =&gt; o.scenario.startsWith(&#x27;sla_&#x27;)).map(o =&gt; o.order_id),
+    duplicates: invoiced.filter(o =&gt; o.payBehavior === &#x27;duplicate&#x27;).map(o =&gt; o.invoice_no),
+    overpay: invoiced.filter(o =&gt; o.payBehavior === &#x27;overpay&#x27;).map(o =&gt; o.invoice_no),
+    misref: invoiced.filter(o =&gt; o.payBehavior === &#x27;misref&#x27;).map(o =&gt; o.invoice_no),
+    partial: invoiced.filter(o =&gt; o.payBehavior === &#x27;partial&#x27; &amp;&amp; payments.some(p =&gt; p.ref === o.invoice_no)).map(o =&gt; o.invoice_no),
+    nonpay: nonPay.map(o =&gt; o.invoice_no),
+    mysteryPayments: 2,
+  };
+
+  return { customers, prices, orders, payments, truth };
+}
+
+function serialToIso(serial) {
+  const dt = new Date(Math.round((serial - 25569) * 86400000));
+  return dt.toISOString().slice(0, 10);
+}
+</code></pre>
+<h2 id="f2">Setup.gs</h2><p class="muted">Builds all the tabs, formatting, dashboard and charts from a blank Sheet. Settings tab holds the decisions.</p><pre><code>/**
+ * Builds the whole workbook from a blank Google Sheet.
+ * Run setup() once from the Apps Script editor (or O2C Tools ▸ Rebuild demo).
+ */
+
+function setup() {
+  const ss = SpreadsheetApp.getActive();
+  const ui = tryUi();
+  if (ui) {
+    const ok = ui.alert(&#x27;Build the Order-to-Cash tracker?&#x27;,
+      &#x27;This erases every tab in this spreadsheet and rebuilds the demo workbook (150 sample orders). Continue?&#x27;,
+      ui.ButtonSet.YES_NO);
+    if (ok !== ui.Button.YES) return;
+  }
+  const data = generateDemoData(DEMO_AS_OF, DEMO_SEED);
+  buildWorkbook(ss, data);
+  SpreadsheetApp.flush();
+
+  // Seed the log tabs so a view-only reviewer sees real output without running anything.
+  PropertiesService.getDocumentProperties().deleteProperty(DIGEST_SNAPSHOT_KEY);
+  draftTopEscalations(ss, 7);
+  logDigestPreview(ss);
+
+  let triggerNote = &#x27;&#x27;;
+  try {
+    installTriggers();
+    triggerNote = &#x27;Daily digest scheduled.&#x27;;
+  } catch (e) {
+    triggerNote = &#x27;Triggers not installed (&#x27; + e.message + &#x27;). Use O2C Tools ▸ Automation ▸ Install daily digest.&#x27;;
+  }
+  ss.setActiveSheet(ss.getSheetByName(SHEET.README));
+  ss.toast(&#x27;Workbook built. &#x27; + triggerNote, &#x27;Order-to-Cash Tracker&#x27;, 8);
+}
+
+function tryUi() {
+  try { return SpreadsheetApp.getUi(); } catch (e) { return null; }
+}
+
+function buildWorkbook(ss, data) {
+  resetSpreadsheet(ss);
+  const S = {};
+  const order = [SHEET.README, SHEET.DASH, SHEET.QUEUE, SHEET.ORDERS, SHEET.PAYMENTS, SHEET.UNAPPLIED,
+    SHEET.AGING, SHEET.ESC, SHEET.DIGEST, SHEET.CUSTOMERS, SHEET.PRODUCTS, SHEET.PRICES, SHEET.SETTINGS];
+  order.forEach((name, i) =&gt; { S[name] = ss.insertSheet(name, i); });
+  ss.deleteSheet(ss.getSheetByName(&#x27;__tmp&#x27;));
+
+  buildSettings(ss, S[SHEET.SETTINGS], data.truth.asOf);
+  buildCustomers(S[SHEET.CUSTOMERS], data.customers);
+  buildProducts(S[SHEET.PRODUCTS]);
+  buildPrices(S[SHEET.PRICES], data.prices);
+  buildOrders(S[SHEET.ORDERS], data.orders);
+  buildPayments(S[SHEET.PAYMENTS], data.payments);
+  buildAging(S[SHEET.AGING], data.customers);
+  buildUnapplied(S[SHEET.UNAPPLIED]);
+  buildQueue(S[SHEET.QUEUE]);
+  buildLogSheet(S[SHEET.ESC], ESC_HEADERS, [95, 80, 170, 105, 100, 340, 260, 340, 120, 90, 80], COLOR.risk);
+  buildLogSheet(S[SHEET.DIGEST], DIGEST_HEADERS, [140, 200, 90, 80, 90, 110, 110, 120, 220], COLOR.header);
+  buildDashboard(S[SHEET.DASH]);
+  buildReadme(S[SHEET.README]);
+
+  const tabColors = {};
+  tabColors[SHEET.README] = &#x27;#243b53&#x27;; tabColors[SHEET.DASH] = &#x27;#243b53&#x27;; tabColors[SHEET.QUEUE] = COLOR.risk;
+  tabColors[SHEET.ORDERS] = COLOR.pipeline; tabColors[SHEET.PAYMENTS] = COLOR.billing; tabColors[SHEET.UNAPPLIED] = COLOR.billing;
+  tabColors[SHEET.AGING] = COLOR.billing; tabColors[SHEET.ESC] = COLOR.risk; tabColors[SHEET.DIGEST] = COLOR.risk;
+  [SHEET.CUSTOMERS, SHEET.PRODUCTS, SHEET.PRICES, SHEET.SETTINGS].forEach(n =&gt; { tabColors[n] = COLOR.helper; });
+  Object.keys(tabColors).forEach(n =&gt; S[n].setTabColor(tabColors[n]));
+}
+
+// Leaves a single placeholder tab so every real tab can be recreated cleanly.
+function resetSpreadsheet(ss) {
+  ss.getNamedRanges().forEach(n =&gt; n.remove());
+  let tmp = ss.getSheetByName(&#x27;__tmp&#x27;);
+  if (!tmp) tmp = ss.insertSheet(&#x27;__tmp&#x27;);
+  ss.getSheets().forEach(sh =&gt; { if (sh.getName() !== &#x27;__tmp&#x27;) ss.deleteSheet(sh); });
+}
+
+/* ------------------------------------------------------------- helpers */
+
+const FMT = { date: &#x27;yyyy-mm-dd&#x27;, money: &#x27;$#,##0.00&#x27;, money0: &#x27;$#,##0&#x27;, int: &#x27;0&#x27;, pct: &#x27;0.0%&#x27; };
+
+function styleHeader(range, bg) {
+  range.setBackground(bg || COLOR.header).setFontColor(COLOR.headerText).setFontWeight(&#x27;bold&#x27;)
+    .setVerticalAlignment(&#x27;middle&#x27;).setWrap(true).setFontSize(9);
+}
+
+function writeTable(sheet, headers, rows, widths, headerColor) {
+  sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+  styleHeader(sheet.getRange(1, 1, 1, headers.length), headerColor);
+  if (rows.length) sheet.getRange(2, 1, rows.length, headers.length).setValues(rows);
+  sheet.setFrozenRows(1);
+  sheet.setRowHeight(1, 36);
+  (widths || []).forEach((w, i) =&gt; sheet.setColumnWidth(i + 1, w));
+}
+
+function applyColumnFormats(sheet, spec, nRows) {
+  spec.forEach((c, i) =&gt; {
+    if (c.fmt) sheet.getRange(2, i + 1, nRows, 1).setNumberFormat(FMT[c.fmt]);
+    sheet.setColumnWidth(i + 1, c.width || 90);
+    if (c.note) sheet.getRange(1, i + 1).setNote(c.note);
+  });
+}
+
+function band(sheet, nRows, nCols) {
+  sheet.getRange(2, 1, nRows, nCols).applyRowBanding(SpreadsheetApp.BandingTheme.LIGHT_GREY, false, false);
+}
+
+/* -------------------------------------------------------------- Settings */
+
+function buildSettings(ss, sh, asOf) {
+  let me = &#x27;&#x27;;
+  try { me = Session.getEffectiveUser().getEmail(); } catch (e) { /* not authorised yet */ }
+  const rows = [
+    [&#x27;Settings&#x27;, &#x27;&#x27;, &#x27;&#x27;],
+    [&#x27;&#x27;, &#x27;&#x27;, &#x27;&#x27;],
+    [&#x27;As-of date&#x27;, asOf, &#x27;Demo is frozen on this date so the numbers stay reproducible. Replace with =TODAY() to run live.&#x27;],
+    [&#x27;Stalled activation threshold (days)&#x27;, 10, &#x27;Shipped longer than this without activation = stalled customer. A new customer going quiet in the first week is already a signal; a false alarm costs one phone call.&#x27;],
+    [&#x27;Daily digest recipient&#x27;, me, &#x27;Who receives the 7am digest email.&#x27;],
+    [&#x27;Digest send hour (0–23)&#x27;, 7, &#x27;Re-run O2C Tools ▸ Automation ▸ Install daily digest after changing.&#x27;],
+    [&#x27;Escalation CC&#x27;, &#x27;cs-leadership@quillsat.example&#x27;, &#x27;Copied on every escalation draft.&#x27;],
+    [&#x27;Escalation response window (business days)&#x27;, 2, &#x27;Deadline used in the &quot;Specific ask&quot; line.&#x27;],
+    [&#x27;Collections involved after (days past due)&#x27;, 60, &#x27;Until then the past-due ask goes to the customer\&#x27;s success manager, not Collections.&#x27;],
+    [&#x27;Stage SLA&#x27;, &#x27;Max days&#x27;, &#x27;How long an order may sit in a stage before its row turns red.&#x27;],
+    [&#x27;Stage&#x27;, &#x27;Max days&#x27;, &#x27;&#x27;],
+    [&#x27;Received&#x27;, 2, &#x27;Intake review&#x27;],
+    [&#x27;Validated&#x27;, 3, &#x27;Account set-up&#x27;],
+    [&#x27;Account Set Up&#x27;, 7, &#x27;Ship&#x27;],
+    [&#x27;Shipped&#x27;, 14, &#x27;Customer activates terminal&#x27;],
+    [&#x27;Activated&#x27;, 3, &#x27;Invoice issued&#x27;],
+  ];
+  sh.getRange(1, 1, rows.length, 3).setValues(rows);
+  sh.getRange(&#x27;A1&#x27;).setFontSize(14).setFontWeight(&#x27;bold&#x27;);
+  sh.getRange(&#x27;B3&#x27;).setNumberFormat(FMT.date);
+  sh.getRange(&#x27;A3:A9&#x27;).setFontWeight(&#x27;bold&#x27;);
+  sh.getRange(&#x27;B3:B9&#x27;).setBackground(&#x27;#fffbea&#x27;).setHorizontalAlignment(&#x27;left&#x27;);
+  sh.getRange(&#x27;C3:C16&#x27;).setFontColor(COLOR.muted).setFontStyle(&#x27;italic&#x27;);
+  sh.getRange(&#x27;A10&#x27;).setFontWeight(&#x27;bold&#x27;).setFontSize(11);
+  sh.getRange(&#x27;B10&#x27;).setValue(&#x27;&#x27;);
+  styleHeader(sh.getRange(&#x27;A11:B11&#x27;));
+  sh.getRange(&#x27;B12:B16&#x27;).setBackground(&#x27;#fffbea&#x27;);
+  sh.setColumnWidth(1, 270); sh.setColumnWidth(2, 260); sh.setColumnWidth(3, 520);
+
+  ss.setNamedRange(&#x27;AS_OF&#x27;, sh.getRange(&#x27;B3&#x27;));
+  ss.setNamedRange(&#x27;STALL_DAYS&#x27;, sh.getRange(&#x27;B4&#x27;));
+  ss.setNamedRange(&#x27;DIGEST_TO&#x27;, sh.getRange(&#x27;B5&#x27;));
+  ss.setNamedRange(&#x27;DIGEST_HOUR&#x27;, sh.getRange(&#x27;B6&#x27;));
+  ss.setNamedRange(&#x27;ESC_CC&#x27;, sh.getRange(&#x27;B7&#x27;));
+  ss.setNamedRange(&#x27;ESC_DAYS&#x27;, sh.getRange(&#x27;B8&#x27;));
+  ss.setNamedRange(&#x27;COLLECTIONS_DAYS&#x27;, sh.getRange(&#x27;B9&#x27;));
+  ss.setNamedRange(&#x27;SLA_TABLE&#x27;, sh.getRange(&#x27;A12:B16&#x27;));
+}
+
+/* ------------------------------------------------------- Reference tabs */
+
+function buildCustomers(sh, customers) {
+  const rows = customers.map(c =&gt; [c.id, c.name, c.segment, c.region, c.csm, c.csmEmail, c.terms, c.billName, c.billEmail]);
+  writeTable(sh, CUSTOMER_HEADERS, rows, [80, 210, 100, 110, 110, 250, 80, 130, 260], COLOR.helper);
+  band(sh, rows.length, CUSTOMER_HEADERS.length);
+}
+
+function buildProducts(sh) {
+  writeTable(sh, PRODUCT_HEADERS, PRODUCTS, [90, 230, 90, 90], COLOR.helper);
+  sh.getRange(2, 3, PRODUCTS.length, 1).setNumberFormat(FMT.money0);
+}
+
+function buildPrices(sh, prices) {
+  const rows = prices.map((p, i) =&gt; {
+    const r = i + 2;
+    return [`=B${r}&amp;&quot;|&quot;&amp;D${r}`, p[0], p[1], p[2], p[3], p[4], p[5], `=1-G${r}/F${r}`];
+  });
+  writeTable(sh, PRICE_HEADERS, rows, [130, 80, 200, 80, 220, 80, 95, 70], COLOR.helper);
+  sh.getRange(2, 6, rows.length, 2).setNumberFormat(FMT.money0);
+  sh.getRange(2, 8, rows.length, 1).setNumberFormat(&#x27;0%&#x27;);
+  sh.getRange(&#x27;A1&#x27;).setNote(&#x27;Lookup key = Customer ID|SKU. Orders validate quoted price against Contract Price.&#x27;);
+  sh.getRange(2, 1, rows.length, 1).setFontColor(COLOR.helper);
+  band(sh, rows.length, PRICE_HEADERS.length);
+}
+
+/* ---------------------------------------------------------------- Orders */
+
+function orderRowValues(o, r) {
+  return ORDER_COLS.map(c =&gt; {
+    if (c.f) return orderFormula(c.key, r);
+    if (c.key === &#x27;escalate&#x27;) return false;
+    if (c.key === &#x27;last_escalation&#x27;) return &#x27;&#x27;;
+    const v = o[c.key];
+    return v === undefined || v === null ? &#x27;&#x27; : v;
+  });
+}
+
+function buildOrders(sh, orders) {
+  const n = orders.length;
+  const rows = orders.map((o, i) =&gt; orderRowValues(o, i + 2));
+  sh.getRange(1, 1, 1, ORDER_COLS.length).setValues([ORDER_COLS.map(c =&gt; c.header)]);
+  sh.getRange(2, 1, n, ORDER_COLS.length).setValues(rows);
+  formatOrders(sh, n);
+}
+
+// Formats and rules cover ORDER_ROW_CAP rows so orders added later inherit them.
+const ORDER_ROW_CAP = 500;
+
+function formatOrders(sh, n) {
+  const cap = Math.max(ORDER_ROW_CAP, n + 50);
+  const groupColor = { intake: COLOR.intake, pipeline: COLOR.pipeline, billing: COLOR.billing, risk: COLOR.risk, helper: COLOR.helper };
+  ORDER_COLS.forEach((c, i) =&gt; styleHeader(sh.getRange(1, i + 1), groupColor[c.group]));
+  applyColumnFormats(sh, ORDER_COLS, cap);
+  sh.setRowHeight(1, 48);
+  sh.setFrozenRows(1);
+  sh.setFrozenColumns(2);
+  sh.getRange(2, 1, cap, ORDER_COLS.length).setFontSize(9).setVerticalAlignment(&#x27;middle&#x27;);
+  sh.getRange(2, OC.I.actions, cap, 1).setWrapStrategy(SpreadsheetApp.WrapStrategy.CLIP);
+  sh.getRange(2, OC.I.val_issues, cap, 1).setWrapStrategy(SpreadsheetApp.WrapStrategy.CLIP);
+  sh.getRange(2, OC.I.escalate, n, 1).insertCheckboxes();
+  sh.getRange(2, OC.I.terms, n, 1).setDataValidation(
+    SpreadsheetApp.newDataValidation().requireValueInList([&#x27;Net 30&#x27;, &#x27;Net 45&#x27;, &#x27;Net 60&#x27;, &#x27;Net 90&#x27;], true).setAllowInvalid(false).build());
+  sh.getRange(2, OC.I.last_escalation, cap, 1).setNumberFormat(&#x27;yyyy-mm-dd hh:mm&#x27;);
+  sh.hideColumns(OC.I.match_key);
+  band(sh, cap, ORDER_COLS.length);
+  sh.setConditionalFormatRules(orderRules(sh, cap));
+}
+
+function orderRules(sh, n) {
+  const col = k =&gt; sh.getRange(2, OC.I[k], n, 1);
+  const L = OC.L;
+  const R = SpreadsheetApp.newConditionalFormatRule;
+  return [
+    R().whenTextEqualTo(HOLD).setBackground(COLOR.red).setFontColor(COLOR.redText).setBold(true).setRanges([col(&#x27;val_status&#x27;)]).build(),
+    R().whenTextEqualTo(PASS).setFontColor(COLOR.greenText).setRanges([col(&#x27;val_status&#x27;)]).build(),
+    R().whenCellNotEmpty().setBackground(COLOR.amber).setFontColor(COLOR.amberText).setRanges([col(&#x27;val_issues&#x27;)]).build(),
+    R().whenCellNotEmpty().setBackground(COLOR.amber).setFontColor(COLOR.amberText).setBold(true).setRanges([col(&#x27;activation_watch&#x27;)]).build(),
+    R().whenTextEqualTo(&#x27;90+&#x27;).setBackground(&#x27;#9b1c1c&#x27;).setFontColor(&#x27;#ffffff&#x27;).setBold(true).setRanges([col(&#x27;aging&#x27;)]).build(),
+    R().whenTextEqualTo(&#x27;61–90&#x27;).setBackground(COLOR.red).setFontColor(COLOR.redText).setBold(true).setRanges([col(&#x27;aging&#x27;)]).build(),
+    R().whenTextEqualTo(&#x27;31–60&#x27;).setBackground(COLOR.amber).setFontColor(COLOR.amberText).setRanges([col(&#x27;aging&#x27;)]).build(),
+    R().whenNumberGreaterThan(0).setFontColor(COLOR.redText).setBold(true).setRanges([col(&#x27;rar&#x27;)]).build(),
+    // Whole row red when the order has sat in its stage longer than the SLA.
+    R().whenFormulaSatisfied(`=$${L.sla_breach}2=&quot;${BREACH}&quot;`).setBackground(COLOR.red)
+      .setRanges([sh.getRange(2, 1, n, ORDER_COLS.length)]).build(),
+  ];
+}
+
+/* -------------------------------------------------------------- Payments */
+
+function buildPayments(sh, payments) {
+  const n = payments.length;
+  const rows = payments.map((p, i) =&gt; PAY_COLS.map(c =&gt; {
+    if (c.f) return paymentFormula(c.key, i + 2);
+    return { pay_id: p.pay_id, pay_date: p.date, cust_id: p.cust_id, remit_ref: p.ref, amount: p.amount, method: p.method }[c.key];
+  }));
+  sh.getRange(1, 1, 1, PAY_COLS.length).setValues([PAY_COLS.map(c =&gt; c.header)]);
+  PAY_COLS.forEach((c, i) =&gt; styleHeader(sh.getRange(1, i + 1), c.f ? COLOR.billing : COLOR.intake));
+  sh.getRange(2, 1, n, PAY_COLS.length).setValues(rows);
+  applyColumnFormats(sh, PAY_COLS, n);
+  sh.setRowHeight(1, 40);
+  sh.setFrozenRows(1);
+  sh.setFrozenColumns(1);
+  sh.getRange(2, 1, n, PAY_COLS.length).setFontSize(9);
+  band(sh, n, PAY_COLS.length);
+  const col = k =&gt; sh.getRange(2, PC.I[k], n, 1);
+  const R = SpreadsheetApp.newConditionalFormatRule;
+  sh.setConditionalFormatRules([
+    R().whenNumberGreaterThan(0.005).setBackground(COLOR.amber).setFontColor(COLOR.amberText).setBold(true).setRanges([col(&#x27;unapplied&#x27;)]).build(),
+    R().whenTextEqualTo(&#x27;Applied&#x27;).setFontColor(COLOR.greenText).setRanges([col(&#x27;match_status&#x27;)]).build(),
+    R().whenTextEqualTo(&#x27;Short-paid (partial)&#x27;).setBackground(COLOR.amber).setFontColor(COLOR.amberText).setRanges([col(&#x27;match_status&#x27;)]).build(),
+    R().whenCellNotEmpty().setBackground(COLOR.red).setFontColor(COLOR.redText).setBold(true).setRanges([col(&#x27;match_status&#x27;)]).build(),
+    R().whenTextStartsWith(&#x27;Likely match&#x27;).setFontColor(COLOR.greenText).setBold(true).setRanges([col(&#x27;recon_action&#x27;)]).build(),
+  ]);
+}
+
+/* -------------------------------------------------------------- AR Aging */
+
+function buildAging(sh, customers) {
+  const o = k =&gt; `Orders!$${OC.L[k]}:$${OC.L[k]}`;
+  const headers = [&#x27;Customer ID&#x27;, &#x27;Customer&#x27;, &#x27;CSM&#x27;].concat(AGING_BUCKETS, [&#x27;Total Open AR&#x27;, &#x27;Past Due&#x27;, &#x27;Unapplied Cash&#x27;, &#x27;Net Exposure&#x27;]);
+  const rows = customers.map((c, i) =&gt; {
+    const r = i + 2;
+    const buckets = AGING_BUCKETS.map((b, j) =&gt; `=SUMIFS(${o(&#x27;balance&#x27;)},${o(&#x27;cust_id&#x27;)},$A${r},${o(&#x27;aging&#x27;)},${colLetter(4 + j)}$1)`);
+    return [c.id, c.name, c.csm].concat(buckets, [
+      `=SUM(D${r}:H${r})`, `=SUM(E${r}:H${r})`,
+      `=SUMIFS(Payments!$${PC.L.unapplied}:$${PC.L.unapplied},Payments!$${PC.L.cust_id}:$${PC.L.cust_id},$A${r})`,
+      `=I${r}-K${r}`]);
+  });
+  const t = rows.length + 2;
+  const total = [&#x27;&#x27;, &#x27;Total&#x27;, &#x27;&#x27;].concat([&#x27;D&#x27;, &#x27;E&#x27;, &#x27;F&#x27;, &#x27;G&#x27;, &#x27;H&#x27;, &#x27;I&#x27;, &#x27;J&#x27;, &#x27;K&#x27;, &#x27;L&#x27;].map(L =&gt; `=SUM(${L}2:${L}${t - 1})`));
+  writeTable(sh, headers, rows.concat([total]), [80, 210, 105, 90, 90, 90, 90, 90, 105, 100, 105, 105], COLOR.billing);
+  sh.getRange(2, 4, rows.length + 1, 9).setNumberFormat(FMT.money0);
+  sh.getRange(t, 1, 1, headers.length).setFontWeight(&#x27;bold&#x27;).setBackground(COLOR.tile)
+    .setBorder(true, null, null, null, null, null, COLOR.ink, SpreadsheetApp.BorderStyle.SOLID);
+  sh.getRange(&#x27;A1&#x27;).setNote(&#x27;Open invoice balances by days past due, per customer. Unapplied cash is shown separately so it can be netted once reconciled.&#x27;);
+  const R = SpreadsheetApp.newConditionalFormatRule;
+  sh.setConditionalFormatRules([
+    R().whenNumberGreaterThan(0).setBackground(&#x27;#9b1c1c&#x27;).setFontColor(&#x27;#ffffff&#x27;).setBold(true).setRanges([sh.getRange(2, 8, rows.length, 1)]).build(),
+    R().whenNumberGreaterThan(0).setBackground(COLOR.red).setFontColor(COLOR.redText).setRanges([sh.getRange(2, 7, rows.length, 1)]).build(),
+    R().whenNumberGreaterThan(0).setBackground(COLOR.amber).setFontColor(COLOR.amberText).setRanges([sh.getRange(2, 6, rows.length, 1), sh.getRange(2, 11, rows.length, 1)]).build(),
+    R().whenNumberEqualTo(0).setFontColor(&#x27;#c3cad3&#x27;).setRanges([sh.getRange(2, 4, rows.length, 9)]).build(),
+  ]);
+}
+
+/* ------------------------------------- Live filtered views (Sheets-only) */
+
+function buildUnapplied(sh) {
+  const p = k =&gt; `Payments!${PC.L[k]}2:${PC.L[k]}`;
+  const keys = [&#x27;pay_id&#x27;, &#x27;pay_date&#x27;, &#x27;customer&#x27;, &#x27;remit_ref&#x27;, &#x27;amount&#x27;, &#x27;unapplied&#x27;, &#x27;match_status&#x27;, &#x27;recon_action&#x27;];
+  sh.getRange(&#x27;A1&#x27;).setValue(&#x27;Unapplied Cash — payments received that could not be applied to an invoice&#x27;).setFontSize(13).setFontWeight(&#x27;bold&#x27;);
+  sh.getRange(&#x27;A2&#x27;).setFormula(`=&quot;Total unapplied: &quot;&amp;TEXT(SUM(Payments!${PC.L.unapplied}:${PC.L.unapplied}),&quot;$#,##0.00&quot;)&amp;&quot;  ·  &quot;&amp;COUNTIF(Payments!${PC.L.unapplied}:${PC.L.unapplied},&quot;&gt;0.005&quot;)&amp;&quot; payments need reconciliation&quot;`)
+    .setFontColor(COLOR.redText).setFontWeight(&#x27;bold&#x27;);
+  const headers = [&#x27;Payment ID&#x27;, &#x27;Received&#x27;, &#x27;Customer&#x27;, &#x27;Remittance Ref&#x27;, &#x27;Amount&#x27;, &#x27;Unapplied&#x27;, &#x27;Why&#x27;, &#x27;Reconciliation Action&#x27;];
+  sh.getRange(4, 1, 1, headers.length).setValues([headers]);
+  styleHeader(sh.getRange(4, 1, 1, headers.length), COLOR.billing);
+  sh.getRange(&#x27;A5&#x27;).setFormula(`=IFERROR(SORT(FILTER({${keys.map(p).join(&#x27;,&#x27;)}},${p(&#x27;unapplied&#x27;)}&gt;0.005),6,FALSE),&quot;No unapplied cash&quot;)`);
+  sh.getRange(&#x27;B5:B200&#x27;).setNumberFormat(FMT.date);
+  sh.getRange(&#x27;E5:F200&#x27;).setNumberFormat(FMT.money);
+  [85, 85, 200, 110, 100, 100, 150, 520].forEach((w, i) =&gt; sh.setColumnWidth(i + 1, w));
+  sh.setFrozenRows(4);
+  sh.getRange(&#x27;A5:H200&#x27;).setFontSize(9);
+}
+
+function buildQueue(sh) {
+  const o = k =&gt; `Orders!${OC.L[k]}2:${OC.L[k]}`;
+  const keys = [&#x27;order_id&#x27;, &#x27;customer&#x27;, &#x27;csm&#x27;, &#x27;stage&#x27;, &#x27;days_in_stage&#x27;, &#x27;risk_reasons&#x27;, &#x27;rar&#x27;, &#x27;val_issues&#x27;, &#x27;actions&#x27;, &#x27;last_escalation&#x27;];
+  sh.getRange(&#x27;A1&#x27;).setValue(&#x27;Action Queue — every at-risk order, largest revenue at risk first&#x27;).setFontSize(13).setFontWeight(&#x27;bold&#x27;);
+  sh.getRange(&#x27;A2&#x27;).setValue(&#x27;Live view of the Orders tab. To escalate: tick &quot;Escalate&quot; on the order in the Orders tab, or select the order there and use O2C Tools ▸ Draft escalation.&#x27;)
+    .setFontColor(COLOR.muted).setFontStyle(&#x27;italic&#x27;);
+  const headers = [&#x27;Order ID&#x27;, &#x27;Customer&#x27;, &#x27;CSM&#x27;, &#x27;Stage&#x27;, &#x27;Days in Stage&#x27;, &#x27;Risk Reasons&#x27;, &#x27;Revenue at Risk&#x27;, &#x27;Validation Issues&#x27;, &#x27;Actions Taken&#x27;, &#x27;Last Escalation&#x27;];
+  sh.getRange(4, 1, 1, headers.length).setValues([headers]);
+  styleHeader(sh.getRange(4, 1, 1, headers.length), COLOR.risk);
+  sh.getRange(&#x27;A5&#x27;).setFormula(`=IFERROR(SORT(FILTER({${keys.map(o).join(&#x27;,&#x27;)}},${o(&#x27;rar&#x27;)}&gt;0),7,FALSE),&quot;Nothing at risk&quot;)`);
+  sh.getRange(&#x27;G5:G300&#x27;).setNumberFormat(FMT.money0);
+  sh.getRange(&#x27;J5:J300&#x27;).setNumberFormat(&#x27;yyyy-mm-dd hh:mm&#x27;);
+  [80, 200, 105, 100, 60, 260, 105, 260, 320, 120].forEach((w, i) =&gt; sh.setColumnWidth(i + 1, w));
+  sh.setFrozenRows(4);
+  sh.setFrozenColumns(1);
+  sh.getRange(&#x27;A5:J300&#x27;).setFontSize(9).setWrapStrategy(SpreadsheetApp.WrapStrategy.CLIP);
+}
+
+function buildLogSheet(sh, headers, widths, color) {
+  writeTable(sh, headers, [], widths, color);
+}
+
+/* ------------------------------------------------------------- Dashboard */
+
+function buildDashboard(sh) {
+  const o = k =&gt; `Orders!$${OC.L[k]}:$${OC.L[k]}`;
+  const p = k =&gt; `Payments!$${PC.L[k]}:$${PC.L[k]}`;
+  const nOrders = `(COUNTA(${o(&#x27;order_id&#x27;)})-1)`;
+  sh.setHiddenGridlines(true);
+  sh.setColumnWidth(1, 18);
+  for (let c = 2; c &lt;= 16; c++) sh.setColumnWidth(c, 92);
+
+  sh.getRange(&#x27;B1&#x27;).setValue(&#x27;Order-to-Cash Command Center&#x27;).setFontSize(20).setFontWeight(&#x27;bold&#x27;).setFontColor(COLOR.ink);
+  sh.getRange(&#x27;B2&#x27;).setFormula(&#x27;=&quot;As of &quot;&amp;TEXT(AS_OF,&quot;mmmm d, yyyy&quot;)&amp;&quot;  ·  portfolio demo  ·  Quillsat is a fictional company  ·  all data synthetic&quot;&#x27;)
+    .setFontColor(COLOR.muted);
+
+  const tiles = [
+    [&#x27;Orders tracked&#x27;, `=${nOrders}`, `=&quot;across &quot;&amp;COUNTA(Customers!A:A)-1&amp;&quot; customers&quot;`, FMT.int],
+    [&#x27;Intake error rate&#x27;, `=COUNTIF(${o(&#x27;val_status&#x27;)},&quot;${HOLD}&quot;)/${nOrders}`, `=COUNTIF(${o(&#x27;val_status&#x27;)},&quot;${HOLD}&quot;)&amp;&quot; orders held before entry&quot;`, FMT.pct],
+    [&#x27;Revenue at risk&#x27;, `=SUM(${o(&#x27;rar&#x27;)})`, `=COUNTIF(${o(&#x27;rar&#x27;)},&quot;&gt;0&quot;)&amp;&quot; orders flagged&quot;`, FMT.money0],
+    [&#x27;Past-due AR&#x27;, `=SUMIFS(${o(&#x27;balance&#x27;)},${o(&#x27;dpd&#x27;)},&quot;&gt;0&quot;)`, `=COUNTIF(${o(&#x27;dpd&#x27;)},&quot;&gt;0&quot;)&amp;&quot; invoices past due&quot;`, FMT.money0],
+    [&#x27;Unapplied cash&#x27;, `=SUM(${p(&#x27;unapplied&#x27;)})`, `=COUNTIF(${p(&#x27;unapplied&#x27;)},&quot;&gt;0.005&quot;)&amp;&quot; payments to reconcile&quot;`, FMT.money0],
+    [&#x27;Stalled activations&#x27;, `=COUNTIF(${o(&#x27;activation_watch&#x27;)},&quot;Stalled*&quot;)`, `=TEXT(SUMIFS(${o(&#x27;rar&#x27;)},${o(&#x27;activation_watch&#x27;)},&quot;Stalled*&quot;),&quot;$#,##0&quot;)&amp;&quot; not yet invoiceable&quot;`, FMT.int],
+    [&#x27;Order → activation&#x27;, `=ROUND(AVERAGE(${o(&#x27;cycle_days&#x27;)}),1)`, `=&quot;avg days · &quot;&amp;COUNT(${o(&#x27;cycle_days&#x27;)})&amp;&quot; activated orders&quot;`, &#x27;0.0&#x27;],
+  ];
+  tiles.forEach((t, i) =&gt; {
+    const c = 2 + i * 2;
+    const box = sh.getRange(4, c, 3, 2);
+    box.setBackground(COLOR.tile).setBorder(true, true, true, true, null, null, &#x27;#d9e2ec&#x27;, SpreadsheetApp.BorderStyle.SOLID);
+    sh.getRange(4, c).setValue(t[0].toUpperCase());
+    sh.getRange(5, c).setFormula(t[1]);
+    sh.getRange(6, c).setFormula(t[2]);
+    sh.getRange(4, c, 1, 2).merge().setFontSize(8).setFontColor(COLOR.muted).setFontWeight(&#x27;bold&#x27;);
+    sh.getRange(5, c, 1, 2).merge().setFontSize(20).setFontWeight(&#x27;bold&#x27;).setFontColor(COLOR.ink).setNumberFormat(t[3]).setHorizontalAlignment(&#x27;left&#x27;);
+    sh.getRange(6, c, 1, 2).merge().setFontSize(8).setFontColor(COLOR.muted);
+  });
+  sh.getRange(&#x27;F5&#x27;).setFontColor(COLOR.redText);
+  sh.setRowHeight(5, 38);
+
+  const section = (a1, title) =&gt; sh.getRange(a1).setValue(title).setFontWeight(&#x27;bold&#x27;).setFontSize(11).setFontColor(COLOR.ink);
+  const header = (row, col, labels, color) =&gt; {
+    sh.getRange(row, col, 1, labels.length).setValues([labels]);
+    styleHeader(sh.getRange(row, col, 1, labels.length), color);
+  };
+  const totalRow = r =&gt; r.setFontWeight(&#x27;bold&#x27;).setBorder(true, null, null, null, null, null, COLOR.ink, SpreadsheetApp.BorderStyle.SOLID);
+
+  // Pipeline by stage: B9:E18
+  section(&#x27;B9&#x27;, &#x27;Pipeline by stage&#x27;);
+  header(10, 2, [&#x27;Stage&#x27;, &#x27;Orders&#x27;, &#x27;Order Value&#x27;, &#x27;SLA Breaches&#x27;], COLOR.pipeline);
+  STAGES.forEach((s, i) =&gt; {
+    const r = 11 + i;
+    sh.getRange(r, 2, 1, 4).setValues([[s, `=COUNTIF(${o(&#x27;stage&#x27;)},B${r})`, `=SUMIFS(${o(&#x27;order_value&#x27;)},${o(&#x27;stage&#x27;)},B${r})`,
+      `=COUNTIFS(${o(&#x27;stage&#x27;)},B${r},${o(&#x27;sla_breach&#x27;)},&quot;${BREACH}&quot;)`]]);
+  });
+  sh.getRange(&#x27;B18:E18&#x27;).setValues([[&#x27;Total&#x27;, &#x27;=SUM(C11:C17)&#x27;, &#x27;=SUM(D11:D17)&#x27;, &#x27;=SUM(E11:E17)&#x27;]]);
+  totalRow(sh.getRange(&#x27;B18:E18&#x27;));
+  sh.getRange(&#x27;D11:D18&#x27;).setNumberFormat(FMT.money0);
+
+  // AR aging: G9:J16
+  section(&#x27;G9&#x27;, &#x27;Accounts receivable aging&#x27;);
+  header(10, 7, [&#x27;Days Past Due&#x27;, &#x27;Invoices&#x27;, &#x27;Open Balance&#x27;, &#x27;% of AR&#x27;], COLOR.billing);
+  AGING_BUCKETS.forEach((b, i) =&gt; {
+    const r = 11 + i;
+    sh.getRange(r, 7, 1, 4).setValues([[b, `=COUNTIF(${o(&#x27;aging&#x27;)},G${r})`, `=SUMIFS(${o(&#x27;balance&#x27;)},${o(&#x27;aging&#x27;)},G${r})`, `=IFERROR(I${r}/I$16,0)`]]);
+  });
+  sh.getRange(&#x27;G16:J16&#x27;).setValues([[&#x27;Total&#x27;, &#x27;=SUM(H11:H15)&#x27;, &#x27;=SUM(I11:I15)&#x27;, &#x27;=SUM(J11:J15)&#x27;]]);
+  totalRow(sh.getRange(&#x27;G16:J16&#x27;));
+  sh.getRange(&#x27;I11:I16&#x27;).setNumberFormat(FMT.money0);
+  sh.getRange(&#x27;J11:J16&#x27;).setNumberFormat(&#x27;0%&#x27;);
+
+  // Intake validation: L9:M16
+  section(&#x27;L9&#x27;, &#x27;Pre-entry validation&#x27;);
+  header(10, 12, [&#x27;Issue&#x27;, &#x27;Orders&#x27;], COLOR.intake);
+  const issues = [[&#x27;Price ≠ contract&#x27;, &#x27;*Price mismatch*&#x27;], [&#x27;Product not on contract&#x27;, &#x27;*not on contract*&#x27;], [&#x27;Unknown SKU&#x27;, &#x27;*Unknown SKU*&#x27;],
+    [&#x27;Billing contact missing/invalid&#x27;, &#x27;*billing contact*&#x27;], [&#x27;Terms ≠ contract&#x27;, &#x27;*≠ contract*&#x27;]];
+  issues.forEach((x, i) =&gt; sh.getRange(11 + i, 12, 1, 2).setValues([[x[0], `=COUNTIF(${o(&#x27;val_issues&#x27;)},&quot;${x[1]}&quot;)`]]));
+  sh.getRange(&#x27;L16:M16&#x27;).setValues([[&#x27;Orders on hold&#x27;, `=COUNTIF(${o(&#x27;val_status&#x27;)},&quot;${HOLD}&quot;)`]]);
+  totalRow(sh.getRange(&#x27;L16:M16&#x27;));
+  sh.setColumnWidth(12, 190);
+
+  // Risk by CSM: B21:F27
+  section(&#x27;B21&#x27;, &#x27;Revenue at risk by CSM&#x27;);
+  header(22, 2, [&#x27;CSM&#x27;, &#x27;At-risk Orders&#x27;, &#x27;Revenue at Risk&#x27;, &#x27;Stalled&#x27;, &#x27;Past Due $&#x27;], COLOR.risk);
+  CSMS.forEach((c, i) =&gt; {
+    const r = 23 + i;
+    sh.getRange(r, 2, 1, 5).setValues([[c[0], `=COUNTIFS(${o(&#x27;csm&#x27;)},B${r},${o(&#x27;rar&#x27;)},&quot;&gt;0&quot;)`, `=SUMIFS(${o(&#x27;rar&#x27;)},${o(&#x27;csm&#x27;)},B${r})`,
+      `=COUNTIFS(${o(&#x27;csm&#x27;)},B${r},${o(&#x27;activation_watch&#x27;)},&quot;Stalled*&quot;)`, `=SUMIFS(${o(&#x27;balance&#x27;)},${o(&#x27;csm&#x27;)},B${r},${o(&#x27;dpd&#x27;)},&quot;&gt;0&quot;)`]]);
+  });
+  sh.getRange(&#x27;B27:F27&#x27;).setValues([[&#x27;Total&#x27;, &#x27;=SUM(C23:C26)&#x27;, &#x27;=SUM(D23:D26)&#x27;, &#x27;=SUM(E23:E26)&#x27;, &#x27;=SUM(F23:F26)&#x27;]]);
+  totalRow(sh.getRange(&#x27;B27:F27&#x27;));
+  sh.getRange(&#x27;D23:D27&#x27;).setNumberFormat(FMT.money0);
+  sh.getRange(&#x27;F23:F27&#x27;).setNumberFormat(FMT.money0);
+
+  // Cash application: H21:K30
+  section(&#x27;H21&#x27;, &#x27;Cash application&#x27;);
+  header(22, 8, [&#x27;Match Status&#x27;, &#x27;Payments&#x27;, &#x27;Amount&#x27;, &#x27;Unapplied&#x27;], COLOR.billing);
+  const statuses = [&#x27;Applied&#x27;, &#x27;Short-paid (partial)&#x27;, &#x27;Duplicate payment&#x27;, &#x27;Overpayment&#x27;, &#x27;No matching invoice&#x27;, &#x27;No remittance ref&#x27;, &#x27;Customer mismatch&#x27;];
+  statuses.forEach((s, i) =&gt; {
+    const r = 23 + i;
+    sh.getRange(r, 8, 1, 4).setValues([[s, `=COUNTIF(${p(&#x27;match_status&#x27;)},H${r})`, `=SUMIFS(${p(&#x27;amount&#x27;)},${p(&#x27;match_status&#x27;)},H${r})`,
+      `=SUMIFS(${p(&#x27;unapplied&#x27;)},${p(&#x27;match_status&#x27;)},H${r})`]]);
+  });
+  sh.getRange(&#x27;H30:K30&#x27;).setValues([[&#x27;Total&#x27;, &#x27;=SUM(I23:I29)&#x27;, &#x27;=SUM(J23:J29)&#x27;, &#x27;=SUM(K23:K29)&#x27;]]);
+  totalRow(sh.getRange(&#x27;H30:K30&#x27;));
+  sh.getRange(&#x27;J23:K30&#x27;).setNumberFormat(FMT.money0);
+  sh.setColumnWidth(8, 150);
+
+  sh.getRange(&#x27;B10:P30&#x27;).setFontSize(9);
+
+  const chart = (ranges, title, color, row, col) =&gt; {
+    let b = sh.newChart().setChartType(Charts.ChartType.COLUMN);
+    ranges.forEach(r =&gt; { b = b.addRange(sh.getRange(r)); });
+    sh.insertChart(b
+    .setNumHeaders(1)
+    .setPosition(row, col, 0, 0)
+    .setOption(&#x27;title&#x27;, title)
+    .setOption(&#x27;legend&#x27;, { position: &#x27;none&#x27; })
+    .setOption(&#x27;colors&#x27;, [color])
+    .setOption(&#x27;width&#x27;, 540)
+    .setOption(&#x27;height&#x27;, 280)
+    .build());
+  };
+  chart([&#x27;B10:C17&#x27;], &#x27;Orders by stage&#x27;, COLOR.pipeline, 33, 2);
+  chart([&#x27;G10:G15&#x27;, &#x27;I10:I15&#x27;], &#x27;Open AR by days past due ($)&#x27;, COLOR.billing, 33, 9);
+}
+
+/* ---------------------------------------------------------------- README */
+
+function buildReadme(sh) {
+  const lines = [
+    [&#x27;Order-to-Cash Operations Tracker&#x27;, &#x27;title&#x27;],
+    [&#x27;Signed order → accuracy check → account set-up → ship → activate → invoice → collect. One workbook that catches problems at every hand-off and drafts the escalation.&#x27;, &#x27;sub&#x27;],
+    [&#x27;&#x27;, &#x27;&#x27;],
+    [&#x27;WHAT TO LOOK AT FIRST&#x27;, &#x27;h&#x27;],
+    [&#x27;1.  Dashboard — orders by stage, intake error rate, revenue at risk, AR aging, unapplied cash, cycle time.&#x27;, &#x27;&#x27;],
+    [&#x27;2.  Action Queue — every at-risk order, sorted by dollars at risk.&#x27;, &#x27;&#x27;],
+    [&#x27;3.  Orders — the tracker. Red rows have sat in a stage past SLA. Orange &quot;Activation Watch&quot; = shipped 10+ days, not activated.&#x27;, &#x27;&#x27;],
+    [&#x27;4.  Escalations — auto-drafted escalations: problem, revenue at risk ($), actions already taken, specific ask.&#x27;, &#x27;&#x27;],
+    [&#x27;5.  Digest Log — the daily summary email the script sends at 7am.&#x27;, &#x27;&#x27;],
+    [&#x27;&#x27;, &#x27;&#x27;],
+    [&#x27;WHAT IT CHECKS&#x27;, &#x27;h&#x27;],
+    [&#x27;Pre-entry validation  ·  price vs. contract price, product not on contract, unknown SKU, missing/invalid billing contact, terms vs. contract.&#x27;, &#x27;&#x27;],
+    [&#x27;Stage SLAs  ·  each stage has a max dwell time (Settings). Breach turns the row red.&#x27;, &#x27;&#x27;],
+    [&#x27;Activation watch  ·  shipped &gt; 10 days without activation = stalled customer; names the CSM to notify.&#x27;, &#x27;&#x27;],
+    [&#x27;Past-due invoices  ·  the customer\&#x27;s success manager is asked to call first; Collections is involved only after 60 days past due.&#x27;, &#x27;&#x27;],
+    [&#x27;AR aging  ·  open balances bucketed Current / 1–30 / 31–60 / 61–90 / 90+ days past due, by customer.&#x27;, &#x27;&#x27;],
+    [&#x27;Cash application  ·  every payment is matched to an invoice. Duplicates, overpayments and unmatched remittances land in Unapplied Cash with a suggested match.&#x27;, &#x27;&#x27;],
+    [&#x27;&#x27;, &#x27;&#x27;],
+    [&#x27;HOW TO USE THE AUTOMATION (requires edit access — File ▸ Make a copy)&#x27;, &#x27;h&#x27;],
+    [&#x27;Escalate one order  ·  tick its &quot;Escalate&quot; box on the Orders tab, or select the row and use O2C Tools ▸ Draft escalation for selected order.&#x27;, &#x27;&#x27;],
+    [&#x27;Daily digest  ·  O2C Tools ▸ Automation ▸ Preview / Send now / Install daily digest (sends to the address in Settings).&#x27;, &#x27;&#x27;],
+    [&#x27;New order  ·  O2C Tools ▸ Add new order row — formulas extend automatically and the order is validated as you type.&#x27;, &#x27;&#x27;],
+    [&#x27;Rebuild  ·  O2C Tools ▸ Rebuild demo workbook regenerates everything from the seeded data.&#x27;, &#x27;&#x27;],
+    [&#x27;&#x27;, &#x27;&#x27;],
+    [&#x27;ABOUT THE DATA&#x27;, &#x27;h&#x27;],
+    [&#x27;Personal portfolio project — a demo, not a production system, and not used by any company.&#x27;, &#x27;&#x27;],
+    [&#x27;150 synthetic orders for a fictional satellite-terminal company (&quot;Quillsat&quot;), frozen at a fixed as-of date so the numbers are reproducible.&#x27;, &#x27;&#x27;],
+    [&#x27;Errors were planted on purpose (wrong prices, duplicate payments, missing billing contacts, payments that match no invoice) and the checks were tested against that answer key.&#x27;, &#x27;&#x27;],
+    [&#x27;All companies, people, emails (*.example) and amounts are fictional.&#x27;, &#x27;&#x27;],
+    [&#x27;&#x27;, &#x27;&#x27;],
+    [&#x27;Built by Tyler Bunn · linkedin.com/in/tdbunn · Google Sheets + Apps Script, with Claude Code as AI coding assistant.&#x27;, &#x27;sub&#x27;],
+  ];
+  sh.setHiddenGridlines(true);
+  sh.setColumnWidth(1, 24);
+  sh.setColumnWidth(2, 980);
+  lines.forEach((l, i) =&gt; {
+    const cell = sh.getRange(i + 2, 2).setValue(l[0]).setWrap(true).setVerticalAlignment(&#x27;middle&#x27;);
+    if (l[1] === &#x27;title&#x27;) cell.setFontSize(22).setFontWeight(&#x27;bold&#x27;).setFontColor(COLOR.ink);
+    else if (l[1] === &#x27;sub&#x27;) cell.setFontColor(COLOR.muted).setFontStyle(&#x27;italic&#x27;);
+    else if (l[1] === &#x27;h&#x27;) cell.setFontWeight(&#x27;bold&#x27;).setFontColor(COLOR.pipeline).setFontSize(10);
+    else cell.setFontColor(COLOR.ink);
+  });
+}
+</code></pre>
+<h2 id="f3">Escalation.gs</h2><p class="muted">Drafts escalations: problem, dollars at risk, actions taken, specific ask. Checks for cash on file first.</p><pre><code>/**
+ * Auto-drafted escalations.
+ *
+ * Format: PROBLEM · REVENUE AT RISK ($) · ACTIONS ALREADY TAKEN · SPECIFIC ASK
+ * (owner + deadline). Every line is built from the order&#x27;s own data, so the
+ * draft is specific enough to send after a quick review.
+ */
+
+/* ---------------------------------------------------------- data access */
+
+function toSerial(v, tz) {
+  if (v === &#x27;&#x27; || v === null || v === undefined) return &#x27;&#x27;;
+  if (typeof v === &#x27;number&#x27;) return v;
+  if (Object.prototype.toString.call(v) === &#x27;[object Date]&#x27;) {
+    const iso = Utilities.formatDate(v, tz || &#x27;UTC&#x27;, &#x27;yyyy-MM-dd&#x27;);
+    return Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10)) / 86400000 + 25569;
+  }
+  return v;
+}
+
+const ORDER_DATE_KEYS = [&#x27;received&#x27;, &#x27;validated&#x27;, &#x27;acct_setup&#x27;, &#x27;shipped&#x27;, &#x27;activated&#x27;, &#x27;invoiced&#x27;, &#x27;paid&#x27;, &#x27;due_date&#x27;, &#x27;stage_date&#x27;];
+
+function readOrders(ss) {
+  const sh = ss.getSheetByName(SHEET.ORDERS);
+  const last = sh.getLastRow();
+  if (last &lt; 2) return [];
+  const tz = ss.getSpreadsheetTimeZone();
+  const values = sh.getRange(2, 1, last - 1, ORDER_COLS.length).getValues();
+  return values.map((row, i) =&gt; {
+    const o = { row: i + 2 };
+    ORDER_COLS.forEach((c, j) =&gt; { o[c.key] = row[j]; });
+    ORDER_DATE_KEYS.forEach(k =&gt; { o[k] = toSerial(o[k], tz); });
+    return o;
+  }).filter(o =&gt; o.order_id !== &#x27;&#x27;);
+}
+
+function readSettings(ss) {
+  const v = name =&gt; { const r = ss.getRangeByName(name); return r ? r.getValue() : &#x27;&#x27;; };
+  const customers = {};
+  const cs = ss.getSheetByName(SHEET.CUSTOMERS);
+  if (cs &amp;&amp; cs.getLastRow() &gt; 1) {
+    cs.getRange(2, 1, cs.getLastRow() - 1, CUSTOMER_HEADERS.length).getValues()
+      .forEach(r =&gt; { customers[r[0]] = { name: r[1], csm: r[4], csmEmail: r[5], terms: r[6] }; });
+  }
+  return {
+    asOf: toSerial(v(&#x27;AS_OF&#x27;), ss.getSpreadsheetTimeZone()),
+    stallDays: Number(v(&#x27;STALL_DAYS&#x27;)) || 14,
+    digestTo: String(v(&#x27;DIGEST_TO&#x27;) || &#x27;&#x27;),
+    digestHour: Number(v(&#x27;DIGEST_HOUR&#x27;)) || 7,
+    escCc: String(v(&#x27;ESC_CC&#x27;) || &#x27;&#x27;),
+    escDays: Number(v(&#x27;ESC_DAYS&#x27;)) || 2,
+    collectionsDays: Number(v(&#x27;COLLECTIONS_DAYS&#x27;)) || 60,
+    customers,
+  };
+}
+
+/* ------------------------------------------------------------- helpers */
+
+function serialToDate(serial) { return new Date(Math.round((serial - 25569) * 86400000)); }
+
+function fmtDate(serial) {
+  if (serial === &#x27;&#x27; || serial === null) return &#x27;&#x27;;
+  const d = serialToDate(serial);
+  const M = [&#x27;Jan&#x27;, &#x27;Feb&#x27;, &#x27;Mar&#x27;, &#x27;Apr&#x27;, &#x27;May&#x27;, &#x27;Jun&#x27;, &#x27;Jul&#x27;, &#x27;Aug&#x27;, &#x27;Sep&#x27;, &#x27;Oct&#x27;, &#x27;Nov&#x27;, &#x27;Dec&#x27;];
+  return M[d.getUTCMonth()] + &#x27; &#x27; + d.getUTCDate() + &#x27;, &#x27; + d.getUTCFullYear();
+}
+
+function fmtDay(serial) {
+  return [&#x27;Sun&#x27;, &#x27;Mon&#x27;, &#x27;Tue&#x27;, &#x27;Wed&#x27;, &#x27;Thu&#x27;, &#x27;Fri&#x27;, &#x27;Sat&#x27;][serialToDate(serial).getUTCDay()] + &#x27; &#x27; + fmtDate(serial);
+}
+
+function addBusinessDays(serial, n) {
+  let s = serial;
+  while (n &gt; 0) {
+    s += 1;
+    const dow = serialToDate(s).getUTCDay();
+    if (dow !== 0 &amp;&amp; dow !== 6) n--;
+  }
+  return s;
+}
+
+function plural(n, word) { return n + &#x27; &#x27; + word + (n === 1 ? &#x27;&#x27; : &#x27;s&#x27;); }
+
+function money(n) {
+  const v = Math.round(Number(n) || 0);
+  return (v &lt; 0 ? &#x27;-$&#x27; : &#x27;$&#x27;) + Math.abs(v).toString().replace(/\B(?=(\d{3})+(?!\d))/g, &#x27;,&#x27;);
+}
+
+/* ------------------------------------------------------ draft builder */
+
+// {invoice #: [payments]} for unapplied payments the Payments tab thinks belong to that invoice.
+function likelyPaymentsByInvoice(payments) {
+  const m = {};
+  payments.forEach(p =&gt; {
+    const hit = /^Likely match: (\S+)/.exec(String(p.recon_action || &#x27;&#x27;));
+    if (hit) (m[hit[1]] = m[hit[1]] || []).push(p);
+  });
+  return m;
+}
+
+/**
+ * Builds the escalation for one order. Pure function of its inputs so it can
+ * be unit-tested outside Sheets.
+ * @param {Object} likely output of likelyPaymentsByInvoice(): cash already
+ *     received that probably pays this invoice — checked before chasing.
+ */
+function buildEscalation(o, st, likely) {
+  const reasons = String(o.risk_reasons || &#x27;&#x27;);
+  if (!reasons) return null;
+  const cust = st.customers[o.cust_id] || {};
+  const csm = o.csm || cust.csm || &#x27;Account CSM&#x27;;
+  const due = fmtDay(addBusinessDays(st.asOf, st.escDays));
+  const what = `${o.qty} × ${o.product}`;
+  const problems = [], asks = [];
+  const has = s =&gt; reasons.indexOf(s) !== -1;
+
+  if (has(&#x27;Intake hold&#x27;)) {
+    problems.push(`Order ${o.order_id} (${what}, ${money(o.order_value)}) is on intake hold and cannot be entered into the system: ${o.val_issues}. ` +
+      `Received ${fmtDate(o.received)} — ${plural(st.asOf - o.received, &#x27;day&#x27;)} ago.`);
+    const issues = String(o.val_issues);
+    if (issues.indexOf(&#x27;Price mismatch&#x27;) !== -1)
+      asks.push(`Account rep / Sales Ops: confirm the order should be re-issued at the contract price of ${money(o.contract_price)}/unit (quoted ${money(o.unit_price)}), or attach an approved pricing exception — by ${due}.`);
+    if (issues.indexOf(&#x27;not on contract&#x27;) !== -1)
+      asks.push(`Sales Ops: confirm the correct SKU, or amend the contract to add ${o.sku} — by ${due}.`);
+    if (issues.indexOf(&#x27;Unknown SKU&#x27;) !== -1)
+      asks.push(`Account rep: correct SKU &quot;${o.sku}&quot; (not in the product catalog) — by ${due}.`);
+    if (issues.indexOf(&#x27;billing contact&#x27;) !== -1)
+      asks.push(`${csm}: get a valid billing contact name and email from the customer so the account can be invoiced — by ${due}.`);
+    if (issues.indexOf(&#x27;≠ contract&#x27;) !== -1)
+      asks.push(`Deal Desk: approve ${o.terms} as an exception or correct the order to contract terms (${o.contract_terms}) — by ${due}.`);
+  }
+  if (has(&#x27;Stalled activation&#x27;)) {
+    problems.push(`Order ${o.order_id} (${what}) shipped ${fmtDate(o.shipped)} and has not activated after ${st.asOf - o.shipped} days ` +
+      `(threshold ${st.stallDays}). It cannot be invoiced until the customer activates.`);
+    asks.push(`${csm}: reach the customer&#x27;s site lead by ${due}, confirm an install/activation date, and open an RMA if the hardware is faulty. Reply with the committed activation date.`);
+  }
+  if (has(&#x27;SLA breach&#x27;)) {
+    const d = o.days_in_stage, sla = o.sla;
+    if (o.stage === &#x27;Validated&#x27;) {
+      problems.push(`Order ${o.order_id} was validated ${d} days ago but the account is still not set up (SLA ${sla} days). Shipping is blocked.`);
+      asks.push(`Billing Ops: complete account set-up for ${o.customer} by ${due} so the order can ship.`);
+    } else if (o.stage === &#x27;Account Set Up&#x27;) {
+      problems.push(`Order ${o.order_id} has been ready to ship for ${d} days (SLA ${sla} days) without a ship date.`);
+      asks.push(`Fulfillment: confirm a ship date for ${what} by ${due}; if backordered, give ${csm} a revised ETA to share with the customer.`);
+    } else if (o.stage === &#x27;Activated&#x27;) {
+      problems.push(`Order ${o.order_id} activated ${fmtDate(o.activated)} — ${d} days ago — and has not been invoiced (SLA ${sla} days). This is unbilled revenue.`);
+      asks.push(`Billing Ops: issue the ${money(o.order_value)} invoice by ${due} and confirm the invoice number.`);
+    } else if (o.stage !== &#x27;Received&#x27; || !has(&#x27;Intake hold&#x27;)) {
+      problems.push(`Order ${o.order_id} has been in &quot;${o.stage}&quot; for ${d} days (SLA ${sla} days).`);
+      asks.push(`Owner of the ${o.stage} step: unblock by ${due}.`);
+    }
+  }
+  if (has(&#x27;Past due&#x27;)) {
+    const partial = Number(o.amt_paid) &gt; 0;
+    const onFile = (likely &amp;&amp; likely[o.invoice_no]) || [];
+    problems.push(`Invoice ${o.invoice_no} (${money(o.order_value)}, ${o.terms}) was due ${fmtDate(o.due_date)}. ` +
+      `${money(o.balance)} is ${o.dpd} days past due` + (partial ? ` after a partial payment of ${money(o.amt_paid)}.` : &#x27;.&#x27;));
+    if (onFile.length) {
+      const p = onFile[0];
+      problems.push(`⚠ Likely already paid: payment ${p.pay_id} (${money(p.amount)}, received ${fmtDate(toSerial(p.pay_date))}, remittance ref &quot;${p.remit_ref || &#x27;blank&#x27;}&quot;) ` +
+        `is sitting in unapplied cash and matches this customer and amount.`);
+      asks.push(`Cash Applications: verify ${p.pay_id} belongs to ${o.invoice_no} and re-apply it by ${due}. Do NOT send a collections notice to ${o.customer} — they appear to have paid.`);
+    } else if (partial) {
+      asks.push(`${csm}: find out why ${o.customer} short-paid by ${money(o.balance)} (dispute vs. error) and get a payment date for the remainder — by ${due}.`);
+    } else if (Number(o.dpd) &gt; st.collectionsDays) {
+      // Decision: the success manager calls first; Collections only this late.
+      asks.push(`Collections + ${csm}: secure a written payment commitment for ${money(o.balance)} by ${due}. If none, recommend a credit hold on new orders for ${o.customer}.`);
+    } else {
+      asks.push(`${csm}: contact ${o.bill_name || &#x27;the billing contact&#x27;} (${o.bill_email || &#x27;no email on file&#x27;}) and confirm a payment date for ${money(o.balance)} — by ${due}.`);
+    }
+  }
+
+  const rar = Number(o.rar) || 0;
+  const paidButUnapplied = has(&#x27;Past due&#x27;) &amp;&amp; likely &amp;&amp; likely[o.invoice_no];
+  const basis = o.invoice_no ? &#x27;open invoice balance&#x27; : &#x27;order value not yet invoiceable&#x27;;
+  const actions = String(o.actions || &#x27;&#x27;).trim();
+  const actionLines = actions
+    ? actions.split(&#x27;\n&#x27;).map(a =&gt; &#x27;• &#x27; + a.trim())
+    : [&#x27;• None logged yet. Log at least one direct attempt (date — action) in the Orders tab before sending.&#x27;];
+  // When matching cash is already on file, the subject must not say the money
+  // is at risk: the ask is to re-apply the payment, not to chase the customer.
+  const subject = paidButUnapplied
+    ? `[Escalation] ${o.order_id} · ${o.customer} · Payment likely on file, re-apply ${money(likely[o.invoice_no][0].amount)}`
+    : `[Escalation] ${o.order_id} · ${o.customer} · ${money(rar)} at risk — ${reasons.split(&#x27;;&#x27;)[0].trim()}`;
+  const text = [
+    `To: ${csm}${cust.csmEmail ? &#x27; &lt;&#x27; + cust.csmEmail + &#x27;&gt;&#x27; : &#x27;&#x27;}`,
+    st.escCc ? `Cc: ${st.escCc}` : &#x27;&#x27;,
+    `Subject: ${subject}`,
+    &#x27;&#x27;,
+    &#x27;PROBLEM&#x27;,
+    problems.join(&#x27;\n&#x27;),
+    &#x27;&#x27;,
+    &#x27;REVENUE AT RISK&#x27;,
+    `${money(rar)} (${basis})`,
+    &#x27;&#x27;,
+    &#x27;ACTIONS ALREADY TAKEN&#x27;,
+    actionLines.join(&#x27;\n&#x27;),
+    &#x27;&#x27;,
+    &#x27;SPECIFIC ASK&#x27;,
+    asks.map(a =&gt; &#x27;• &#x27; + a).join(&#x27;\n&#x27;),
+  ].filter((l, i) =&gt; !(i === 1 &amp;&amp; l === &#x27;&#x27;)).join(&#x27;\n&#x27;);
+
+  return {
+    order_id: o.order_id, customer: o.customer, csm, csmEmail: cust.csmEmail || &#x27;&#x27;, rar,
+    subject, problem: problems.join(&#x27;\n&#x27;), actions: actionLines.join(&#x27;\n&#x27;), ask: asks.map(a =&gt; &#x27;• &#x27; + a).join(&#x27;\n&#x27;), text,
+  };
+}
+
+function mailtoFormula(draft, cc) {
+  const body = draft.text.split(&#x27;\n&#x27;).slice(draft.text.indexOf(&#x27;Cc:&#x27;) === -1 ? 3 : 4).join(&#x27;\n&#x27;);
+  const url = &#x27;mailto:&#x27; + encodeURIComponent(draft.csmEmail) +
+    &#x27;?subject=&#x27; + encodeURIComponent(draft.subject) +
+    (cc ? &#x27;&amp;cc=&#x27; + encodeURIComponent(cc) : &#x27;&#x27;) +
+    &#x27;&amp;body=&#x27; + encodeURIComponent(body);
+  return `=HYPERLINK(&quot;${url}&quot;,&quot;✉ Open email&quot;)`;
+}
+
+/* -------------------------------------------------------------- actions */
+
+function appendEscalation(ss, draft, st, stamp) {
+  const sh = ss.getSheetByName(SHEET.ESC);
+  const row = sh.getLastRow() + 1;
+  sh.getRange(row, 1, 1, ESC_HEADERS.length).setValues([[
+    stamp, draft.order_id, draft.customer, draft.csm, draft.rar, draft.problem, draft.actions, draft.ask, draft.text,
+    mailtoFormula(draft, st.escCc), &#x27;Drafted&#x27;,
+  ]]);
+  sh.getRange(row, 1).setNumberFormat(&#x27;yyyy-mm-dd hh:mm&#x27;);
+  sh.getRange(row, 5).setNumberFormat(FMT.money0).setFontWeight(&#x27;bold&#x27;).setFontColor(COLOR.redText);
+  sh.getRange(row, 1, 1, ESC_HEADERS.length).setVerticalAlignment(&#x27;top&#x27;).setFontSize(9).setWrap(true);
+  sh.getRange(row, 9).setWrapStrategy(SpreadsheetApp.WrapStrategy.CLIP);
+  sh.setRowHeight(row, 150);
+  return row;
+}
+
+function draftEscalationForRow(ss, row) {
+  SpreadsheetApp.flush();
+  const st = readSettings(ss);
+  const o = readOrders(ss).find(x =&gt; x.row === row);
+  if (!o) return { error: &#x27;Row &#x27; + row + &#x27; is not an order.&#x27; };
+  const draft = buildEscalation(o, st, likelyPaymentsByInvoice(readPayments(ss)));
+  if (!draft) return { error: `${o.order_id} has no risk flags — nothing to escalate.` };
+  const now = new Date();
+  appendEscalation(ss, draft, st, now);
+  ss.getSheetByName(SHEET.ORDERS).getRange(row, OC.I.last_escalation).setValue(now);
+  return { draft };
+}
+
+// Menu: O2C Tools ▸ Draft escalation for selected order
+function draftEscalationSelected() {
+  const ss = SpreadsheetApp.getActive();
+  const ui = SpreadsheetApp.getUi();
+  const sh = ss.getActiveSheet();
+  if (sh.getName() !== SHEET.ORDERS) {
+    ui.alert(&#x27;Select an order row on the Orders tab first.&#x27;);
+    return;
+  }
+  const res = draftEscalationForRow(ss, ss.getActiveRange().getRow());
+  if (res.error) { ui.alert(res.error); return; }
+  showEscalationDialog(res.draft, readSettings(ss).escCc);
+}
+
+function showEscalationDialog(draft, cc) {
+  const href = mailtoFormula(draft, cc).match(/HYPERLINK\(&quot;([^&quot;]+)&quot;/)[1];
+  const esc = s =&gt; String(s).replace(/&amp;/g, &#x27;&amp;amp;&#x27;).replace(/&lt;/g, &#x27;&amp;lt;&#x27;).replace(/&gt;/g, &#x27;&amp;gt;&#x27;);
+  const html = HtmlService.createHtmlOutput(
+    `&lt;div style=&quot;font:13px/1.45 Arial,sans-serif;color:#1f2933&quot;&gt;
+      &lt;p style=&quot;margin:0 0 8px;color:#616e7c&quot;&gt;Logged to the Escalations tab. Review, then send.&lt;/p&gt;
+      &lt;textarea id=&quot;t&quot; style=&quot;width:100%;height:380px;font:12px/1.45 Consolas,monospace;padding:8px;box-sizing:border-box&quot;&gt;${esc(draft.text)}&lt;/textarea&gt;
+      &lt;div style=&quot;margin-top:10px;display:flex;gap:8px&quot;&gt;
+        &lt;button onclick=&quot;var t=document.getElementById(&#x27;t&#x27;);t.select();document.execCommand(&#x27;copy&#x27;);this.textContent=&#x27;Copied ✓&#x27;&quot;
+          style=&quot;padding:8px 14px;background:#243b53;color:#fff;border:0;border-radius:4px;cursor:pointer&quot;&gt;Copy text&lt;/button&gt;
+        &lt;a href=&quot;${esc(href)}&quot; target=&quot;_blank&quot; style=&quot;padding:8px 14px;border:1px solid #243b53;color:#243b53;border-radius:4px;text-decoration:none&quot;&gt;✉ Open in email&lt;/a&gt;
+      &lt;/div&gt;&lt;/div&gt;`).setWidth(720).setHeight(500);
+  SpreadsheetApp.getUi().showModalDialog(html, &#x27;Escalation — &#x27; + draft.order_id);
+}
+
+// Menu: drafts an escalation for every at-risk order not escalated in the last 7 days.
+function draftAllAtRisk() {
+  const ss = SpreadsheetApp.getActive();
+  const ui = SpreadsheetApp.getUi();
+  const weekAgo = Date.now() - 7 * 86400000;
+  const todo = readOrders(ss).filter(o =&gt; Number(o.rar) &gt; 0 &amp;&amp;
+    !(o.last_escalation instanceof Date &amp;&amp; o.last_escalation.getTime() &gt; weekAgo));
+  if (!todo.length) { ui.alert(&#x27;Every at-risk order has been escalated in the last 7 days.&#x27;); return; }
+  const total = todo.reduce((s, o) =&gt; s + Number(o.rar), 0);
+  if (ui.alert(`Draft ${todo.length} escalations covering ${money(total)} at risk?`, ui.ButtonSet.YES_NO) !== ui.Button.YES) return;
+  const st = readSettings(ss);
+  const likely = likelyPaymentsByInvoice(readPayments(ss));
+  const now = new Date();
+  todo.sort((a, b) =&gt; b.rar - a.rar).forEach(o =&gt; {
+    appendEscalation(ss, buildEscalation(o, st, likely), st, now);
+    ss.getSheetByName(SHEET.ORDERS).getRange(o.row, OC.I.last_escalation).setValue(now);
+  });
+  ss.setActiveSheet(ss.getSheetByName(SHEET.ESC));
+  ss.toast(`${todo.length} escalations drafted.`, &#x27;Escalations&#x27;, 5);
+}
+
+// Used by setup(): pre-fills the log with the largest risks, one per problem type.
+function draftTopEscalations(ss, n) {
+  const st = readSettings(ss);
+  const atRisk = readOrders(ss).filter(o =&gt; Number(o.rar) &gt; 0).sort((a, b) =&gt; b.rar - a.rar);
+  const kinds = [&#x27;Stalled activation&#x27;, &#x27;Past due&#x27;, &#x27;Past due&#x27;, &#x27;Intake hold&#x27;, &#x27;SLA breach: Activated&#x27;, &#x27;SLA breach: Validated&#x27;, &#x27;SLA breach: Account Set Up&#x27;];
+  const chosen = [];
+  kinds.forEach(k =&gt; {
+    const o = atRisk.find(x =&gt; String(x.risk_reasons).indexOf(k) === 0 &amp;&amp; chosen.indexOf(x) === -1);
+    if (o) chosen.push(o);
+  });
+  const likely = likelyPaymentsByInvoice(readPayments(ss));
+  const now = new Date();
+  chosen.slice(0, n).forEach(o =&gt; {
+    appendEscalation(ss, buildEscalation(o, st, likely), st, now);
+    ss.getSheetByName(SHEET.ORDERS).getRange(o.row, OC.I.last_escalation).setValue(now);
+  });
+  return chosen.slice(0, n);
+}
+</code></pre>
+<h2 id="f4">Digest.gs</h2><p class="muted">Builds and emails the morning digest, leading with the biggest dollars at risk.</p><pre><code>/**
+ * Daily digest email: new intake errors, stalled activations, past-due
+ * dollars and unapplied cash — so nobody has to build this summary by hand.
+ * Sent by a time-driven trigger (default 7am, Settings tab).
+ */
+
+const DIGEST_SNAPSHOT_KEY = &#x27;digest.lastHoldIds&#x27;;
+
+function readPayments(ss) {
+  const sh = ss.getSheetByName(SHEET.PAYMENTS);
+  const last = sh.getLastRow();
+  if (last &lt; 2) return [];
+  const tz = ss.getSpreadsheetTimeZone();
+  return sh.getRange(2, 1, last - 1, PAY_COLS.length).getValues().map(row =&gt; {
+    const p = {};
+    PAY_COLS.forEach((c, j) =&gt; { p[c.key] = row[j]; });
+    p.pay_date = toSerial(p.pay_date, tz);
+    return p;
+  }).filter(p =&gt; p.pay_id !== &#x27;&#x27;);
+}
+
+/**
+ * Computes the digest. Pure apart from reading the sheet, so it can be
+ * previewed without sending or touching the &quot;new errors&quot; snapshot.
+ * @param {string[]|null} previousHoldIds order IDs on hold at the last digest
+ */
+function computeDigest(orders, payments, st, previousHoldIds) {
+  const holds = orders.filter(o =&gt; o.val_status === HOLD);
+  const prev = previousHoldIds ? new Set(previousHoldIds) : null;
+  const newHolds = prev ? holds.filter(o =&gt; !prev.has(o.order_id)) : holds;
+  const stalled = orders.filter(o =&gt; String(o.activation_watch) !== &#x27;&#x27;).sort((a, b) =&gt; b.rar - a.rar);
+  const pastDue = orders.filter(o =&gt; Number(o.dpd) &gt; 0);
+  const buckets = AGING_BUCKETS.slice(1).map(b =&gt; {
+    const rows = pastDue.filter(o =&gt; o.aging === b);
+    return { bucket: b, count: rows.length, amount: rows.reduce((s, o) =&gt; s + Number(o.balance), 0) };
+  });
+  const unapplied = payments.filter(p =&gt; Number(p.unapplied) &gt; 0.005);
+  const slaOther = orders.filter(o =&gt; o.sla_breach === BREACH &amp;&amp; o.val_status !== HOLD &amp;&amp; !o.activation_watch);
+  const sum = (arr, k) =&gt; arr.reduce((s, x) =&gt; s + (Number(x[k]) || 0), 0);
+  const likely = likelyPaymentsByInvoice(payments);
+  pastDue.forEach(o =&gt; { o.note = likely[o.invoice_no] ? &#x27;Payment likely on file: &#x27; + likely[o.invoice_no][0].pay_id + &#x27; — re-apply, don’t chase&#x27; : &#x27;&#x27;; });
+  return {
+    asOf: st.asOf,
+    holds, newHolds, stalled, pastDue, buckets, unapplied, slaOther,
+    pastDueTotal: sum(pastDue, &#x27;balance&#x27;),
+    unappliedTotal: sum(unapplied, &#x27;unapplied&#x27;),
+    rarTotal: sum(orders, &#x27;rar&#x27;),
+    topPastDue: pastDue.slice().sort((a, b) =&gt; b.balance - a.balance).slice(0, 5),
+    // Decision: the digest leads with the money, whatever the cause.
+    topRisk: orders.filter(o =&gt; Number(o.rar) &gt; 0).sort((a, b) =&gt; b.rar - a.rar).slice(0, 5),
+  };
+}
+
+function renderDigestHtml(d) {
+  const esc = s =&gt; String(s).replace(/&amp;/g, &#x27;&amp;amp;&#x27;).replace(/&lt;/g, &#x27;&amp;lt;&#x27;);
+  const th = &#x27;style=&quot;text-align:left;padding:6px 8px;background:#243b53;color:#fff;font-size:12px&quot;&#x27;;
+  const td = &#x27;style=&quot;padding:6px 8px;border-bottom:1px solid #e4e7eb;font-size:12px&quot;&#x27;;
+  const tdr = &#x27;style=&quot;padding:6px 8px;border-bottom:1px solid #e4e7eb;font-size:12px;text-align:right&quot;&#x27;;
+  const table = (heads, rows) =&gt; rows.length
+    ? `&lt;table style=&quot;border-collapse:collapse;width:100%;margin:6px 0 18px&quot;&gt;` +
+      `&lt;tr&gt;${heads.map(h =&gt; `&lt;th ${th}&gt;${h}&lt;/th&gt;`).join(&#x27;&#x27;)}&lt;/tr&gt;` +
+      rows.map(r =&gt; `&lt;tr&gt;${r.map((c, i) =&gt; `&lt;td ${/^-?\$|^\d+$/.test(String(c)) ? tdr : td}${i === 0 ? &#x27; nowrap&#x27; : &#x27;&#x27;}&gt;${esc(c)}&lt;/td&gt;`).join(&#x27;&#x27;)}&lt;/tr&gt;`).join(&#x27;&#x27;) +
+      `&lt;/table&gt;`
+    : `&lt;p style=&quot;color:#1e6b3a;margin:6px 0 18px&quot;&gt;None. ✓&lt;/p&gt;`;
+  const tile = (label, value, color) =&gt;
+    `&lt;td style=&quot;padding:10px 12px;background:#f0f4f8;border-radius:6px;width:25%&quot;&gt;` +
+    `&lt;div style=&quot;font-size:11px;color:#616e7c;text-transform:uppercase;letter-spacing:.04em&quot;&gt;${label}&lt;/div&gt;` +
+    `&lt;div style=&quot;font-size:22px;font-weight:bold;color:${color || &#x27;#1f2933&#x27;}&quot;&gt;${value}&lt;/div&gt;&lt;/td&gt;`;
+
+  return `&lt;div style=&quot;font-family:Arial,sans-serif;color:#1f2933;max-width:760px&quot;&gt;
+  &lt;h2 style=&quot;margin:0 0 4px&quot;&gt;Order-to-Cash daily digest&lt;/h2&gt;
+  &lt;div style=&quot;color:#616e7c;margin-bottom:14px&quot;&gt;As of ${fmtDate(d.asOf)}&lt;/div&gt;
+  &lt;table style=&quot;border-spacing:8px;width:100%;margin:0 -8px 10px&quot;&gt;&lt;tr&gt;
+    ${tile(&#x27;Revenue at risk&#x27;, money(d.rarTotal), &#x27;#9b1c1c&#x27;)}
+    ${tile(&#x27;Past-due AR&#x27;, money(d.pastDueTotal), &#x27;#9b1c1c&#x27;)}
+    ${tile(&#x27;New intake errors&#x27;, d.newHolds.length, d.newHolds.length ? &#x27;#9b1c1c&#x27; : &#x27;#1e6b3a&#x27;)}
+    ${tile(&#x27;Stalled activations&#x27;, d.stalled.length, d.stalled.length ? &#x27;#8a5300&#x27; : &#x27;#1e6b3a&#x27;)}
+  &lt;/tr&gt;&lt;/table&gt;
+  &lt;p style=&quot;margin:0 0 18px&quot;&gt;${d.holds.length} orders on intake hold overall; ${money(d.unappliedTotal)} of cash still unapplied.&lt;/p&gt;
+
+  &lt;h3 style=&quot;margin:0&quot;&gt;Biggest dollars at risk right now (top ${d.topRisk.length})&lt;/h3&gt;
+  ${table([&#x27;Order&#x27;, &#x27;Customer&#x27;, &#x27;CSM&#x27;, &#x27;Why&#x27;, &#x27;At risk&#x27;], d.topRisk.map(o =&gt; [o.order_id, o.customer, o.csm, o.risk_reasons, money(o.rar)]))}
+
+  &lt;h3 style=&quot;margin:0&quot;&gt;New intake errors since last digest (${d.newHolds.length})&lt;/h3&gt;
+  ${table([&#x27;Order&#x27;, &#x27;Customer&#x27;, &#x27;Value&#x27;, &#x27;Issue&#x27;], d.newHolds.map(o =&gt; [o.order_id, o.customer, money(o.order_value), o.val_issues]))}
+
+  &lt;h3 style=&quot;margin:0&quot;&gt;Stalled activations — shipped &amp;gt; ${&#x27;&#x27; + (d.stallDays || 14)} days, not active (${d.stalled.length})&lt;/h3&gt;
+  ${table([&#x27;Order&#x27;, &#x27;Customer&#x27;, &#x27;CSM&#x27;, &#x27;Days since ship&#x27;, &#x27;At risk&#x27;], d.stalled.map(o =&gt; [o.order_id, o.customer, o.csm, String(d.asOf - o.shipped), money(o.rar)]))}
+
+  &lt;h3 style=&quot;margin:0&quot;&gt;Past-due receivables (${money(d.pastDueTotal)})&lt;/h3&gt;
+  ${table([&#x27;Days past due&#x27;, &#x27;Invoices&#x27;, &#x27;Amount&#x27;], d.buckets.map(b =&gt; [b.bucket, String(b.count), money(b.amount)]))}
+  &lt;div style=&quot;font-size:12px;color:#616e7c;margin:-10px 0 6px&quot;&gt;Largest past-due balances&lt;/div&gt;
+  ${table([&#x27;Invoice&#x27;, &#x27;Customer&#x27;, &#x27;CSM&#x27;, &#x27;Days&#x27;, &#x27;Balance&#x27;, &#x27;Note&#x27;], d.topPastDue.map(o =&gt; [o.invoice_no, o.customer, o.csm, String(o.dpd), money(o.balance), o.note]))}
+
+  &lt;h3 style=&quot;margin:0&quot;&gt;Unapplied cash to reconcile (${money(d.unappliedTotal)})&lt;/h3&gt;
+  ${table([&#x27;Payment&#x27;, &#x27;Customer&#x27;, &#x27;Unapplied&#x27;, &#x27;Status&#x27;, &#x27;Next step&#x27;], d.unapplied.map(p =&gt; [p.pay_id, p.customer, money(p.unapplied), p.match_status, p.recon_action]))}
+
+  ${d.slaOther.length ? `&lt;h3 style=&quot;margin:0&quot;&gt;Other SLA breaches (${d.slaOther.length})&lt;/h3&gt;
+  ${table([&#x27;Order&#x27;, &#x27;Customer&#x27;, &#x27;Stage&#x27;, &#x27;Days in stage&#x27;, &#x27;At risk&#x27;], d.slaOther.map(o =&gt; [o.order_id, o.customer, o.stage, String(o.days_in_stage), money(o.rar)]))}` : &#x27;&#x27;}
+
+  &lt;p style=&quot;font-size:11px;color:#9aa5b1;margin-top:20px&quot;&gt;Sent automatically by the Order-to-Cash tracker (Google Sheets + Apps Script). Open the Action Queue tab to work these items.&lt;/p&gt;
+&lt;/div&gt;`;
+}
+
+function renderDigestText(d) {
+  return [
+    `Order-to-Cash daily digest — as of ${fmtDate(d.asOf)}`,
+    `New intake errors: ${d.newHolds.length} | Stalled activations: ${d.stalled.length} | Past-due AR: ${money(d.pastDueTotal)} | Unapplied cash: ${money(d.unappliedTotal)}`,
+    `Revenue at risk: ${money(d.rarTotal)}`,
+  ].join(&#x27;\n&#x27;);
+}
+
+function buildDigest(ss) {
+  SpreadsheetApp.flush();
+  const st = readSettings(ss);
+  const raw = PropertiesService.getDocumentProperties().getProperty(DIGEST_SNAPSHOT_KEY);
+  const d = computeDigest(readOrders(ss), readPayments(ss), st, raw ? JSON.parse(raw) : null);
+  d.stallDays = st.stallDays;
+  d.subject = `O2C digest ${fmtDate(st.asOf)}: ${d.newHolds.length} new errors · ${d.stalled.length} stalled · ${money(d.pastDueTotal)} past due`;
+  d.html = renderDigestHtml(d);
+  d.text = renderDigestText(d);
+  d.recipient = st.digestTo;
+  return d;
+}
+
+function logDigest(ss, d, delivery) {
+  const sh = ss.getSheetByName(SHEET.DIGEST);
+  const row = sh.getLastRow() + 1;
+  sh.getRange(row, 1, 1, DIGEST_HEADERS.length).setValues([[new Date(), d.recipient || &#x27;(none set)&#x27;, d.newHolds.length, d.holds.length,
+    d.stalled.length, d.pastDueTotal, d.unappliedTotal, d.rarTotal, delivery]]);
+  sh.getRange(row, 1).setNumberFormat(&#x27;yyyy-mm-dd hh:mm&#x27;);
+  sh.getRange(row, 6, 1, 3).setNumberFormat(FMT.money0);
+  sh.getRange(row, 1, 1, DIGEST_HEADERS.length).setFontSize(9);
+}
+
+// Time-driven trigger target + menu: O2C Tools ▸ Automation ▸ Send digest now
+function sendDailyDigest() {
+  const ss = SpreadsheetApp.getActive();
+  const d = buildDigest(ss);
+  let delivery;
+  if (!d.recipient) {
+    delivery = &#x27;Not sent — no recipient in Settings&#x27;;
+  } else {
+    MailApp.sendEmail({ to: d.recipient, subject: d.subject, body: d.text, htmlBody: d.html, name: &#x27;O2C Tracker&#x27; });
+    delivery = &#x27;Emailed&#x27;;
+  }
+  logDigest(ss, d, delivery);
+  PropertiesService.getDocumentProperties().setProperty(DIGEST_SNAPSHOT_KEY, JSON.stringify(d.holds.map(o =&gt; o.order_id)));
+  return d;
+}
+
+// Menu: O2C Tools ▸ Automation ▸ Preview digest (doesn&#x27;t send or reset &quot;new&quot;)
+function previewDigest() {
+  const d = buildDigest(SpreadsheetApp.getActive());
+  SpreadsheetApp.getUi().showModalDialog(
+    HtmlService.createHtmlOutput(`&lt;div style=&quot;font:12px Arial;color:#616e7c;margin-bottom:8px&quot;&gt;Subject: &lt;b&gt;${d.subject}&lt;/b&gt;&lt;/div&gt;` + d.html)
+      .setWidth(820).setHeight(640), &#x27;Daily digest preview&#x27;);
+}
+
+// Used by setup(): one log row so viewers see what the digest reports.
+function logDigestPreview(ss) {
+  const d = buildDigest(ss);
+  logDigest(ss, d, &#x27;Preview at build (not emailed)&#x27;);
+  return d;
+}
+</code></pre>
+<h2 id="f5">Menu.gs</h2><p class="muted">Custom menu, the one-click Escalate checkbox, the daily timer, new-order rows.</p><pre><code>/**
+ * Menu, one-click escalation checkbox, triggers, and new-order rows.
+ */
+
+function onOpen() {
+  SpreadsheetApp.getUi().createMenu(&#x27;O2C Tools&#x27;)
+    .addItem(&#x27;Draft escalation for selected order&#x27;, &#x27;draftEscalationSelected&#x27;)
+    .addItem(&#x27;Draft escalations for all at-risk orders&#x27;, &#x27;draftAllAtRisk&#x27;)
+    .addSeparator()
+    .addItem(&#x27;Add new order row&#x27;, &#x27;addOrderRow&#x27;)
+    .addSeparator()
+    .addSubMenu(SpreadsheetApp.getUi().createMenu(&#x27;Automation&#x27;)
+      .addItem(&#x27;Preview daily digest&#x27;, &#x27;previewDigest&#x27;)
+      .addItem(&#x27;Send daily digest now&#x27;, &#x27;sendDailyDigest&#x27;)
+      .addItem(&#x27;Install daily digest (time trigger)&#x27;, &#x27;installTriggersFromMenu&#x27;)
+      .addItem(&#x27;Remove daily digest trigger&#x27;, &#x27;removeTriggers&#x27;))
+    .addSeparator()
+    .addItem(&#x27;Rebuild demo workbook&#x27;, &#x27;setup&#x27;)
+    .addToUi();
+}
+
+/**
+ * Simple trigger: ticking &quot;Escalate&quot; on an order drafts the escalation.
+ * Runs without authorisation, so it also works in a freshly copied sheet.
+ */
+function onEdit(e) {
+  if (!e || !e.range) return;
+  const sh = e.range.getSheet();
+  if (sh.getName() !== SHEET.ORDERS || e.range.getColumn() !== OC.I.escalate || e.range.getNumRows() !== 1) return;
+  if (String(e.value).toUpperCase() !== &#x27;TRUE&#x27;) return;
+  const ss = e.source;
+  const res = draftEscalationForRow(ss, e.range.getRow());
+  e.range.setValue(false);
+  ss.toast(res.error || `${res.draft.order_id}: ${money(res.draft.rar)} at risk. Draft added to the Escalations tab.`,
+    res.error ? &#x27;Nothing to escalate&#x27; : &#x27;Escalation drafted&#x27;, 6);
+}
+
+function installTriggers() {
+  removeTriggers();
+  const hour = readSettings(SpreadsheetApp.getActive()).digestHour;
+  ScriptApp.newTrigger(&#x27;sendDailyDigest&#x27;).timeBased().everyDays(1).atHour(hour).create();
+}
+
+function installTriggersFromMenu() {
+  installTriggers();
+  const st = readSettings(SpreadsheetApp.getActive());
+  SpreadsheetApp.getUi().alert(`Daily digest scheduled for ~${st.digestHour}:00 (${Session.getScriptTimeZone()}) to ${st.digestTo || &#x27;(set a recipient in Settings)&#x27;}.`);
+}
+
+function removeTriggers() {
+  ScriptApp.getProjectTriggers()
+    .filter(t =&gt; t.getHandlerFunction() === &#x27;sendDailyDigest&#x27;)
+    .forEach(t =&gt; ScriptApp.deleteTrigger(t));
+}
+
+// Appends a blank order with every formula in place; validation runs as you type.
+function addOrderRow() {
+  const ss = SpreadsheetApp.getActive();
+  const sh = ss.getSheetByName(SHEET.ORDERS);
+  const r = sh.getLastRow() + 1;
+  const ids = sh.getRange(2, 1, r - 2, 1).getValues().map(x =&gt; Number(String(x[0]).replace(&#x27;SO-&#x27;, &#x27;&#x27;)) || 0);
+  const next = &#x27;SO-&#x27; + (Math.max.apply(null, ids) + 1);
+  const st = readSettings(ss);
+  sh.getRange(r, 1, 1, ORDER_COLS.length).setValues([orderRowValues({ order_id: next, received: st.asOf }, r)]);
+  sh.getRange(r, OC.I.escalate).insertCheckboxes();
+  sh.getRange(r, OC.I.terms).setDataValidation(
+    SpreadsheetApp.newDataValidation().requireValueInList([&#x27;Net 30&#x27;, &#x27;Net 45&#x27;, &#x27;Net 60&#x27;, &#x27;Net 90&#x27;], true).setAllowInvalid(false).build());
+  ss.setActiveSheet(sh);
+  sh.getRange(r, OC.I.cust_id).activate();
+  ss.toast(`${next} added. Fill in Customer ID, SKU, Qty, price, billing contact and terms — the Intake Check updates live.`, &#x27;New order&#x27;, 8);
+}
+</code></pre>
+<h2 id="f6">appsscript.json</h2><p class="muted">Permissions: this spreadsheet plus sending mail.</p><pre><code>{
+  &quot;timeZone&quot;: &quot;America/Los_Angeles&quot;,
+  &quot;dependencies&quot;: {},
+  &quot;exceptionLogging&quot;: &quot;STACKDRIVER&quot;,
+  &quot;runtimeVersion&quot;: &quot;V8&quot;,
+  &quot;oauthScopes&quot;: [
+    &quot;https://www.googleapis.com/auth/spreadsheets.currentonly&quot;,
+    &quot;https://www.googleapis.com/auth/script.container.ui&quot;,
+    &quot;https://www.googleapis.com/auth/script.scriptapp&quot;,
+    &quot;https://www.googleapis.com/auth/script.send_mail&quot;,
+    &quot;https://www.googleapis.com/auth/userinfo.email&quot;
+  ]
+}
+</code></pre>
+<footer>
+<p>Built in plain HTML and CSS with Claude Code, which I directed and fact-checked.</p>
+<p>tylerbunn.netlify.app · <a href="https://www.linkedin.com/in/tdbunn">linkedin.com/in/tdbunn</a> · <a href="mailto:itstylerbunn@gmail.com">itstylerbunn@gmail.com</a></p>
+</footer>
+</div>
+</body>
+</html>

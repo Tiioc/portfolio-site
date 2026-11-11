@@ -262,4 +262,18 @@ demo = f"""
 """
 page("inboxowner/demo/index.html", "InboxOwner demo", "Live demo of InboxOwner on a made-up gym inbox.", demo, 2,
      script='<script src="demo.js" defer></script>\n')
-print("built 4 pages")
+
+# ---------------------------------------------------------------------------- Order-to-Cash (retired; reached only from old links)
+o2c = f"""
+<section class="retired">
+<header class="page-head blue">
+  <span class="pc-icon big">{ic("sheet")}</span>
+  <h1>Order-to-Cash Tracker (2026)</h1>
+</header>
+<p class="lead">I've since reworked this project into the Member Billing Tracker, which fits my front desk experience better.</p>
+<p class="actions"><a class="btn primary" href="../member-billing/">{ic("card")}See the Member Billing Tracker</a></p>
+<p class="small-link"><a href="original/">View the original version</a></p>
+</section>
+"""
+page("order-to-cash/index.html", "Order-to-Cash Tracker, by Tyler Bunn", "An earlier project, since reworked into the Member Billing Tracker.", o2c, 1)
+print("built 5 pages")

@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Order-to-Cash Tracker, by Tyler Bunn</title>
+<meta name="description" content="A Google Sheets tracker from signed order to collected cash, built on simulated data.">
+<meta name="author" content="Tyler Bunn">
+<link rel="stylesheet" href="../style.css">
+<link rel="icon" href="data:,">
+
+</head>
+<body>
+<div class="page">
+<nav class="site" aria-label="Site"><a href="../#projects" aria-current="page">Projects</a><a href="../#paseo">The Paseo Club</a><a href="../#how">How I work</a><a href="../#contact">Contact</a></nav>
+
+<h1>Order-to-Cash Tracker</h1>
+<p class="label">Self-initiated. Simulated data.</p>
+<div class="overview">
+  <p><strong>My role:</strong> I chose the problem, set the requirements, made the decisions listed below, and checked the work. Claude Code wrote the code and generated the sample data.</p>
+  <p><strong>Goal:</strong> follow an order from signed contract to collected cash, catch mistakes before they're entered, and never confuse two customers.</p>
+  <p><strong>Three results:</strong> 22 of 150 orders held before entry. Every planted error caught, with nothing flagged that wasn't planted. 41% of the "past due" dollars had actually been paid.</p>
+  <p><strong>Data note:</strong> the company and every record are made up. The sample is 150 orders from 26 customers and 87 payments, frozen at October 22, 2026. Errors were planted on purpose: 22 orders with intake problems (8 wrong prices, 6 missing or invalid billing contacts, 5 wrong payment terms, 3 products not on the customer's contract, 2 unknown product codes), 7 orders shipped but never activated, 7 other stuck orders, 4 duplicate payments, 2 overpayments, 3 payments with the wrong reference, 2 payments nobody could identify, 4 short payments, and 7 invoices that simply weren't paid. The numbers describe what the tool does on that sample, not business results.</p>
+</div>
+
+<h2>Situation</h2>
+<p>I kept seeing "order-to-cash" in job postings and recognized it as the problem I dealt with at The Paseo Club, where I worked the front desk. There I handled a lot of payment disputes myself, and once I charged the wrong member because two people were entered with exactly the same name. That one stuck with me. I wanted tools that prevent mistakes, not just more careful people.</p>
+
+<h2>Task</h2>
+<p>Build a tracker in Google Sheets that follows an order the whole way from signed contract to money in the bank, checks each order against the customer's contract before anyone enters it, keeps track of which customers never turned their service on, ages the unpaid invoices, matches payments to invoices, and drafts the escalation when something sticks. And one rule from the start: every lookup uses the customer's ID, never the name.</p>
+
+<h2>Action</h2>
+<ol>
+  <li><strong>Check before entry.</strong> Each order is compared with the customer's contract: price, payment terms, whether the product is on the contract at all, and whether there's a valid billing contact. Anything wrong puts the order on hold with the reason spelled out.</li>
+  <li><strong>Watch the hand-offs.</strong> Each stage (received, checked, account set up, shipped, activated, invoiced, paid) has a time limit, and a row turns red when it sits too long. An order shipped more than ten days ago with no activation gets flagged, with the name of the person who should call.</li>
+  <li><strong>Match the money by ID.</strong> Every payment is matched to an invoice by the invoice number and the customer ID. Duplicates, overpayments and payments nobody can place are set aside, and for each one the tracker suggests the invoice with the same customer and the same amount.</li>
+  <li><strong>Draft the escalation.</strong> One click writes it in a fixed shape: the problem, the dollars at risk, what's already been tried, and a specific ask with a name and a deadline.</li>
+  <li><strong>Send a morning digest.</strong> A timed script emails a summary each morning, leading with the biggest dollars at risk.</li>
+</ol>
+
+<h2>What went wrong</h2>
+<p>The first escalation drafts would have told Collections to go after a customer who had already paid $112,740. The customer had paid in full but written their own purchase-order number on the payment instead of the invoice number, so the money sat in a pile of unmatched cash while the invoice aged past due and the draft asked for a collections call.</p>
+<p>The fix was a check before any collections ask: look at the unmatched cash first, and if there's a payment from the same customer for the same amount, the ask becomes "verify and re-apply this payment" and the subject line says "payment likely on file" instead of "at risk." Across the sample, that was 3 payments from 2 customers, $135,947 in total, which is 41% of everything that looked past due. Reconcile before you chase.</p>
+
+<h2>Result</h2>
+<p>On the sample: 22 of 150 orders held before entry (worth $877,737), and every planted error caught with nothing extra flagged. 7 orders flagged as shipped but never activated. $328,680 showing as past due, of which $135,947 had already been paid under the wrong reference.</p>
+<p>The 100% catch rate is by design, since the errors were planted, so it shows the rules do what they were written to do and nothing more. A wrong quantity at the right price would get through.</p>
+<p><strong>The same-name test.</strong> Because of the same-name mistake at The Paseo Club, the sample includes two customers both named Ospreyvale Marine Logistics, with different IDs, regions, billing contacts and contract prices. One of them has an order and a payment. The tracker checks that order against its own contract price ($1,395), not the namesake's ($1,500), and applies the payment to the right account. Four tests enforce that. Matching on the name could have picked either one.</p>
+
+<h2>Decisions I made</h2>
+<ul>
+  <li><strong>An order is flagged as stalled after 10 days without activation, not 14.</strong> At Paseo, a new member going quiet in the first week was already a red flag; a false alarm costs one phone call.</li>
+  <li><strong>The morning digest leads with the money.</strong> A manager at 7am has two minutes; show the money first. The first section is the biggest dollars at risk, whatever the cause.</li>
+  <li><strong>The customer's success manager calls before Collections does.</strong> I've been on the front-desk side of disputes; the person who knows the customer should call before a collections notice does. Collections is involved only after 60 days.</li>
+</ul>
+
+<h2>What I'd do next</h2>
+<ol>
+  <li>Check quantity against the signed order. Right now a wrong quantity at the right price passes.</li>
+  <li>Let one payment cover several invoices. Today that shows up as a short payment plus a pile of unmatched cash.</li>
+  <li>Re-escalate automatically if nobody replies by the deadline in the ask.</li>
+</ol>
+<p class="links"><a href="https://docs.google.com/spreadsheets/d/1ybGkLNDfxm6iTDOLq87-4cT5WuMaxYJ3lXviGJ6sH2s/edit?usp=sharing">Open the live tracker (view-only)</a><a href="code/">Read the code</a></p>
+<p class="label">Screenshots from the live Google Sheet. Click any one to see it full size.</p>
+<figure class="shot"><a href="img/o2c-dashboard.webp"><img src="img/o2c-dashboard.webp" width="1600" height="856" loading="lazy" alt="Dashboard tab of the tracker in Google Sheets, with tables for pipeline by stage, invoice aging, orders on hold, revenue at risk by success manager and payment matching, plus two bar charts."></a>
+<figcaption>The Dashboard tab: orders by stage, unpaid invoices by age, orders held at entry and why, dollars at risk per success manager, and how every payment was matched.</figcaption></figure>
+<figure class="shot"><a href="img/o2c-orders.webp"><img src="img/o2c-orders.webp" width="1600" height="816" loading="lazy" alt="Orders tab in Google Sheets. Several rows are shaded red, and the Validation Issues column lists problems such as price mismatches and missing billing contacts."></a>
+<figcaption>The Orders tab. Rows shaded red have sat in a stage longer than its time limit. The last column says why an order is on hold, such as a price that doesn't match the contract.</figcaption></figure>
+<figure class="shot"><a href="img/o2c-escalations.webp"><img src="img/o2c-escalations.webp" width="1600" height="847" loading="lazy" alt="Escalations tab in Google Sheets showing four drafted escalations, each with a problem, actions already taken and a specific ask."></a>
+<figcaption>The Escalations tab. Each draft names the problem, the dollars at risk, what's been tried and a specific ask with a deadline. The Larkhaven draft, second, asks to re-apply a payment already on file instead of chasing the customer.</figcaption></figure>
+
+<details>
+<summary>More details</summary>
+<ul>
+  <li><strong>How it's built.</strong> One script builds the whole workbook from a blank Google Sheet: 13 tabs, the sample data, about 4,700 formulas, the color rules, a dashboard with charts, a menu and the daily timer. Every check is a visible spreadsheet formula, so anyone can click a cell and read the rule. Time limits live on a Settings tab, not in code.</li>
+  <li><strong>How it's tested.</strong> The real script is run against a stand-in for Google Sheets, every formula is recalculated in a separate spreadsheet engine, and the results are compared three ways: against the list of planted errors (nothing missed, nothing extra), against a separate re-implementation of every rule, and by checking that the totals tie out. 37 checks, all passing. I then ran the script in a real Google Sheet. It built every tab, and the live totals match the tested ones. The morning email has only been previewed in the Digest Log tab, not sent on a schedule yet.</li>
+  <li><strong>The "past due but paid" cases.</strong> Payments PMT-50024 (Aldmoor Timber Co, $10,192), PMT-50035 and PMT-50045 (Larkhaven Barge Lines, $13,015 and $112,740) all carried a PO number instead of the invoice number.</li>
+  <li><strong>Aging.</strong> Unpaid invoices are bucketed by days past due: 1–30, 31–60, 61–90, 90+. On the sample, 14 invoices are past due.</li>
+  <li><strong>Revenue at risk.</strong> Open dollars on any order with a flag, counted once per order: $1,575,383 across 50 orders on the sample.</li>
+  <li><strong>Stack.</strong> Google Sheets with a bound Apps Script; the digest goes out through a time-driven trigger; the script's permissions are limited to its own spreadsheet and sending mail.</li>
+</ul>
+</details>
+
+<footer>
+<p>Built in plain HTML and CSS with Claude Code, which I directed and fact-checked.</p>
+<p>tylerbunn.netlify.app · <a href="https://www.linkedin.com/in/tdbunn">linkedin.com/in/tdbunn</a> · <a href="mailto:itstylerbunn@gmail.com">itstylerbunn@gmail.com</a></p>
+</footer>
+</div>
+</body>
+</html>
