@@ -86,7 +86,7 @@ a:focus-visible, button:focus-visible, summary:focus-visible, select:focus-visib
 .hello, .pc-tags, .when, .chart-note, .legend, .hbar-label, .dots-label, .dots-value, .hbar-value,
 .pill, .mini span, .intro + * .pc-tags, figcaption { font-family: var(--mono); }
 .hello, .pc-tags, .when, .chart-note, .legend, .hbar-label, .dots-label, .mini span {
-  font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted);
+  font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted);
 }
 
 /* ---------- Nav ---------- */
@@ -262,7 +262,7 @@ ol.how span { color: var(--muted); font-size: 0.95rem; }
 .hbar-fill { display: block; height: 100%; min-width: 6px; border-radius: 3px;
   background: linear-gradient(90deg, color-mix(in srgb, var(--tone) 70%, #000), var(--tone)); box-shadow: 0 0 18px -4px var(--tone); }
 .hbar-value { font-weight: 700; font-size: 1.05rem; white-space: nowrap; color: var(--tone-t); }
-.chart-note { margin: 0.5rem 0 0 !important; font-size: 0.7rem !important; }
+.chart-note { margin: 0.5rem 0 0 !important; font-size: 0.78rem !important; }
 .hbar-row-plain { display: flex; justify-content: space-between; align-items: baseline; gap: 0.6rem; padding-top: 0.75rem; margin-top: 0.2rem; border-top: 1px dashed var(--line-2); --tone: var(--cyan); --tone-t: var(--cyan-t); }
 
 .dots-row { display: grid; grid-template-columns: 1fr auto; gap: 0.45rem 0.8rem; align-items: center; margin-bottom: 1.1rem; }
@@ -274,7 +274,7 @@ ol.how span { color: var(--muted); font-size: 0.95rem; }
 .d.ok { background: var(--cyan); box-shadow: 0 0 8px -1px var(--cyan); }
 .d.bad { background: var(--coral); box-shadow: 0 0 8px -1px var(--coral); }
 .d.bad.extra { background: transparent; border: 2px solid var(--coral); box-shadow: none; }
-.legend { display: flex; flex-wrap: wrap; gap: 0.4rem 1rem; margin: 0 !important; font-size: 0.68rem !important; }
+.legend { display: flex; flex-wrap: wrap; gap: 0.4rem 1rem; margin: 0 !important; font-size: 0.78rem !important; }
 .legend span { display: inline-flex; align-items: center; gap: 0.4rem; }
 .legend .d { width: 10px; height: 10px; }
 

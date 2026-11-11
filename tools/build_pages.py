@@ -30,7 +30,7 @@ SPRITE = '<svg width="0" height="0" style="position:absolute" aria-hidden="true"
     for k, v in ICONS.items()) + "</svg>"
 ic = lambda name, cls="": f'<svg class="icon {cls}" aria-hidden="true"><use href="#i-{name}"/></svg>'
 
-def page(path, title, desc, body, depth, current="projects", script=""):
+def page(path, title, desc, body, depth, current=None, script=""):
     up = "../" * depth
     cur = ' aria-current="page"'
     nav = "".join(f'<a href="{up}#{k}"{cur if k == current else ""}>{v}</a>'
@@ -86,7 +86,8 @@ home = f"""
   <img class="avatar" src="me.jpg" width="88" height="88" alt="Tyler Bunn">
   <p class="hello">Hi, I'm</p>
   <h1>Tyler Bunn</h1>
-  <p class="role">Project Management student at Boise State. I'm looking for operations, coordinator or front office roles in Seattle.</p>
+  <p class="role">Project Management student at Boise State, living in Mukilteo. I'm looking for operations, coordinator or front office roles in Seattle.</p>
+  <p class="role">At The Paseo Club I pitched fixes and got moved into membership.</p>
   <p class="status"><span class="live-dot" aria-hidden="true"></span>Available now</p>
 </header>
 
@@ -98,7 +99,7 @@ home = f"""
     <div class="pc-head"><span class="pc-icon">{ic("inbox")}</span><div><h3>InboxOwner</h3><p class="pc-tags">Tested on made-up data</p></div></div>
     <p>Shows who owns each email in a shared inbox, and who is still waiting.</p>
     {flow([("inbox", "Emails get lost", "pink"), ("user", "Every email gets an owner", "violet"), ("clock", "See who's waiting", "teal")], small=True)}
-    <ul class="chips"><li class="chip"><b>18.7 vs 1.2 hrs</b> wait</li><li class="chip"><b>87%</b> sorted right</li></ul>
+    <ul class="chips"><li class="chip">Cancel emails waited <b>18.7 hrs</b></li><li class="chip">Trial questions <b>1.2 hrs</b></li><li class="chip">Guessed the topic right <b>87%</b></li></ul>
     <p class="actions"><a class="btn primary" href="inboxowner/">See how it works</a><a class="btn" href="inboxowner/demo/">{ic("play")}Try the demo</a></p>
   </article>
 
@@ -113,7 +114,7 @@ home = f"""
 
 <section id="work" class="section">
   <h2>Where the ideas came from</h2>
-  <p class="intro">I worked the front desk at The Paseo Club. Real job, no code.</p>
+  <p class="intro">I worked the front desk at The Paseo Club. These three things really happened.</p>
   <div class="cards3">
     <div class="mini-card violet">{ic("mail")}<p>All department emails came through the front desk, which got messy.</p></div>
     <div class="mini-card pink">{ic("users")}<p>I once charged the wrong member. Two members had the exact same name.</p></div>
@@ -125,8 +126,8 @@ home = f"""
 
   <h2 class="sub">Experience and school</h2>
   <ul class="timeline">
-    <li><span class="t-icon violet">{ic("briefcase")}</span><div><strong>The Paseo Club</strong><span class="when">Dec 2024 – Dec 2025 · Santa Clarita, CA</span><span>Front Desk, then Membership Advisor. Check-ins, email routing, billing fixes, payment disputes and refunds in HubSpot.</span></div></li>
     <li><span class="t-icon teal">{ic("briefcase")}</span><div><strong>Outback Steakhouse</strong><span class="when">Dec 2025 – Jun 2026 · Santa Clarita</span><span>Busser, promoted to food runner within six months.</span></div></li>
+    <li><span class="t-icon violet">{ic("briefcase")}</span><div><strong>The Paseo Club</strong><span class="when">Dec 2024 – Dec 2025 · Santa Clarita, CA</span><span>Front Desk, then Membership Advisor. Check-ins, email routing, billing fixes, payment disputes and refunds in HubSpot.</span></div></li>
     <li><span class="t-icon amber">{ic("briefcase")}</span><div><strong>Cooksey's Lifeguard &amp; Swim Academy</strong><span class="when">Mar 2023 – Mar 2024 · Santa Clarita</span><span>Lifeguard and swim instructor. Often the only staff member on duty making safety calls.</span></div></li>
     <li><span class="t-icon pink">{ic("school")}</span><div><strong>Boise State University</strong><span class="when">Expected Spring 2028</span><span>B.S. in Project Management.</span></div></li>
   </ul>
@@ -138,7 +139,7 @@ home = f"""
   <p class="actions"><a class="btn primary" href="mailto:itstylerbunn@gmail.com">{ic("mail")}Email me</a><a class="btn" href="https://www.linkedin.com/in/tdbunn">{ic("link")}LinkedIn</a></p>
 </section>
 """
-page("index.html", "Tyler Bunn", "Tyler Bunn, Project Management student at Boise State, looking for operations, coordinator and front office roles in Seattle. Available now.", home, 0)
+page("index.html", "Tyler Bunn", "Tyler Bunn, Project Management student at Boise State, looking for operations, coordinator and front office roles in Seattle. Available now.", home, 0, current="projects")
 
 # ---------------------------------------------------------------------------- InboxOwner
 def chart_waits():
@@ -147,13 +148,13 @@ def chart_waits():
     return f'''<figure class="chart" aria-label="Typical wait for a first reply: cancellation emails 18.7 hours, trial questions 1.2 hours. Sorted right: 87%.">
   <figcaption>Wait for a first reply</figcaption>{bars}
   <div class="hbar-row-plain"><span class="hbar-label">Sorted right</span><span class="hbar-value">87%</span></div>
-  <p class="chart-note">Open hours only. Fake test data.</p></figure>'''
+  <p class="chart-note">Open hours only. Made-up data.</p></figure>'''
 
 inbox = f"""
 <header class="page-head teal">
   <span class="pc-icon big">{ic("inbox")}</span>
   <h1>InboxOwner</h1>
-  <p class="pc-tags">Fake data · v2</p>
+  <p class="pc-tags">Tested on made-up data</p>
 </header>
 {flow([("inbox", "Lost emails", "pink"), ("user", "One owner each", "violet"), ("clock", "See who waits", "teal")])}
 
@@ -161,25 +162,25 @@ inbox = f"""
 <p>At The Paseo Club, every department's email came to the front desk. Nobody could tell who had answered what.</p></section>
 
 <section class="block"><h2><span class="num">2</span>What I made</h2>
-<p>A tool that gives every email an owner and shows who is still waiting.</p></section>
+<p>A tool that gives every email an owner and shows who is still waiting. Claude Code wrote the code. I set the rules and tested every number.</p></section>
 
 <section class="block"><h2><span class="num">3</span>How it works</h2>
-{steps([("clock", "Times the wait", "How long each email waits.", "teal"),
+{steps([("tag", "Sorts new mail", "Guesses the topic or asks a person.", "amber"),
         ("user", "Gives it an owner", "One person's name on each email.", "violet"),
-        ("tag", "Sorts new mail", "Guesses the topic or asks a person.", "amber")])}</section>
+        ("clock", "Times the wait", "How long each email waits.", "teal")])}</section>
 
-<section class="block"><h2><span class="num">4</span>What happened</h2>
+<section class="block"><h2><span class="num">4</span>What it found</h2>
 {chart_waits()}
 <p>So the fix is clear: give cancellation emails an owner and a reply deadline. The demo does that.</p></section>
 
 <section class="block"><h2><span class="num">5</span>What I learned</h2>
-<p>My first rules only knew old examples. One even matched "lease" inside "please."</p></section>
+<p>My first rules only fit old emails. One even matched "lease" inside "please." So I tested on 96 new emails it had never seen.</p></section>
 
 <section class="block"><h2><span class="num">6</span>Try it</h2>
 <p class="actions"><a class="btn primary" href="demo/">{ic("play")}Try the demo</a><a class="btn" href="code/">{ic("code")}See the code</a></p></section>
 
-<details>
-<summary>The details</summary>
+<details open>
+<summary>The fine print</summary>
 <ul>
   <li>A made-up gym with four staff and 548 emails from 90 days.</li>
   <li>The 87% comes from 96 new emails. It counts the ones it sorted by itself.</li>
@@ -187,7 +188,7 @@ inbox = f"""
 </ul>
 </details>
 """
-page("inboxowner/index.html", "InboxOwner, by Tyler Bunn", "A simple tool that shows who owns each email in a shared inbox. Tested on fake data.", inbox, 1)
+page("inboxowner/index.html", "InboxOwner, by Tyler Bunn", "A simple tool that shows who owns each email in a shared inbox. Tested on made-up data.", inbox, 1)
 
 # ---------------------------------------------------------------------------- Member Billing
 def chart_billing():
@@ -199,13 +200,13 @@ def chart_billing():
   {row("My sheet, by member ID", ["ok"] * 15, "15 caught")}
   {row("If it looked people up by name", ["ok"] * 13 + ["bad"] * 2 + ["bad extra"] * 2, "4 mistakes", "worse")}
   <p class="legend"><span><i class="d ok"></i>Caught right</span><span><i class="d bad"></i>Wrong</span><span><i class="d bad extra"></i>False alarm</span></p>
-  <p class="chart-note">Fake test data in a real Google Sheet.</p></figure>'''
+  <p class="chart-note">Made-up data in a real Google Sheet.</p></figure>'''
 
 billing = f"""
 <header class="page-head pink">
   <span class="pc-icon big">{ic("card")}</span>
   <h1>Member Billing Tracker</h1>
-  <p class="pc-tags">Fake data · v1</p>
+  <p class="pc-tags">Tested on made-up data</p>
 </header>
 {flow([("alert", "Billing mistakes", "pink"), ("id", "Member IDs", "violet"), ("list", "Daily fix list", "teal")])}
 
@@ -213,14 +214,14 @@ billing = f"""
 <p>At The Paseo Club, I handled dues, refunds and failed payments. I once charged the wrong member because two members had the same name.</p></section>
 
 <section class="block"><h2><span class="num">2</span>What I made</h2>
-<p>A Google Sheet that catches billing mistakes and lists what to fix.</p></section>
+<p>A Google Sheet that catches billing mistakes and lists what to fix. Claude Code wrote the formulas and script. I set the rules and tested it.</p></section>
 
 <section class="block"><h2><span class="num">3</span>How it works</h2>
-{steps([("id", "Uses member IDs", "So two Chris Morgans stay separate.", "violet"),
+{steps([("id", "Uses member IDs", "So two members with the same name stay separate.", "violet"),
         ("alert", "Catches mistakes", "Declined cards, double charges, unsent refunds.", "pink"),
         ("list", "Makes a fix list", "Who to call, refund or retry.", "teal")])}</section>
 
-<section class="block"><h2><span class="num">4</span>What happened</h2>
+<section class="block"><h2><span class="num">4</span>What it found</h2>
 {chart_billing()}
 <p>Each row of the fix list says what to do: call, refund, or retry.</p></section>
 
@@ -230,8 +231,8 @@ billing = f"""
 <section class="block"><h2><span class="num">6</span>Try it</h2>
 <p class="actions"><a class="btn primary" href="https://docs.google.com/spreadsheets/d/10E7Y1xSkgj9oXrpKes64kobsTme5ljlY7F1EERrffCU/edit?usp=sharing">{ic("sheet")}Open the sheet</a><a class="btn" href="code/">{ic("code")}See the code</a></p></section>
 
-<details>
-<summary>The details</summary>
+<details open>
+<summary>The fine print</summary>
 <ul>
   <li>A made-up club with 36 members and 113 payments. I planted 15 mistakes.</li>
   <li>It catches all 15 because I planted them. A wrong price would get through.</li>
@@ -239,14 +240,14 @@ billing = f"""
 </ul>
 </details>
 """
-page("member-billing/index.html", "Member Billing Tracker, by Tyler Bunn", "A Google Sheet that catches billing mistakes at a members' club and makes a daily fix list. Tested on fake data.", billing, 1)
+page("member-billing/index.html", "Member Billing Tracker, by Tyler Bunn", "A Google Sheet that catches billing mistakes at a members' club and makes a daily fix list. Tested on made-up data.", billing, 1)
 
 # ---------------------------------------------------------------------------- demo shell
 demo = f"""
 <header class="page-head teal">
   <span class="pc-icon big">{ic("play")}</span>
   <h1>InboxOwner demo</h1>
-  <p class="pc-tags">Fake test data</p>
+  <p class="pc-tags">Tested on made-up data</p>
 </header>
 <p>A made-up gym's shared inbox with four staff: Maya, Jordan, Priya and Sam. This snapshot is from Thursday, October 22, 2026, 4:00 PM. <a href="../">Back to the project</a></p>
 <noscript><p><strong>This demo needs JavaScript to run.</strong> The project page works without it.</p></noscript>
@@ -259,6 +260,6 @@ demo = f"""
 <div id="p-owners" role="tabpanel" hidden></div>
 <div id="p-sorting" role="tabpanel" hidden></div>
 """
-page("inboxowner/demo/index.html", "InboxOwner demo", "Live demo of InboxOwner on a fake gym inbox.", demo, 2,
+page("inboxowner/demo/index.html", "InboxOwner demo", "Live demo of InboxOwner on a made-up gym inbox.", demo, 2,
      script='<script src="demo.js" defer></script>\n')
 print("built 4 pages")

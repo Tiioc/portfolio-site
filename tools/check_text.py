@@ -37,7 +37,7 @@ for p in PAGES:
     print("   em dashes:", src.count("—")); bad += src.count("—")
     sents = []
     for b in blocks(src):
-        sents += [x for x in re.split(r"(?<=[.!?])\s+", b) if len(x.split()) > 2]
+        sents += [x for x in re.split(r"(?<=[.!?])[\"\u201d]?\s+", b.replace('."', '. ').replace(".\u201d", ". ")) if len(x.split()) > 2]
     long = [x for x in sents if len(x.split()) > 15 and not x.startswith(GIVEN)]
     for x in long: print(f"   LONG ({len(x.split())} words): {x}")
     bad += len(long)

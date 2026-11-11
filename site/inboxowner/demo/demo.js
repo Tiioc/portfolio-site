@@ -844,7 +844,7 @@ window.TRIAGE_EVAL={
     $('#p-sorting').innerHTML = `
       ${note('Type an email or pick one. The tool guesses what it is about. If it is not sure, a person gets it.')}
       <p><label for="t-sample">Pick an example </label><select id="t-sample">${SAMPLES.map((x, k) => `<option value="${k}">${esc(x.slice(0, 44))}...</option>`).join('')}</select></p>
-      <label for="t-text"><span hidden>Email text</span></label><textarea id="t-text" spellcheck="false">${esc(SAMPLES[0])}</textarea>
+      <textarea id="t-text" aria-label="Email text" spellcheck="false">${esc(SAMPLES[0])}</textarea>
       <div class="result" id="t-out" aria-live="polite"></div>
       <h2>How good is it?</h2>
       ${tiles([[pct(s.autoPrecision), 'sorted right', 'ok'], [pct(s.autoRate), 'sorted by itself'], [pct(1 - s.autoRate), 'sent to a person']])}

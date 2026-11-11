@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Member Billing Tracker, by Tyler Bunn</title>
-<meta name="description" content="A Google Sheet that catches billing mistakes at a members' club and makes a daily fix list. Tested on fake data.">
+<meta name="description" content="A Google Sheet that catches billing mistakes at a members' club and makes a daily fix list. Tested on made-up data.">
 <meta name="author" content="Tyler Bunn">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -15,12 +15,12 @@
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><symbol id="i-inbox" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></symbol><symbol id="i-user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/></symbol><symbol id="i-users" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2 20a7 7 0 0 1 14 0"/><circle cx="17" cy="8" r="3"/><path d="M17 14a5 5 0 0 1 5 5"/></symbol><symbol id="i-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></symbol><symbol id="i-tag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><circle cx="7" cy="7" r="1.5"/></symbol><symbol id="i-card" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/><path d="M6 15h4"/></symbol><symbol id="i-alert" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></symbol><symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></symbol><symbol id="i-list" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11M9 12h11M9 18h11"/><path d="m3 6 1 1 2-2M3 12l1 1 2-2M3 18l1 1 2-2"/></symbol><symbol id="i-id" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="11" r="2"/><path d="M15 9h3M15 13h3M6 16h6"/></symbol><symbol id="i-mail" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></symbol><symbol id="i-sheet" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></symbol><symbol id="i-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></symbol><symbol id="i-play" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4v16l13-8z"/></symbol><symbol id="i-code" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 18 6-6-6-6M8 6l-6 6 6 6"/></symbol><symbol id="i-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M8 7h9v9"/></symbol><symbol id="i-school" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10 12 5 2 10l10 5 10-5z"/><path d="M6 12v5c3 2 9 2 12 0v-5"/></symbol><symbol id="i-briefcase" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></symbol><symbol id="i-link" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></symbol></svg>
 <div class="page">
-<nav class="site" aria-label="Site"><a class="brand" href="../">Tyler Bunn</a><span class="nav-links"><a href="../#projects" aria-current="page">Projects</a><a href="../#work">Work</a><a href="../#contact">Contact</a></span></nav>
+<nav class="site" aria-label="Site"><a class="brand" href="../">Tyler Bunn</a><span class="nav-links"><a href="../#projects">Projects</a><a href="../#work">Work</a><a href="../#contact">Contact</a></span></nav>
 
 <header class="page-head pink">
   <span class="pc-icon big"><svg class="icon " aria-hidden="true"><use href="#i-card"/></svg></span>
   <h1>Member Billing Tracker</h1>
-  <p class="pc-tags">Fake data · v1</p>
+  <p class="pc-tags">Tested on made-up data</p>
 </header>
 <div class="flow" role="img" aria-label="Problem: Billing mistakes. Tool: Member IDs. Result: Daily fix list"><div class="flow-step pink"><span class="flow-icon"><svg class="icon " aria-hidden="true"><use href="#i-alert"/></svg></span><span class="flow-label">Billing mistakes</span></div><span class="flow-arrow" aria-hidden="true"><svg class="icon " aria-hidden="true"><use href="#i-arrow"/></svg></span><div class="flow-step violet"><span class="flow-icon"><svg class="icon " aria-hidden="true"><use href="#i-id"/></svg></span><span class="flow-label">Member IDs</span></div><span class="flow-arrow" aria-hidden="true"><svg class="icon " aria-hidden="true"><use href="#i-arrow"/></svg></span><div class="flow-step teal"><span class="flow-icon"><svg class="icon " aria-hidden="true"><use href="#i-list"/></svg></span><span class="flow-label">Daily fix list</span></div></div>
 
@@ -28,18 +28,18 @@
 <p>At The Paseo Club, I handled dues, refunds and failed payments. I once charged the wrong member because two members had the same name.</p></section>
 
 <section class="block"><h2><span class="num">2</span>What I made</h2>
-<p>A Google Sheet that catches billing mistakes and lists what to fix.</p></section>
+<p>A Google Sheet that catches billing mistakes and lists what to fix. Claude Code wrote the formulas and script. I set the rules and tested it.</p></section>
 
 <section class="block"><h2><span class="num">3</span>How it works</h2>
-<ol class="how"><li class="violet"><span class="how-icon"><svg class="icon " aria-hidden="true"><use href="#i-id"/></svg></span><div><strong>Uses member IDs</strong><span>So two Chris Morgans stay separate.</span></div></li><li class="pink"><span class="how-icon"><svg class="icon " aria-hidden="true"><use href="#i-alert"/></svg></span><div><strong>Catches mistakes</strong><span>Declined cards, double charges, unsent refunds.</span></div></li><li class="teal"><span class="how-icon"><svg class="icon " aria-hidden="true"><use href="#i-list"/></svg></span><div><strong>Makes a fix list</strong><span>Who to call, refund or retry.</span></div></li></ol></section>
+<ol class="how"><li class="violet"><span class="how-icon"><svg class="icon " aria-hidden="true"><use href="#i-id"/></svg></span><div><strong>Uses member IDs</strong><span>So two members with the same name stay separate.</span></div></li><li class="pink"><span class="how-icon"><svg class="icon " aria-hidden="true"><use href="#i-alert"/></svg></span><div><strong>Catches mistakes</strong><span>Declined cards, double charges, unsent refunds.</span></div></li><li class="teal"><span class="how-icon"><svg class="icon " aria-hidden="true"><use href="#i-list"/></svg></span><div><strong>Makes a fix list</strong><span>Who to call, refund or retry.</span></div></li></ol></section>
 
-<section class="block"><h2><span class="num">4</span>What happened</h2>
+<section class="block"><h2><span class="num">4</span>What it found</h2>
 <figure class="chart" aria-label="15 mistakes I put in on purpose. Looking members up by ID: 15 caught, 0 mistakes. Looking them up by name: 4 mistakes.">
   <figcaption>15 mistakes I put in on purpose</figcaption>
   <div class="dots-row "><span class="dots-label">My sheet, by member ID</span><span class="dots"><span class="d ok"></span><span class="d ok"></span><span class="d ok"></span><span class="d ok"></span><span class="d ok"></span><span class="d ok"></span><span class="d ok"></span><span class="d ok"></span><span class="d ok"></span><span class="d ok"></span><span class="d ok"></span><span class="d ok"></span><span class="d ok"></span><span class="d ok"></span><span class="d ok"></span></span><span class="dots-value">15 caught</span></div>
   <div class="dots-row worse"><span class="dots-label">If it looked people up by name</span><span class="dots"><span class="d ok"></span><span class="d ok"></span><span class="d ok"></span><span class="d ok"></span><span class="d ok"></span><span class="d ok"></span><span class="d ok"></span><span class="d ok"></span><span class="d ok"></span><span class="d ok"></span><span class="d ok"></span><span class="d ok"></span><span class="d ok"></span><span class="d bad"></span><span class="d bad"></span><span class="d bad extra"></span><span class="d bad extra"></span></span><span class="dots-value">4 mistakes</span></div>
   <p class="legend"><span><i class="d ok"></i>Caught right</span><span><i class="d bad"></i>Wrong</span><span><i class="d bad extra"></i>False alarm</span></p>
-  <p class="chart-note">Fake test data in a real Google Sheet.</p></figure>
+  <p class="chart-note">Made-up data in a real Google Sheet.</p></figure>
 <p>Each row of the fix list says what to do: call, refund, or retry.</p></section>
 
 <section class="block"><h2><span class="num">5</span>What I learned</h2>
@@ -48,8 +48,8 @@
 <section class="block"><h2><span class="num">6</span>Try it</h2>
 <p class="actions"><a class="btn primary" href="https://docs.google.com/spreadsheets/d/10E7Y1xSkgj9oXrpKes64kobsTme5ljlY7F1EERrffCU/edit?usp=sharing"><svg class="icon " aria-hidden="true"><use href="#i-sheet"/></svg>Open the sheet</a><a class="btn" href="code/"><svg class="icon " aria-hidden="true"><use href="#i-code"/></svg>See the code</a></p></section>
 
-<details>
-<summary>The details</summary>
+<details open>
+<summary>The fine print</summary>
 <ul>
   <li>A made-up club with 36 members and 113 payments. I planted 15 mistakes.</li>
   <li>It catches all 15 because I planted them. A wrong price would get through.</li>
