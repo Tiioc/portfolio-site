@@ -107,7 +107,7 @@ home = f"""
     <p>Catches billing mistakes and makes a daily fix list for the front desk.</p>
     {flow([("alert", "Billing mistakes", "pink"), ("sheet", "One Google Sheet", "violet"), ("list", "Daily fix list", "teal")], small=True)}
     <ul class="chips"><li class="chip"><b>15 of 15</b> mistakes caught</li><li class="chip"><b>0</b> same-name mix-ups</li></ul>
-    <p class="actions"><a class="btn primary" href="member-billing/">See how it works</a><a class="btn" href="https://docs.google.com/spreadsheets/d/10E7Y1xSkgj9oXrpKes64kobsTme5ljlY7F1EERrffCU/edit?usp=sharing">{ic("sheet")}Open the sheet</a></p>
+    <p class="actions"><a class="btn primary" href="member-billing/">See how it works</a><a class="btn" href="https://docs.google.com/spreadsheets/d/1F_MrU0XxCY8uG9Ryjuv_wpOlGj6v7UtjT_gvkpw3xWQ/edit?usp=sharing">{ic("sheet")}Open the sheet</a></p>
   </article>
 </section>
 
@@ -226,7 +226,7 @@ billing = f"""
 <p>Looking people up by name breaks fast, even with one shared name.</p></section>
 
 <section class="block"><h2><span class="num">6</span>Try it</h2>
-<p class="actions"><a class="btn primary" href="https://docs.google.com/spreadsheets/d/10E7Y1xSkgj9oXrpKes64kobsTme5ljlY7F1EERrffCU/edit?usp=sharing">{ic("sheet")}Open the sheet</a><a class="btn" href="code/">{ic("code")}See the code</a></p></section>
+<p class="actions"><a class="btn primary" href="https://docs.google.com/spreadsheets/d/1F_MrU0XxCY8uG9Ryjuv_wpOlGj6v7UtjT_gvkpw3xWQ/edit?usp=sharing">{ic("sheet")}Open the sheet</a><a class="btn" href="code/">{ic("code")}See the code</a></p></section>
 
 <details>
 <summary>The details</summary>
