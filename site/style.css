@@ -263,6 +263,7 @@ ol.how span { color: var(--muted); font-size: 0.95rem; }
   background: linear-gradient(90deg, color-mix(in srgb, var(--tone) 70%, #000), var(--tone)); box-shadow: 0 0 18px -4px var(--tone); }
 .hbar-value { font-weight: 700; font-size: 1.05rem; white-space: nowrap; color: var(--tone-t); }
 .chart-note { margin: 0.5rem 0 0 !important; font-size: 0.7rem !important; }
+.hbar-row-plain { display: flex; justify-content: space-between; align-items: baseline; gap: 0.6rem; padding-top: 0.75rem; margin-top: 0.2rem; border-top: 1px dashed var(--line-2); --tone: var(--cyan); --tone-t: var(--cyan-t); }
 
 .dots-row { display: grid; grid-template-columns: 1fr auto; gap: 0.45rem 0.8rem; align-items: center; margin-bottom: 1.1rem; }
 .dots-label { grid-column: 1 / -1; }

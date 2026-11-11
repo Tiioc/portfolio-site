@@ -95,7 +95,7 @@ home = f"""
   <p class="intro">These are small projects I built by combining my personal experience, what I've learned in my classes, and real problems I ran into at work.</p>
 
   <article class="project-card teal">
-    <div class="pc-head"><span class="pc-icon">{ic("inbox")}</span><div><h3>InboxOwner</h3><p class="pc-tags">Fake test data · v2</p></div></div>
+    <div class="pc-head"><span class="pc-icon">{ic("inbox")}</span><div><h3>InboxOwner</h3><p class="pc-tags">Tested on made-up data</p></div></div>
     <p>Shows who owns each email in a shared inbox, and who is still waiting.</p>
     {flow([("inbox", "Emails get lost", "pink"), ("user", "Every email gets an owner", "violet"), ("clock", "See who's waiting", "teal")], small=True)}
     <ul class="chips"><li class="chip"><b>18.7 vs 1.2 hrs</b> wait</li><li class="chip"><b>87%</b> sorted right</li></ul>
@@ -103,7 +103,7 @@ home = f"""
   </article>
 
   <article class="project-card pink">
-    <div class="pc-head"><span class="pc-icon">{ic("card")}</span><div><h3>Member Billing Tracker</h3><p class="pc-tags">Fake test data · v1</p></div></div>
+    <div class="pc-head"><span class="pc-icon">{ic("card")}</span><div><h3>Member Billing Tracker</h3><p class="pc-tags">Tested on made-up data</p></div></div>
     <p>Catches billing mistakes and makes a daily fix list for the front desk.</p>
     {flow([("alert", "Billing mistakes", "pink"), ("sheet", "One Google Sheet", "violet"), ("list", "Daily fix list", "teal")], small=True)}
     <ul class="chips"><li class="chip"><b>15 of 15</b> mistakes caught</li><li class="chip"><b>0</b> same-name mix-ups</li></ul>
@@ -123,7 +123,7 @@ home = f"""
   <h2 class="sub">How I work</h2>
   <p>I fix the process first, then find a tool. When I build with AI, I set the rules and check every number myself.</p>
 
-  <h2 class="sub">Experience</h2>
+  <h2 class="sub">Experience and school</h2>
   <ul class="timeline">
     <li><span class="t-icon violet">{ic("briefcase")}</span><div><strong>The Paseo Club</strong><span class="when">Dec 2024 – Dec 2025 · Santa Clarita, CA</span><span>Front Desk, then Membership Advisor. Check-ins, email routing, billing fixes, payment disputes and refunds in HubSpot.</span></div></li>
     <li><span class="t-icon teal">{ic("briefcase")}</span><div><strong>Outback Steakhouse</strong><span class="when">Dec 2025 – Jun 2026 · Santa Clarita</span><span>Busser, promoted to food runner within six months.</span></div></li>
@@ -144,8 +144,9 @@ page("index.html", "Tyler Bunn", "Tyler Bunn, Project Management student at Bois
 def chart_waits():
     rows = [("Cancellation emails", 18.7, "pink"), ("Trial questions", 1.2, "teal")]
     bars = "".join(f'<div class="hbar {tone}"><span class="hbar-label">{lab}</span><span class="hbar-track"><span class="hbar-area"><span class="hbar-fill" style="width:{v / 18.7 * 100:.1f}%"></span></span><span class="hbar-value">{v} hrs</span></span></div>' for lab, v, tone in rows)
-    return f'''<figure class="chart" aria-label="Typical wait for a first reply: cancellation emails 18.7 hours, trial questions 1.2 hours.">
+    return f'''<figure class="chart" aria-label="Typical wait for a first reply: cancellation emails 18.7 hours, trial questions 1.2 hours. Sorted right: 87%.">
   <figcaption>Wait for a first reply</figcaption>{bars}
+  <div class="hbar-row-plain"><span class="hbar-label">Sorted right</span><span class="hbar-value">87%</span></div>
   <p class="chart-note">Open hours only. Fake test data.</p></figure>'''
 
 inbox = f"""
@@ -168,11 +169,10 @@ inbox = f"""
         ("tag", "Sorts new mail", "Guesses the topic or asks a person.", "amber")])}</section>
 
 <section class="block"><h2><span class="num">4</span>What happened</h2>
-{chart_waits()}
-<p>It also sorted 87% of new emails right.</p></section>
+{chart_waits()}</section>
 
 <section class="block"><h2><span class="num">5</span>What I learned</h2>
-<p>My first rules only knew old examples, and "lease" even matched inside "please."</p></section>
+<p>My first rules only knew old examples. One even matched "lease" inside "please."</p></section>
 
 <section class="block"><h2><span class="num">6</span>Try it</h2>
 <p class="actions"><a class="btn primary" href="demo/">{ic("play")}Try the demo</a><a class="btn" href="code/">{ic("code")}See the code</a></p></section>
@@ -196,7 +196,7 @@ def chart_billing():
     return f'''<figure class="chart" aria-label="15 planted mistakes. Looking members up by ID: 15 caught, 0 mistakes. Looking them up by name: 4 mistakes.">
   <figcaption>15 planted mistakes</figcaption>
   {row("My sheet, by member ID", ["ok"] * 15, "15 caught")}
-  {row("Same sheet, by name", ["ok"] * 13 + ["bad"] * 2 + ["bad extra"] * 2, "4 mistakes", "worse")}
+  {row("If it looked people up by name", ["ok"] * 13 + ["bad"] * 2 + ["bad extra"] * 2, "4 mistakes", "worse")}
   <p class="legend"><span><i class="d ok"></i>Caught right</span><span><i class="d bad"></i>Wrong</span><span><i class="d bad extra"></i>False alarm</span></p>
   <p class="chart-note">Fake test data in a real Google Sheet.</p></figure>'''
 
