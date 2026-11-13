@@ -474,6 +474,12 @@ body.t-o2c::after { background-image: none; }
 .g-long rect { fill: rgba(251, 111, 125, 0.4); }
 .g-short rect { fill: var(--amber); filter: drop-shadow(0 0 6px rgba(245, 165, 36, 0.6)); }
 .g-arrow { stroke: var(--muted); stroke-width: 2; }
+.g-win { stroke: rgba(252, 210, 122, 0.7); stroke-width: 1.6; } .g-windots circle { fill: rgba(252, 210, 122, 0.7); }
+.gfx-lines .g-long rect { fill: rgba(252, 210, 122, 0.35); }
+.g-globe { stroke: var(--amber); stroke-width: 1.8; filter: drop-shadow(0 0 6px rgba(245, 165, 36, 0.5)); }
+.g-live { fill: var(--green); animation: blip 3s ease-in-out infinite; }
+.readout .hbar-row-plain:first-of-type { border-top: 0; padding-top: 0; margin-top: 0; }
+.readout .hbar-value { font-size: 1.3rem; }
 
 /* ---------- Minimal pass: fewer boxes, more air ---------- */
 .section { margin-top: 4rem; }

@@ -112,11 +112,13 @@ def gfx(kind):
                     f'<rect class="g-tag" x="{x-27}" y="84" width="54" height="20" rx="5"/><text class="g-id" x="{x}" y="98" text-anchor="middle">{tag}</text>')
         body = (person(176, "M-1012") + person(256, "M-1031") + '<text class="g-neq" x="216" y="52" text-anchor="middle">≠</text>'
                 '<g class="g-grid">' + "".join(f'<circle cx="{24 + c * 18}" cy="{36 + r * 18}" r="4"/>' for r in range(3) for c in range(5)) + '</g>')
-    else:                  # This site: many lines cut down to a few
-        long = [96, 84, 100, 72, 92, 60, 88]
-        body = ('<g class="g-long">' + "".join(f'<rect x="20" y="{14 + i * 14}" width="{w}" height="6" rx="3"/>' for i, w in enumerate(long)) + '</g>'
-                '<path class="g-arrow" d="M140 60h34m-10-9 10 9-10 9"/>'
-                '<g class="g-short"><rect x="196" y="38" width="84" height="8" rx="4"/><rect x="196" y="56" width="62" height="8" rx="4"/><rect x="196" y="74" width="74" height="8" rx="4"/></g>')
+    else:                  # This site: a page going online
+        body = ('<g class="g-win"><rect x="22" y="22" width="110" height="78" rx="8"/><path d="M22 40h110"/></g>'
+                '<g class="g-windots"><circle cx="34" cy="31" r="2.5"/><circle cx="43" cy="31" r="2.5"/><circle cx="52" cy="31" r="2.5"/></g>'
+                '<g class="g-long"><rect x="34" y="52" width="60" height="6" rx="3"/><rect x="34" y="66" width="84" height="6" rx="3"/><rect x="34" y="80" width="46" height="6" rx="3"/></g>'
+                '<path class="g-arrow" d="M148 60h34m-10-9 10 9-10 9"/>'
+                '<g class="g-globe"><circle cx="238" cy="60" r="34"/><path d="M204 60h68M238 26c-18 18-18 50 0 68M238 26c18 18 18 50 0 68"/></g>'
+                '<circle class="g-live" cx="262" cy="36" r="6"/>')
     return f'<svg class="gfx gfx-{kind}" viewBox="0 0 300 120" aria-hidden="true" focusable="false">{body}</svg>'
 
 def orbit():
@@ -169,8 +171,8 @@ home = f"""
     <div class="read"><b>15 of 15</b><span>mistakes caught</span></div>
   </a>
   <a class="mrow amber" href="this-site/">
-    <div><h3>This site {ic("arrow")}</h3><p>My portfolio, rebuilt until a recruiter could read it on a phone.</p></div>
-    <div class="read"><b>{WORDS_BEFORE:,} → __NOW__</b><span>words on one page</span></div>
+    <div><h3>This site {ic("arrow")}</h3><p>My portfolio. I planned it, directed the build and put it online.</p></div>
+    <div class="read"><b>3 projects</b><span>and 1 live demo</span></div>
   </a>
   <p class="chart-note">Both tools were tested on made-up data.</p>
 </section>
@@ -374,12 +376,11 @@ def count_words(path):
     return len(_html.unescape(_re.sub(r"<[^>]+>", " ", src)).split())
 NOW = count_words("inboxowner/index.html")
 
-def chart_words():
-    rows = [("First version", WORDS_BEFORE, "pink"), ("Now", NOW, "teal")]
-    bars = "".join(f'<div class="hbar {tone}"><span class="hbar-label">{lab}</span><span class="hbar-track"><span class="hbar-area"><span class="hbar-fill" style="width:{v / WORDS_BEFORE * 100:.1f}%"></span></span><span class="hbar-value">{v:,}</span></span></div>' for lab, v, tone in rows)
-    return f'''<figure class="chart" aria-label="Words on the InboxOwner page: {WORDS_BEFORE:,} in the first version, {NOW} now.">
-  <figcaption>Words on the InboxOwner page</figcaption>{bars}
-  <p class="chart-note">Counted by a script, the same way both times.</p></figure>'''
+def readout():
+    rows = [("Projects", "3"), ("Live demo", "1"), ("Shared sheet", "1"), ("Checks on the demo", "29")]
+    body = "".join(f'<div class="hbar-row-plain"><span class="hbar-label">{k}</span><span class="hbar-value">{v}</span></div>' for k, v in rows)
+    return f'''<figure class="chart readout" aria-label="What is online: 3 projects, 1 live demo, 1 shared sheet, 29 checks on the demo.">
+{body}</figure>'''
 
 thissite = f"""
 <header class="page-head amber">
@@ -390,22 +391,21 @@ thissite = f"""
 </header>
 
 <section class="block"><h2><span class="num">1</span>The problem</h2>
-<p>My first portfolio read like a report. A recruiter on a phone would not finish it.</p></section>
+<p>A resume can't show a working demo. I needed one place to show my projects.</p></section>
 
 <section class="block"><h2><span class="num">2</span>What I made</h2>
-<p>This site. Claude Code wrote the code. I set the rules and checked every word and number.</p></section>
+<p>This site. Claude Code wrote the code. I planned it and checked every word and number.</p></section>
 
 <section class="block"><h2><span class="num">3</span>How it works</h2>
-{steps([("pen", "Rules first", "Short sentences, plain words, no made-up numbers.", "violet"),
-        ("check", "Checked every change", "A script catches long sentences and jargon.", "teal"),
-        ("phone", "Phone first", "Every page gets tested at phone size.", "amber")])}</section>
+{steps([("pen", "Planned it", "Who reads it, and what they need first.", "violet"),
+        ("code", "Built it plain", "HTML and CSS. No frameworks.", "teal"),
+        ("globe", "Put it online", "Hosted on Netlify. Tested on a phone.", "amber")])}</section>
 
-<section class="block"><h2><span class="num">4</span>What it found</h2>
-{chart_words()}
-<p>So the fix was cutting, not adding. Short pages get read.</p></section>
+<section class="block"><h2><span class="num">4</span>What's online</h2>
+{readout()}</section>
 
 <section class="block"><h2><span class="num">5</span>What I learned</h2>
-<p>Cutting is harder than adding. Every extra word hides the point.</p></section>
+<p>Check every number against its source before it goes online.</p></section>
 
 <section class="block"><h2><span class="num">6</span>Try it</h2>
 <p class="actions"><a class="btn primary" href="../">{ic("home")}Back to the home page</a><a class="btn" href="../inboxowner/demo/">{ic("play")}Try the demo</a></p></section>
@@ -415,14 +415,13 @@ thissite = f"""
 <details>
 <summary>The fine print</summary>
 <ul>
-  <li>Plain HTML and CSS. No frameworks.</li>
-  <li>This is the fourth design. The words came before the space look.</li>
-  <li>The demo has its own 29 checks. They run after every change.</li>
+  <li>Plain HTML and CSS, hosted on Netlify.</li>
+  <li>Every page is tested at phone size before it goes live.</li>
+  <li>The demo has its own 29 checks.</li>
 </ul>
 </details>
 """
-page("this-site/index.html", "This site, by Tyler Bunn", "How I rebuilt my portfolio until a recruiter could read it on a phone.", thissite, 1, theme="site")
-home = home.replace("__NOW__", str(NOW))
+page("this-site/index.html", "This site, by Tyler Bunn", "How I planned my portfolio, directed the build and put it online.", thissite, 1, theme="site")
 page("index.html", "Tyler Bunn", "Tyler Bunn, Project Management student at Boise State, looking for operations, coordinator and front office roles in Seattle. Available now.", home, 0, current="projects")
 
 # ---------------------------------------------------------------------------- 404 (Netlify serves /404.html for any missing page)
