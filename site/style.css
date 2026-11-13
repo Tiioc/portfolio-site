@@ -345,8 +345,71 @@ button.plain:hover, select:hover { border-color: var(--cyan); }
 .retired .lead { font-size: 1.15rem; color: var(--muted); max-width: 32rem; margin: 0.4rem 0 1.4rem; }
 .small-link { margin-top: 1rem; font-size: 0.9rem; }
 
+/* ---------- Hero orbit graphic (decorative, slow, pauses for reduced motion) ---------- */
+.hero { overflow: visible; }
+.orbit { position: absolute; top: -18px; right: -20px; width: 230px; height: 230px; pointer-events: none; opacity: 0.85; }
+.orbit .ring { stroke: rgba(143, 227, 239, 0.28); stroke-width: 1.2; vector-effect: non-scaling-stroke; }
+.orbit .halo { stroke: rgba(34, 211, 238, 0.35); stroke-width: 1; stroke-dasharray: 3 6; }
+.orbit .core { filter: drop-shadow(0 0 14px rgba(34, 211, 238, 0.8)); }
+.orbit .sat.c1 { fill: var(--cyan); } .orbit .sat.c2 { fill: var(--amber); } .orbit .sat.c3 { fill: var(--coral); }
+.orbit-spin { transform-origin: 0 0; animation: orbit 26s linear infinite; }
+.orbit-spin.s1 { animation-duration: 44s; animation-direction: reverse; }
+.orbit-spin.s2 { animation-duration: 70s; }
+@keyframes orbit { to { transform: rotate(360deg); } }
+.hero > :not(.orbit) { position: relative; }
+
+/* ---------- Process strip: how both projects were made ---------- */
+ol.process { list-style: none; padding: 0; margin: 1.2rem 0 0; display: grid; gap: 0; position: relative; }
+ol.process li { position: relative; display: grid; grid-template-columns: 44px 1fr; column-gap: 0.9rem; margin: 0; padding: 0 0 1.1rem; }
+ol.process li:last-child { padding-bottom: 0; }
+ol.process li::before { content: ""; position: absolute; left: 21px; top: 44px; bottom: 0; width: 2px; background: linear-gradient(var(--cyan), var(--indigo)); opacity: 0.5; }
+ol.process li:last-child::before { display: none; }
+.p-dot { grid-row: span 2; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; color: var(--cyan-t);
+  background: var(--bg); border: 1px solid rgba(34, 211, 238, 0.6); box-shadow: 0 0 18px -6px var(--cyan); }
+.p-dot .icon { width: 20px; height: 20px; }
+ol.process strong { align-self: end; }
+ol.process li > span:last-child { color: var(--muted); font-size: 0.92rem; }
+
+/* ---------- "A peek" mock panels ---------- */
+.peek { position: relative; margin: 1.2rem 0 0; padding: 1.1rem 1rem 0.9rem; border-radius: var(--radius); background: var(--surface); border: 1px solid var(--line); }
+.peek figcaption { font-family: var(--mono); font-weight: 700; font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 0.8rem; display: flex; align-items: center; gap: 0.6rem; }
+.peek figcaption::before { content: ""; width: 8px; height: 8px; border-radius: 2px; background: var(--tone); box-shadow: 0 0 8px var(--tone); }
+.peek-row { display: flex; align-items: center; gap: 0.7rem; padding: 0.65rem 0; border-top: 1px solid var(--line); }
+.peek-row > div { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.peek-row strong { font-size: 0.95rem; }
+.peek-row strong i { font-style: normal; font-family: var(--mono); font-size: 0.72rem; color: var(--muted); font-weight: 500; margin-left: 0.3rem; }
+.peek-row div span { font-size: 0.82rem; color: var(--muted); }
+.act { flex: none; width: 6.3rem; text-align: center; font-family: var(--mono); font-size: 0.72rem; font-weight: 700; padding: 0.35rem 0.3rem; border-radius: 6px; }
+.a-call { color: var(--indigo-t); background: rgba(109, 124, 255, 0.14); border: 1px solid rgba(109, 124, 255, 0.5); }
+.a-retry { color: var(--amber-t); background: rgba(245, 165, 36, 0.12); border: 1px solid rgba(245, 165, 36, 0.5); }
+.a-refund { color: var(--coral-t); background: rgba(251, 111, 125, 0.12); border: 1px solid rgba(251, 111, 125, 0.5); }
+.amt { font-family: var(--mono); font-weight: 700; font-size: 0.9rem; }
+.own { flex: none; font-family: var(--mono); font-size: 0.72rem; font-weight: 700; color: var(--cyan-t); padding: 0.3rem 0.55rem; border-radius: 999px; background: rgba(34, 211, 238, 0.1); border: 1px solid rgba(34, 211, 238, 0.45); }
+.peek .chart-note { padding-top: 0.6rem; border-top: 1px solid var(--line); }
+
+/* ---------- Next project link ---------- */
+a.next { display: grid; grid-template-columns: 1fr auto; align-items: center; margin-top: 2.8rem; padding: 1rem 1.1rem; border-radius: var(--radius-sm); text-decoration: none;
+  color: var(--fg); background: var(--surface); border: 1px solid var(--line); transition: border-color 0.2s ease, transform 0.2s ease; }
+a.next span { grid-column: 1; font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+a.next strong { grid-column: 1; font-size: 1.1rem; }
+a.next .icon { grid-column: 2; grid-row: 1 / span 2; color: var(--cyan); width: 22px; height: 22px; transition: transform 0.2s ease; }
+a.next:hover { border-color: var(--cyan); transform: translateY(-2px); }
+a.next:hover .icon { transform: translateX(4px); }
+a.next + details { margin-top: 1rem; }
+
+/* ---------- 404 ---------- */
+.lost { position: relative; min-height: 46vh; padding-top: 3rem; }
+.lost .orbit { top: 0; right: 0; }
+.lost h1 { margin: 0.3rem 0 0.6rem; }
+
 /* ---------- Bigger screens ---------- */
 @media (min-width: 640px) {
+  .orbit { width: 340px; height: 340px; top: -30px; right: -40px; opacity: 1; }
+  ol.process { grid-template-columns: repeat(4, 1fr); gap: 0.8rem; }
+  ol.process li { grid-template-columns: 1fr; row-gap: 0.25rem; padding: 0; }
+  ol.process li::before { left: 44px; right: -0.8rem; top: 21px; bottom: auto; width: auto; height: 2px; background: linear-gradient(90deg, var(--cyan), var(--indigo)); }
+  .p-dot { grid-row: auto; margin-bottom: 0.5rem; }
+  .peek { padding: 1.2rem 1.3rem 1rem; }
   .cards3 { grid-template-columns: repeat(3, 1fr); }
   .mini-card { flex-direction: column; padding-left: 1.3rem; }
   ol.how { grid-template-columns: repeat(3, 1fr); }
@@ -356,6 +419,14 @@ button.plain:hover, select:hover { border-color: var(--cyan); }
   .hero { padding-top: 2.2rem; }
 }
 @media (max-width: 420px) {
+  .orbit { width: 190px; height: 190px; right: -16px; top: -10px; opacity: 0.7; }
+  .act { width: 5.4rem; font-size: 0.66rem; }
+  .peek.teal .peek-row { flex-wrap: wrap; row-gap: 0.4rem; }
+  .peek.teal .peek-row > div { flex-basis: 100%; }
+  .lost { padding-top: 11rem; }
+  .lost .orbit { top: -6px; right: auto; left: -10px; }
+  .peek-row { gap: 0.55rem; }
+  .pill { font-size: 0.64rem; }
   body { font-size: 16px; }
   .page { padding: 0 1rem 3rem; }
   nav.site { margin: 0 -1rem 1.6rem; padding: 0.75rem 1rem; }

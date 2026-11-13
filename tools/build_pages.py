@@ -23,6 +23,9 @@ ICONS = {
     "up": '<path d="M7 17 17 7M8 7h9v9"/>',
     "school": '<path d="M22 10 12 5 2 10l10 5 10-5z"/><path d="M6 12v5c3 2 9 2 12 0v-5"/>',
     "briefcase": '<rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/>',
+    "eye": '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+    "pen": '<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/>',
+    "home": '<path d="M3 11 12 3l9 8"/><path d="M5 10v10h14V10"/>',
     "link": '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
 }
 SPRITE = '<svg width="0" height="0" style="position:absolute" aria-hidden="true">' + "".join(
@@ -30,8 +33,10 @@ SPRITE = '<svg width="0" height="0" style="position:absolute" aria-hidden="true"
     for k, v in ICONS.items()) + "</svg>"
 ic = lambda name, cls="": f'<svg class="icon {cls}" aria-hidden="true"><use href="#i-{name}"/></svg>'
 
-def page(path, title, desc, body, depth, current=None, script=""):
-    up = "../" * depth
+SITE = "https://tylerbunn.netlify.app/"
+def page(path, title, desc, body, depth, current=None, script="", og="general", absolute=False):
+    up = "/" if absolute else "../" * depth
+    url = SITE + path.replace("index.html", "")
     cur = ' aria-current="page"'
     nav = "".join(f'<a href="{up}#{k}"{cur if k == current else ""}>{v}</a>'
                   for k, v in [("projects", "Projects"), ("work", "Work"), ("contact", "Contact")])
@@ -43,6 +48,14 @@ def page(path, title, desc, body, depth, current=None, script=""):
 <title>{title}</title>
 <meta name="description" content="{desc}">
 <meta name="author" content="Tyler Bunn">
+<meta property="og:type" content="website">
+<meta property="og:title" content="{title}">
+<meta property="og:description" content="{desc}">
+<meta property="og:url" content="{url}">
+<meta property="og:image" content="{SITE}og/{og}.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="627">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap">
@@ -80,9 +93,30 @@ def steps(items):
         f'<li class="{tone}"><span class="how-icon">{ic(icon)}</span><div><strong>{t}</strong><span>{d}</span></div></li>'
         for icon, t, d, tone in items) + "</ol>"
 
+def orbit():
+    """Decorative hero graphic: three tilted orbits with slow-moving dots. Pure SVG + CSS."""
+    rings = "".join(
+        f'<g class="orbit-spin s{i}"><circle r="{r}" fill="none" class="ring"/><circle cx="{r}" r="{d}" class="sat {tone}"/></g>'
+        for i, (r, d, tone) in enumerate([(70, 6, "c1"), (115, 8, "c2"), (165, 6, "c3")]))
+    return ('<svg class="orbit" viewBox="-190 -190 380 380" aria-hidden="true" focusable="false">'
+            '<defs><radialGradient id="core" cx="35%" cy="35%"><stop offset="0" stop-color="#7fe7f5"/><stop offset="1" stop-color="#6d7cff"/></radialGradient></defs>'
+            f'<g transform="rotate(-24) scale(1 .42)">{rings}</g>'
+            '<circle r="20" fill="url(#core)" class="core"/><circle r="34" fill="none" class="halo"/></svg>')
+
+def process():
+    """How both projects were made: four steps on one line."""
+    items = [("eye", "Spot it", "A real problem from work"), ("pen", "Write the rules", "What counts as a mistake"),
+             ("code", "Direct the build", "Claude Code writes the code"), ("check", "Test it", "On new cases, then fix")]
+    cells = "".join(f'<li><span class="p-dot">{ic(icon)}</span><strong>{t}</strong><span>{d}</span></li>' for icon, t, d in items)
+    return f'<ol class="process">{cells}</ol>'
+
+def nextlink(href, label):
+    return f'<a class="next" href="{href}"><span>Next project</span><strong>{label}</strong>{ic("arrow")}</a>'
+
 # ---------------------------------------------------------------------------- homepage
 home = f"""
 <header class="hero">
+  {orbit()}
   <img class="avatar" src="me.jpg" width="88" height="88" alt="Tyler Bunn">
   <p class="hello">Hi, I'm</p>
   <h1>Tyler Bunn</h1>
@@ -123,6 +157,7 @@ home = f"""
 
   <h2 class="sub">How I work</h2>
   <p>I learn how things work before I suggest changes. When I build with AI, I set the rules and check every number myself.</p>
+  {process()}
 
   <h2 class="sub">Experience and school</h2>
   <ul class="timeline">
@@ -162,7 +197,15 @@ inbox = f"""
 <p>At The Paseo Club, every department's email came to the front desk. Nobody could tell who had answered what.</p></section>
 
 <section class="block"><h2><span class="num">2</span>What I made</h2>
-<p>A tool that gives every email an owner and shows who is still waiting. Claude Code wrote the code. I set the rules and tested every number.</p></section>
+<p>A tool that gives every email an owner and shows who is still waiting. Claude Code wrote the code. I set the rules and tested every number.</p>
+
+<figure class="peek teal" role="img" aria-label="A peek at the demo: three late emails, each with one owner.">
+  <figcaption>A peek at the demo</figcaption>
+  <div class="peek-row"><div><strong>Free trial?</strong><span>Mateo Fischer · Trial inquiries</span></div><span class="pill late">Late by 81 hrs</span><span class="own">Jordan</span></div>
+  <div class="peek-row"><div><strong>Cancel membership</strong><span>Casey Haddad · Cancellations</span></div><span class="pill late">Late by 79 hrs</span><span class="own">Maya</span></div>
+  <div class="peek-row"><div><strong>Hold request</strong><span>Avery Moreno · Membership freezes</span></div><span class="pill late">Late by 64 hrs</span><span class="own">Jordan</span></div>
+  <p class="chart-note">Made-up emails. Owners are the ones the demo suggests.</p>
+</figure></section>
 
 <section class="block"><h2><span class="num">3</span>How it works</h2>
 {steps([("tag", "Sorts new mail", "Guesses the topic or asks a person.", "amber"),
@@ -179,6 +222,8 @@ inbox = f"""
 <section class="block"><h2><span class="num">6</span>Try it</h2>
 <p class="actions"><a class="btn primary" href="demo/">{ic("play")}Try the demo</a><a class="btn" href="code/">{ic("code")}See the code</a></p></section>
 
+{nextlink("../member-billing/", "Member Billing Tracker")}
+
 <details open>
 <summary>The fine print</summary>
 <ul>
@@ -188,7 +233,7 @@ inbox = f"""
 </ul>
 </details>
 """
-page("inboxowner/index.html", "InboxOwner, by Tyler Bunn", "A simple tool that shows who owns each email in a shared inbox. Tested on made-up data.", inbox, 1)
+page("inboxowner/index.html", "InboxOwner, by Tyler Bunn", "A simple tool that shows who owns each email in a shared inbox. Tested on made-up data.", inbox, 1, og="inboxowner")
 
 # ---------------------------------------------------------------------------- Member Billing
 def chart_billing():
@@ -214,7 +259,15 @@ billing = f"""
 <p>At The Paseo Club, I handled dues, refunds and failed payments. I once charged the wrong member because two members had the same name.</p></section>
 
 <section class="block"><h2><span class="num">2</span>What I made</h2>
-<p>A Google Sheet that catches billing mistakes and lists what to fix. Claude Code wrote the formulas and script. I set the rules and tested it.</p></section>
+<p>A Google Sheet that catches billing mistakes and lists what to fix. Claude Code wrote the formulas and script. I set the rules and tested it.</p>
+<figure class="peek pink" role="img" aria-label="A peek at the fix list: four rows, each starting with what to do.">
+  <figcaption>A peek at the fix list</figcaption>
+  <div class="peek-row"><span class="act a-call">Call</span><div><strong>Mia Shaw <i>M-1013</i></strong><span>Member disputed this charge</span></div><span class="amt">$189</span></div>
+  <div class="peek-row"><span class="act a-retry">Retry card</span><div><strong>Sam Jensen <i>M-1019</i></strong><span>Card declined, not retried</span></div><span class="amt">$95</span></div>
+  <div class="peek-row"><span class="act a-refund">Refund</span><div><strong>Felix Reyes <i>M-1006</i></strong><span>Charged twice this month</span></div><span class="amt">$189</span></div>
+  <div class="peek-row"><span class="act a-refund">Send refund</span><div><strong>Chris Morgan <i>M-1031</i></strong><span>Refund approved, never sent</span></div><span class="amt">$95</span></div>
+  <p class="chart-note">4 of the 15 rows. Made-up members.</p>
+</figure></section>
 
 <section class="block"><h2><span class="num">3</span>How it works</h2>
 {steps([("id", "Uses member IDs", "So two members with the same name stay separate.", "violet"),
@@ -231,6 +284,8 @@ billing = f"""
 <section class="block"><h2><span class="num">6</span>Try it</h2>
 <p class="actions"><a class="btn primary" href="https://docs.google.com/spreadsheets/d/1F_MrU0XxCY8uG9Ryjuv_wpOlGj6v7UtjT_gvkpw3xWQ/edit">{ic("sheet")}Open the sheet</a><a class="btn" href="code/">{ic("code")}See the code</a></p></section>
 
+{nextlink("../inboxowner/", "InboxOwner")}
+
 <details open>
 <summary>The fine print</summary>
 <ul>
@@ -240,7 +295,7 @@ billing = f"""
 </ul>
 </details>
 """
-page("member-billing/index.html", "Member Billing Tracker, by Tyler Bunn", "A Google Sheet that catches billing mistakes at a members' club and makes a daily fix list. Tested on made-up data.", billing, 1)
+page("member-billing/index.html", "Member Billing Tracker, by Tyler Bunn", "A Google Sheet that catches billing mistakes at a members' club and makes a daily fix list. Tested on made-up data.", billing, 1, og="member-billing")
 
 # ---------------------------------------------------------------------------- demo shell
 demo = f"""
@@ -260,7 +315,7 @@ demo = f"""
 <div id="p-owners" role="tabpanel" hidden></div>
 <div id="p-sorting" role="tabpanel" hidden></div>
 """
-page("inboxowner/demo/index.html", "InboxOwner demo", "Live demo of InboxOwner on a made-up gym inbox.", demo, 2,
+page("inboxowner/demo/index.html", "InboxOwner demo", "Live demo of InboxOwner on a made-up gym inbox.", demo, 2, og="inboxowner",
      script='<script src="demo.js" defer></script>\n')
 
 # ---------------------------------------------------------------------------- Order-to-Cash (retired; reached only from old links)
@@ -276,4 +331,16 @@ o2c = f"""
 </section>
 """
 page("order-to-cash/index.html", "Order-to-Cash Tracker, by Tyler Bunn", "An earlier project, since reworked into the Member Billing Tracker.", o2c, 1)
-print("built 5 pages")
+
+# ---------------------------------------------------------------------------- 404 (Netlify serves /404.html for any missing page)
+lost = f"""
+<section class="retired lost">
+  {orbit()}
+  <p class="hello">Error 404</p>
+  <h1>This page isn't here.</h1>
+  <p class="lead">The link may be old. Everything current is on the home page.</p>
+  <p class="actions"><a class="btn primary" href="/">{ic("home")}Go to the home page</a></p>
+</section>
+"""
+page("404.html", "Page not found · Tyler Bunn", "This page isn't here.", lost, 0, absolute=True)
+print("built 6 pages")
