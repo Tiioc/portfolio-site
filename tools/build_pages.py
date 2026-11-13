@@ -150,13 +150,6 @@ home = f"""
   <p class="status"><span class="live-dot" aria-hidden="true"></span>Available now</p>
 </header>
 
-<nav class="hub" aria-label="Quick links">
-  <a class="hub-tile teal" href="inboxowner/demo/">{ic("play")}<span>Try the demo</span></a>
-  <a class="hub-tile pink" href="https://docs.google.com/spreadsheets/d/1F_MrU0XxCY8uG9Ryjuv_wpOlGj6v7UtjT_gvkpw3xWQ/edit">{ic("sheet")}<span>Open the sheet</span></a>
-  <a class="hub-tile violet" href="#work">{ic("briefcase")}<span>How I work</span></a>
-  <a class="hub-tile amber" href="#contact">{ic("mail")}<span>Contact me</span></a>
-</nav>
-
 <section id="projects" class="section">
   <h2>Projects</h2>
   <p class="intro">These are small projects I built by combining my personal experience, what I've learned in my classes, and real problems I ran into at work.</p>
@@ -165,28 +158,27 @@ home = f"""
   <a class="project-card teal" href="inboxowner/">
     <div class="pc-head"><span class="pc-icon">{ic("inbox")}</span><div><h3>InboxOwner</h3><p class="pc-tags">Tested on made-up data</p></div></div>
     <p>Shows who owns each email in a shared inbox, and who is still waiting.</p>
-    <ul class="chips"><li class="chip">Cancel emails waited <b>18.7 hrs</b></li><li class="chip">Trial questions <b>1.2 hrs</b></li></ul>
-    <span class="more">See how it works {ic("arrow")}</span>
+    <ul class="chips"><li class="chip">Cancel emails waited <b>18.7 hrs</b></li></ul>
+    <span class="more" aria-hidden="true">{ic("arrow")}</span>
   </a>
   <a class="project-card violet" href="member-billing/">
     <div class="pc-head"><span class="pc-icon">{ic("card")}</span><div><h3>Member Billing Tracker</h3><p class="pc-tags">Tested on made-up data</p></div></div>
     <p>Catches billing mistakes and makes a daily fix list for the front desk.</p>
-    <ul class="chips"><li class="chip"><b>15 of 15</b> mistakes caught</li><li class="chip"><b>0</b> same-name mix-ups</li></ul>
-    <span class="more">See how it works {ic("arrow")}</span>
+    <ul class="chips"><li class="chip"><b>15 of 15</b> mistakes caught</li></ul>
+    <span class="more" aria-hidden="true">{ic("arrow")}</span>
   </a>
   <a class="project-card amber" href="this-site/">
     <div class="pc-head"><span class="pc-icon">{ic("globe")}</span><div><h3>This site</h3><p class="pc-tags">You're looking at it</p></div></div>
     <p>My portfolio, rebuilt until a recruiter could read it on a phone.</p>
     <ul class="chips"><li class="chip">One page went from <b>{WORDS_BEFORE:,}</b> to <b>__NOW__</b> words</li></ul>
-    <span class="more">See how it works {ic("arrow")}</span>
+    <span class="more" aria-hidden="true">{ic("arrow")}</span>
   </a>
   </div>
 </section>
 
 <section id="work" class="section">
-  <h2>Where the ideas came from</h2>
-  <p class="pc-tags">The Paseo Club · front desk</p>
-  <div class="cards3">
+  <h2>At The Paseo Club</h2>
+  <div class="cards3 plain">
     <div class="mini-card violet">{ic("mail")}<p>All department emails came through the front desk, which got messy.</p></div>
     <div class="mini-card pink">{ic("users")}<p>I once charged the wrong member. Two members had the exact same name.</p></div>
     <div class="mini-card teal">{ic("up")}<p>I learned how everything worked first, then shared ideas with my manager. I later moved into membership.</p></div>
@@ -197,7 +189,7 @@ home = f"""
   {process()}
 
   <h2 class="sub">Experience and school</h2>
-  <ul class="timeline">
+  <ul class="timeline plain">
     <li><span class="t-icon teal">{ic("briefcase")}</span><div><strong>Outback Steakhouse</strong><span class="when">Dec 2025 – Jun 2026 · Santa Clarita</span><span>Busser, promoted to food runner within six months.</span></div></li>
     <li><span class="t-icon violet">{ic("briefcase")}</span><div><strong>The Paseo Club</strong><span class="when">Dec 2024 – Oct 2025 · Santa Clarita, CA</span><span>Front Desk, then Membership Advisor. Email routing, billing fixes and refunds in HubSpot.</span></div></li>
     <li><span class="t-icon amber">{ic("briefcase")}</span><div><strong>Cooksey's Lifeguard &amp; Swim Academy</strong><span class="when">Mar 2023 – Mar 2024 · Santa Clarita</span><span>Lifeguard and swim instructor. Often the only staff member on duty.</span></div></li>
@@ -228,7 +220,6 @@ inbox = f"""
   <h1>InboxOwner</h1>
   <p class="pc-tags">Tested on made-up data</p>
 </header>
-{flow([("inbox", "Lost emails", "pink"), ("user", "One owner each", "violet"), ("clock", "See who waits", "teal")])}
 
 <section class="block"><h2><span class="num">1</span>The problem</h2>
 <p>At The Paseo Club, every department's email came to the front desk. Nobody could tell who had answered what.</p></section>
@@ -261,7 +252,7 @@ inbox = f"""
 
 {nextlink("../member-billing/", "Member Billing Tracker")}
 
-<details open>
+<details>
 <summary>The fine print</summary>
 <ul>
   <li>A made-up gym with four staff and 548 emails from 90 days.</li>
@@ -291,7 +282,6 @@ billing = f"""
   <h1>Member Billing Tracker</h1>
   <p class="pc-tags">Tested on made-up data</p>
 </header>
-{flow([("alert", "Billing mistakes", "pink"), ("id", "Member IDs", "violet"), ("list", "Daily fix list", "teal")])}
 
 <section class="block"><h2><span class="num">1</span>The problem</h2>
 <p>At The Paseo Club, I handled dues, refunds and failed payments. I once charged the wrong member because two members had the same name.</p></section>
@@ -324,7 +314,7 @@ billing = f"""
 
 {nextlink("../this-site/", "This site")}
 
-<details open>
+<details>
 <summary>The fine print</summary>
 <ul>
   <li>A made-up club with 36 members and 113 payments. I planted 15 mistakes.</li>
@@ -392,7 +382,6 @@ thissite = f"""
   <h1>This site</h1>
   <p class="pc-tags">You're looking at it</p>
 </header>
-{flow([("list", "Too many words", "pink"), ("pen", "Clear rules", "violet"), ("phone", "Short pages", "teal")])}
 
 <section class="block"><h2><span class="num">1</span>The problem</h2>
 <p>My first portfolio read like a report. A recruiter on a phone would not finish it.</p></section>
@@ -417,7 +406,7 @@ thissite = f"""
 
 {nextlink("../inboxowner/", "InboxOwner")}
 
-<details open>
+<details>
 <summary>The fine print</summary>
 <ul>
   <li>Plain HTML and CSS. No frameworks.</li>

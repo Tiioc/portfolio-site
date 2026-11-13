@@ -475,8 +475,30 @@ body.t-o2c::after { background-image: none; }
 .g-short rect { fill: var(--amber); filter: drop-shadow(0 0 6px rgba(245, 165, 36, 0.6)); }
 .g-arrow { stroke: var(--muted); stroke-width: 2; }
 
+/* ---------- Minimal pass: fewer boxes, more air ---------- */
+.section { margin-top: 4rem; }
+.block { margin-top: 2.8rem; }
+.project-grid { gap: 0.8rem; }
+a.project-card { position: relative; padding: 1.2rem 3rem 1.1rem 1.2rem; }
+a.project-card::before, a.project-card::after { display: none; }
+a.project-card p { color: var(--muted); }
+a.project-card .chips { margin-bottom: 0; }
+a.project-card .more { position: absolute; top: 1.35rem; right: 1.1rem; }
+.cards3.plain { gap: 0; }
+.cards3.plain .mini-card { background: none; border: 0; border-radius: 0; padding: 0.8rem 0; backdrop-filter: none; -webkit-backdrop-filter: none; border-top: 1px solid var(--line); }
+.cards3.plain .mini-card:first-child { border-top: 0; padding-top: 0.2rem; }
+.cards3.plain .mini-card::before { display: none; }
+.cards3.plain .mini-card:hover { transform: none; }
+.timeline.plain { gap: 0; }
+.timeline.plain li { background: none; border: 0; border-radius: 0; padding: 0.9rem 0; backdrop-filter: none; -webkit-backdrop-filter: none; border-top: 1px solid var(--line); }
+.timeline.plain li:first-child { border-top: 0; padding-top: 0.2rem; }
+.page-head { margin-bottom: 0; }
+body::after { opacity: 0.7; }
+
 /* ---------- Bigger screens ---------- */
 @media (min-width: 640px) {
+  .cards3.plain { grid-template-columns: 1fr; }
+  .cards3.plain .mini-card { flex-direction: row; padding-left: 0; }
   .gfx { width: 300px; height: 120px; top: -14px; }
   .hub { grid-template-columns: repeat(4, 1fr); }
   .orbit { width: 340px; height: 340px; top: -30px; right: -40px; opacity: 1; }
