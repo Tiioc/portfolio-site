@@ -26,6 +26,9 @@ ICONS = {
     "eye": '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
     "pen": '<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/>',
     "home": '<path d="M3 11 12 3l9 8"/><path d="M5 10v10h14V10"/>',
+    "globe": '<circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15 15 0 0 1 0 20a15 15 0 0 1 0-20z"/>',
+    "phone": '<rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M11 18h2"/>',
+    "scissors": '<circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4 8.1 15.9M14.5 14.5 20 20M8.1 8.1 12 12"/>',
     "link": '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
 }
 SPRITE = '<svg width="0" height="0" style="position:absolute" aria-hidden="true">' + "".join(
@@ -34,6 +37,7 @@ SPRITE = '<svg width="0" height="0" style="position:absolute" aria-hidden="true"
 ic = lambda name, cls="": f'<svg class="icon {cls}" aria-hidden="true"><use href="#i-{name}"/></svg>'
 
 SITE = "https://tylerbunn.netlify.app/"
+WORDS_BEFORE = 1349  # the first InboxOwner page: 1,002 words showing + 347 in its collapsed section
 def page(path, title, desc, body, depth, current=None, script="", og="general", absolute=False):
     up = "/" if absolute else "../" * depth
     url = SITE + path.replace("index.html", "")
@@ -125,6 +129,13 @@ home = f"""
   <p class="status"><span class="live-dot" aria-hidden="true"></span>Available now</p>
 </header>
 
+<nav class="hub" aria-label="Quick links">
+  <a class="hub-tile teal" href="inboxowner/demo/">{ic("play")}<span>Try the demo</span></a>
+  <a class="hub-tile pink" href="https://docs.google.com/spreadsheets/d/1F_MrU0XxCY8uG9Ryjuv_wpOlGj6v7UtjT_gvkpw3xWQ/edit">{ic("sheet")}<span>Open the sheet</span></a>
+  <a class="hub-tile violet" href="#work">{ic("briefcase")}<span>How I work</span></a>
+  <a class="hub-tile amber" href="#contact">{ic("mail")}<span>Contact me</span></a>
+</nav>
+
 <section id="projects" class="section">
   <h2>Projects</h2>
   <p class="intro">These are small projects I built by combining my personal experience, what I've learned in my classes, and real problems I ran into at work.</p>
@@ -143,6 +154,13 @@ home = f"""
     {flow([("alert", "Billing mistakes", "pink"), ("sheet", "One Google Sheet", "violet"), ("list", "Daily fix list", "teal")], small=True)}
     <ul class="chips"><li class="chip"><b>15 of 15</b> mistakes caught</li><li class="chip"><b>0</b> same-name mix-ups</li></ul>
     <p class="actions"><a class="btn primary" href="member-billing/">See how it works</a><a class="btn" href="https://docs.google.com/spreadsheets/d/1F_MrU0XxCY8uG9Ryjuv_wpOlGj6v7UtjT_gvkpw3xWQ/edit">{ic("sheet")}Open the sheet</a></p>
+  </article>
+  <article class="project-card amber">
+    <div class="pc-head"><span class="pc-icon">{ic("globe")}</span><div><h3>This site</h3><p class="pc-tags">You're looking at it</p></div></div>
+    <p>My portfolio, rebuilt until a recruiter could read it on a phone.</p>
+    {flow([("list", "Too many words", "pink"), ("pen", "Clear rules", "violet"), ("phone", "Short pages", "teal")], small=True)}
+    <ul class="chips"><li class="chip">One page went from <b>{WORDS_BEFORE:,}</b> to <b>__NOW__</b> words</li></ul>
+    <p class="actions"><a class="btn primary" href="this-site/">See how it works</a></p>
   </article>
 </section>
 
@@ -174,7 +192,6 @@ home = f"""
   <p class="actions"><a class="btn primary" href="mailto:itstylerbunn@gmail.com">{ic("mail")}Email me</a><a class="btn" href="https://www.linkedin.com/in/tdbunn">{ic("link")}LinkedIn</a></p>
 </section>
 """
-page("index.html", "Tyler Bunn", "Tyler Bunn, Project Management student at Boise State, looking for operations, coordinator and front office roles in Seattle. Available now.", home, 0, current="projects")
 
 # ---------------------------------------------------------------------------- InboxOwner
 def chart_waits():
@@ -284,7 +301,7 @@ billing = f"""
 <section class="block"><h2><span class="num">6</span>Try it</h2>
 <p class="actions"><a class="btn primary" href="https://docs.google.com/spreadsheets/d/1F_MrU0XxCY8uG9Ryjuv_wpOlGj6v7UtjT_gvkpw3xWQ/edit">{ic("sheet")}Open the sheet</a><a class="btn" href="code/">{ic("code")}See the code</a></p></section>
 
-{nextlink("../inboxowner/", "InboxOwner")}
+{nextlink("../this-site/", "This site")}
 
 <details open>
 <summary>The fine print</summary>
@@ -332,6 +349,65 @@ o2c = f"""
 """
 page("order-to-cash/index.html", "Order-to-Cash Tracker, by Tyler Bunn", "An earlier project, since reworked into the Member Billing Tracker.", o2c, 1)
 
+# ---------------------------------------------------------------------------- This site (the third project)
+import re as _re, html as _html
+def count_words(path):
+    src = open(ROOT + path).read()
+    src = _re.sub(r"<(head|nav|footer|svg|script)[^>]*>.*?</\1>", " ", src, flags=_re.S)
+    return len(_html.unescape(_re.sub(r"<[^>]+>", " ", src)).split())
+NOW = count_words("inboxowner/index.html")
+
+def chart_words():
+    rows = [("First version", WORDS_BEFORE, "pink"), ("Now", NOW, "teal")]
+    bars = "".join(f'<div class="hbar {tone}"><span class="hbar-label">{lab}</span><span class="hbar-track"><span class="hbar-area"><span class="hbar-fill" style="width:{v / WORDS_BEFORE * 100:.1f}%"></span></span><span class="hbar-value">{v:,}</span></span></div>' for lab, v, tone in rows)
+    return f'''<figure class="chart" aria-label="Words on the InboxOwner page: {WORDS_BEFORE:,} in the first version, {NOW} now.">
+  <figcaption>Words on the InboxOwner page</figcaption>{bars}
+  <p class="chart-note">Counted by a script, the same way both times.</p></figure>'''
+
+thissite = f"""
+<header class="page-head amber">
+  <span class="pc-icon big">{ic("globe")}</span>
+  <h1>This site</h1>
+  <p class="pc-tags">You're looking at it</p>
+</header>
+{flow([("list", "Too many words", "pink"), ("pen", "Clear rules", "violet"), ("phone", "Short pages", "teal")])}
+
+<section class="block"><h2><span class="num">1</span>The problem</h2>
+<p>My first portfolio read like a report. A recruiter on a phone would not finish it.</p></section>
+
+<section class="block"><h2><span class="num">2</span>What I made</h2>
+<p>This site. Claude Code wrote the code. I set the rules and checked every word and number.</p></section>
+
+<section class="block"><h2><span class="num">3</span>How it works</h2>
+{steps([("pen", "Rules first", "Short sentences, plain words, no made-up numbers.", "violet"),
+        ("check", "Checked every change", "A script catches long sentences and jargon.", "teal"),
+        ("phone", "Phone first", "Every page gets tested at phone size.", "amber")])}</section>
+
+<section class="block"><h2><span class="num">4</span>What it found</h2>
+{chart_words()}
+<p>So the fix was cutting, not adding. Short pages get read.</p></section>
+
+<section class="block"><h2><span class="num">5</span>What I learned</h2>
+<p>Cutting is harder than adding. Every extra word hides the point.</p></section>
+
+<section class="block"><h2><span class="num">6</span>Try it</h2>
+<p class="actions"><a class="btn primary" href="../">{ic("home")}Back to the home page</a><a class="btn" href="../inboxowner/demo/">{ic("play")}Try the demo</a></p></section>
+
+{nextlink("../inboxowner/", "InboxOwner")}
+
+<details open>
+<summary>The fine print</summary>
+<ul>
+  <li>Plain HTML and CSS. No frameworks.</li>
+  <li>This is the fourth design. The words came before the space look.</li>
+  <li>The demo has its own 29 checks. They run after every change.</li>
+</ul>
+</details>
+"""
+page("this-site/index.html", "This site, by Tyler Bunn", "How I rebuilt my portfolio until a recruiter could read it on a phone.", thissite, 1)
+home = home.replace("__NOW__", str(NOW))
+page("index.html", "Tyler Bunn", "Tyler Bunn, Project Management student at Boise State, looking for operations, coordinator and front office roles in Seattle. Available now.", home, 0, current="projects")
+
 # ---------------------------------------------------------------------------- 404 (Netlify serves /404.html for any missing page)
 lost = f"""
 <section class="retired lost">
@@ -343,4 +419,4 @@ lost = f"""
 </section>
 """
 page("404.html", "Page not found · Tyler Bunn", "This page isn't here.", lost, 0, absolute=True)
-print("built 6 pages")
+print("built 7 pages; InboxOwner page is", NOW, "words")

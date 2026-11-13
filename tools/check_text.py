@@ -1,7 +1,7 @@
 """Checks the visible text on the main pages: words, banned words, long sentences, reading level, em dashes."""
 import re, html, sys
 ROOT = "/home/user/finances/site/"
-PAGES = ["index.html", "inboxowner/index.html", "member-billing/index.html", "inboxowner/demo/index.html", "order-to-cash/index.html"]
+PAGES = ["index.html", "inboxowner/index.html", "member-billing/index.html", "inboxowner/demo/index.html", "order-to-cash/index.html", "this-site/index.html"]
 BANNED = ["system", "optimiz", "efficien", "workflow", "reconcil", "validat", "flag", "escalat", "digest",
           "threshold", "automat", "leverag", "robust", "streamlin", "data-driven"]
 GIVEN = ("These are small projects I built by combining my personal experience", "I've since reworked this project")  # lines Tyler gave word for word
