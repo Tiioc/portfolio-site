@@ -38,7 +38,7 @@ ic = lambda name, cls="": f'<svg class="icon {cls}" aria-hidden="true"><use href
 
 SITE = "https://tylerbunn.netlify.app/"
 WORDS_BEFORE = 1349  # the first InboxOwner page: 1,002 words showing + 347 in its collapsed section
-def page(path, title, desc, body, depth, current=None, script="", og="general", absolute=False):
+def page(path, title, desc, body, depth, current=None, script="", og="general", absolute=False, theme="home"):
     up = "/" if absolute else "../" * depth
     url = SITE + path.replace("index.html", "")
     cur = ' aria-current="page"'
@@ -66,7 +66,7 @@ def page(path, title, desc, body, depth, current=None, script="", og="general", 
 <link rel="stylesheet" href="{up}style.css">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%237c3aed'/%3E%3Ctext x='16' y='21' font-family='Arial' font-weight='700' font-size='14' fill='white' text-anchor='middle'%3ETB%3C/text%3E%3C/svg%3E">
 {script}</head>
-<body>
+<body class="t-{theme}">
 {SPRITE}
 <div class="page">
 <nav class="site" aria-label="Site"><a class="brand" href="{up}">Tyler Bunn</a><span class="nav-links">{nav}</span></nav>
@@ -97,6 +97,28 @@ def steps(items):
         f'<li class="{tone}"><span class="how-icon">{ic(icon)}</span><div><strong>{t}</strong><span>{d}</span></div></li>'
         for icon, t, d, tone in items) + "</ol>"
 
+def gfx(kind):
+    """One small decorative banner per project page, so the pages don't all look alike."""
+    if kind == "radar":   # InboxOwner: a radar finding waiting emails
+        body = ('<g class="g-rings"><circle cx="226" cy="60" r="18"/><circle cx="226" cy="60" r="36"/><circle cx="226" cy="60" r="54"/>'
+                '<path d="M172 60h108M226 6v108"/></g>'
+                '<g class="g-sweep"><path d="M226 60 L226 6 A54 54 0 0 1 272.8 33 Z"/></g>'
+                '<circle class="g-blip late" cx="248" cy="38" r="4.5"/><circle class="g-blip late b2" cx="200" cy="82" r="4.5"/><circle class="g-blip ok" cx="240" cy="78" r="4.5"/>'
+                '<g class="g-mail"><rect x="20" y="50" width="26" height="18" rx="3"/><path d="m20 53 13 9 13-9"/><rect x="74" y="50" width="26" height="18" rx="3"/><path d="m74 53 13 9 13-9"/>'
+                '<path class="g-dash" d="M108 59h52"/></g>')
+    elif kind == "twins":  # Member Billing: same name, different IDs
+        def person(x, tag):
+            return (f'<g class="g-person"><circle cx="{x}" cy="34" r="12"/><path d="M{x-20} 74a20 20 0 0 1 40 0"/></g>'
+                    f'<rect class="g-tag" x="{x-27}" y="84" width="54" height="20" rx="5"/><text class="g-id" x="{x}" y="98" text-anchor="middle">{tag}</text>')
+        body = (person(176, "M-1012") + person(256, "M-1031") + '<text class="g-neq" x="216" y="52" text-anchor="middle">≠</text>'
+                '<g class="g-grid">' + "".join(f'<circle cx="{24 + c * 18}" cy="{36 + r * 18}" r="4"/>' for r in range(3) for c in range(5)) + '</g>')
+    else:                  # This site: many lines cut down to a few
+        long = [96, 84, 100, 72, 92, 60, 88]
+        body = ('<g class="g-long">' + "".join(f'<rect x="20" y="{14 + i * 14}" width="{w}" height="6" rx="3"/>' for i, w in enumerate(long)) + '</g>'
+                '<path class="g-arrow" d="M140 60h34m-10-9 10 9-10 9"/>'
+                '<g class="g-short"><rect x="196" y="38" width="84" height="8" rx="4"/><rect x="196" y="56" width="62" height="8" rx="4"/><rect x="196" y="74" width="74" height="8" rx="4"/></g>')
+    return f'<svg class="gfx gfx-{kind}" viewBox="0 0 300 120" aria-hidden="true" focusable="false">{body}</svg>'
+
 def orbit():
     """Decorative hero graphic: three tilted orbits with slow-moving dots. Pure SVG + CSS."""
     rings = "".join(
@@ -125,7 +147,6 @@ home = f"""
   <p class="hello">Hi, I'm</p>
   <h1>Tyler Bunn</h1>
   <p class="role">Project Management student at Boise State, living in Mukilteo. I'm looking for operations, coordinator or front office roles in Seattle.</p>
-  <p class="role">At Paseo I learned how everything worked first, then shared ideas with my manager.</p>
   <p class="status"><span class="live-dot" aria-hidden="true"></span>Available now</p>
 </header>
 
@@ -140,33 +161,31 @@ home = f"""
   <h2>Projects</h2>
   <p class="intro">These are small projects I built by combining my personal experience, what I've learned in my classes, and real problems I ran into at work.</p>
 
-  <article class="project-card teal">
+  <div class="project-grid">
+  <a class="project-card teal" href="inboxowner/">
     <div class="pc-head"><span class="pc-icon">{ic("inbox")}</span><div><h3>InboxOwner</h3><p class="pc-tags">Tested on made-up data</p></div></div>
     <p>Shows who owns each email in a shared inbox, and who is still waiting.</p>
-    {flow([("inbox", "Emails get lost", "pink"), ("user", "Every email gets an owner", "violet"), ("clock", "See who's waiting", "teal")], small=True)}
-    <ul class="chips"><li class="chip">Cancel emails waited <b>18.7 hrs</b></li><li class="chip">Trial questions <b>1.2 hrs</b></li><li class="chip">Guessed the topic right <b>87%</b></li></ul>
-    <p class="actions"><a class="btn primary" href="inboxowner/">See how it works</a><a class="btn" href="inboxowner/demo/">{ic("play")}Try the demo</a></p>
-  </article>
-
-  <article class="project-card pink">
+    <ul class="chips"><li class="chip">Cancel emails waited <b>18.7 hrs</b></li><li class="chip">Trial questions <b>1.2 hrs</b></li></ul>
+    <span class="more">See how it works {ic("arrow")}</span>
+  </a>
+  <a class="project-card violet" href="member-billing/">
     <div class="pc-head"><span class="pc-icon">{ic("card")}</span><div><h3>Member Billing Tracker</h3><p class="pc-tags">Tested on made-up data</p></div></div>
     <p>Catches billing mistakes and makes a daily fix list for the front desk.</p>
-    {flow([("alert", "Billing mistakes", "pink"), ("sheet", "One Google Sheet", "violet"), ("list", "Daily fix list", "teal")], small=True)}
     <ul class="chips"><li class="chip"><b>15 of 15</b> mistakes caught</li><li class="chip"><b>0</b> same-name mix-ups</li></ul>
-    <p class="actions"><a class="btn primary" href="member-billing/">See how it works</a><a class="btn" href="https://docs.google.com/spreadsheets/d/1F_MrU0XxCY8uG9Ryjuv_wpOlGj6v7UtjT_gvkpw3xWQ/edit">{ic("sheet")}Open the sheet</a></p>
-  </article>
-  <article class="project-card amber">
+    <span class="more">See how it works {ic("arrow")}</span>
+  </a>
+  <a class="project-card amber" href="this-site/">
     <div class="pc-head"><span class="pc-icon">{ic("globe")}</span><div><h3>This site</h3><p class="pc-tags">You're looking at it</p></div></div>
     <p>My portfolio, rebuilt until a recruiter could read it on a phone.</p>
-    {flow([("list", "Too many words", "pink"), ("pen", "Clear rules", "violet"), ("phone", "Short pages", "teal")], small=True)}
     <ul class="chips"><li class="chip">One page went from <b>{WORDS_BEFORE:,}</b> to <b>__NOW__</b> words</li></ul>
-    <p class="actions"><a class="btn primary" href="this-site/">See how it works</a></p>
-  </article>
+    <span class="more">See how it works {ic("arrow")}</span>
+  </a>
+  </div>
 </section>
 
 <section id="work" class="section">
   <h2>Where the ideas came from</h2>
-  <p class="intro">I worked the front desk at The Paseo Club. These three things really happened.</p>
+  <p class="pc-tags">The Paseo Club · front desk</p>
   <div class="cards3">
     <div class="mini-card violet">{ic("mail")}<p>All department emails came through the front desk, which got messy.</p></div>
     <div class="mini-card pink">{ic("users")}<p>I once charged the wrong member. Two members had the exact same name.</p></div>
@@ -174,14 +193,14 @@ home = f"""
   </div>
 
   <h2 class="sub">How I work</h2>
-  <p>I learn how things work before I suggest changes. When I build with AI, I set the rules and check every number myself.</p>
+  <p>I learn how things work before I suggest changes.</p>
   {process()}
 
   <h2 class="sub">Experience and school</h2>
   <ul class="timeline">
     <li><span class="t-icon teal">{ic("briefcase")}</span><div><strong>Outback Steakhouse</strong><span class="when">Dec 2025 – Jun 2026 · Santa Clarita</span><span>Busser, promoted to food runner within six months.</span></div></li>
-    <li><span class="t-icon violet">{ic("briefcase")}</span><div><strong>The Paseo Club</strong><span class="when">Dec 2024 – Oct 2025 · Santa Clarita, CA</span><span>Front Desk, then Membership Advisor. Check-ins, email routing, billing fixes, payment disputes and refunds in HubSpot.</span></div></li>
-    <li><span class="t-icon amber">{ic("briefcase")}</span><div><strong>Cooksey's Lifeguard &amp; Swim Academy</strong><span class="when">Mar 2023 – Mar 2024 · Santa Clarita</span><span>Lifeguard and swim instructor. Often the only staff member on duty making safety calls.</span></div></li>
+    <li><span class="t-icon violet">{ic("briefcase")}</span><div><strong>The Paseo Club</strong><span class="when">Dec 2024 – Oct 2025 · Santa Clarita, CA</span><span>Front Desk, then Membership Advisor. Email routing, billing fixes and refunds in HubSpot.</span></div></li>
+    <li><span class="t-icon amber">{ic("briefcase")}</span><div><strong>Cooksey's Lifeguard &amp; Swim Academy</strong><span class="when">Mar 2023 – Mar 2024 · Santa Clarita</span><span>Lifeguard and swim instructor. Often the only staff member on duty.</span></div></li>
     <li><span class="t-icon pink">{ic("school")}</span><div><strong>Boise State University</strong><span class="when">Expected Spring 2028</span><span>B.S. in Project Management.</span></div></li>
   </ul>
 </section>
@@ -204,6 +223,7 @@ def chart_waits():
 
 inbox = f"""
 <header class="page-head teal">
+  {gfx("radar")}
   <span class="pc-icon big">{ic("inbox")}</span>
   <h1>InboxOwner</h1>
   <p class="pc-tags">Tested on made-up data</p>
@@ -250,7 +270,7 @@ inbox = f"""
 </ul>
 </details>
 """
-page("inboxowner/index.html", "InboxOwner, by Tyler Bunn", "A simple tool that shows who owns each email in a shared inbox. Tested on made-up data.", inbox, 1, og="inboxowner")
+page("inboxowner/index.html", "InboxOwner, by Tyler Bunn", "A simple tool that shows who owns each email in a shared inbox. Tested on made-up data.", inbox, 1, og="inboxowner", theme="inbox")
 
 # ---------------------------------------------------------------------------- Member Billing
 def chart_billing():
@@ -265,7 +285,8 @@ def chart_billing():
   <p class="chart-note">Made-up data in a real Google Sheet.</p></figure>'''
 
 billing = f"""
-<header class="page-head pink">
+<header class="page-head violet">
+  {gfx("twins")}
   <span class="pc-icon big">{ic("card")}</span>
   <h1>Member Billing Tracker</h1>
   <p class="pc-tags">Tested on made-up data</p>
@@ -277,7 +298,7 @@ billing = f"""
 
 <section class="block"><h2><span class="num">2</span>What I made</h2>
 <p>A Google Sheet that catches billing mistakes and lists what to fix. Claude Code wrote the formulas and script. I set the rules and tested it.</p>
-<figure class="peek pink" role="img" aria-label="A peek at the fix list: four rows, each starting with what to do.">
+<figure class="peek violet" role="img" aria-label="A peek at the fix list: four rows, each starting with what to do.">
   <figcaption>A peek at the fix list</figcaption>
   <div class="peek-row"><span class="act a-call">Call</span><div><strong>Mia Shaw <i>M-1013</i></strong><span>Member disputed this charge</span></div><span class="amt">$189</span></div>
   <div class="peek-row"><span class="act a-retry">Retry card</span><div><strong>Sam Jensen <i>M-1019</i></strong><span>Card declined, not retried</span></div><span class="amt">$95</span></div>
@@ -312,7 +333,7 @@ billing = f"""
 </ul>
 </details>
 """
-page("member-billing/index.html", "Member Billing Tracker, by Tyler Bunn", "A Google Sheet that catches billing mistakes at a members' club and makes a daily fix list. Tested on made-up data.", billing, 1, og="member-billing")
+page("member-billing/index.html", "Member Billing Tracker, by Tyler Bunn", "A Google Sheet that catches billing mistakes at a members' club and makes a daily fix list. Tested on made-up data.", billing, 1, og="member-billing", theme="billing")
 
 # ---------------------------------------------------------------------------- demo shell
 demo = f"""
@@ -332,7 +353,7 @@ demo = f"""
 <div id="p-owners" role="tabpanel" hidden></div>
 <div id="p-sorting" role="tabpanel" hidden></div>
 """
-page("inboxowner/demo/index.html", "InboxOwner demo", "Live demo of InboxOwner on a made-up gym inbox.", demo, 2, og="inboxowner",
+page("inboxowner/demo/index.html", "InboxOwner demo", "Live demo of InboxOwner on a made-up gym inbox.", demo, 2, og="inboxowner", theme="inbox",
      script='<script src="demo.js" defer></script>\n')
 
 # ---------------------------------------------------------------------------- Order-to-Cash (retired; reached only from old links)
@@ -347,7 +368,7 @@ o2c = f"""
 <p class="small-link"><a href="original/">View the original version</a></p>
 </section>
 """
-page("order-to-cash/index.html", "Order-to-Cash Tracker, by Tyler Bunn", "An earlier project, since reworked into the Member Billing Tracker.", o2c, 1)
+page("order-to-cash/index.html", "Order-to-Cash Tracker, by Tyler Bunn", "An earlier project, since reworked into the Member Billing Tracker.", o2c, 1, theme="o2c")
 
 # ---------------------------------------------------------------------------- This site (the third project)
 import re as _re, html as _html
@@ -366,6 +387,7 @@ def chart_words():
 
 thissite = f"""
 <header class="page-head amber">
+  {gfx("lines")}
   <span class="pc-icon big">{ic("globe")}</span>
   <h1>This site</h1>
   <p class="pc-tags">You're looking at it</p>
@@ -404,7 +426,7 @@ thissite = f"""
 </ul>
 </details>
 """
-page("this-site/index.html", "This site, by Tyler Bunn", "How I rebuilt my portfolio until a recruiter could read it on a phone.", thissite, 1)
+page("this-site/index.html", "This site, by Tyler Bunn", "How I rebuilt my portfolio until a recruiter could read it on a phone.", thissite, 1, theme="site")
 home = home.replace("__NOW__", str(NOW))
 page("index.html", "Tyler Bunn", "Tyler Bunn, Project Management student at Boise State, looking for operations, coordinator and front office roles in Seattle. Available now.", home, 0, current="projects")
 
