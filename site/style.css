@@ -495,8 +495,54 @@ a.project-card .more { position: absolute; top: 1.35rem; right: 1.1rem; }
 .page-head { margin-bottom: 0; }
 body::after { opacity: 0.7; }
 
+/* ============ Mission control, minimal ============ */
+/* Quiet black ground; panels are hairlines, not filled boxes. */
+:root { --bg: #04060b; --surface: transparent; }
+body, body.t-inbox, body.t-billing, body.t-site { background:
+    radial-gradient(ellipse 60% 30% at 80% -8%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 65%),
+    var(--bg); background-attachment: fixed; }
+body::before { opacity: 0.3; }
+body::after { opacity: 0.45; }
+.chart, .peek, ol.how li, details, a.next, .result, .mini, .email-card, .found li, .tabs {
+  background: transparent; -webkit-backdrop-filter: none; backdrop-filter: none; }
+.chart { background-image: none; }
+h2 { font-size: 1.2rem; }
+
+/* Homepage: fixed identity panel on the left, one scroll on the right */
+.t-home .page { max-width: 66rem; }
+.mc { display: grid; gap: 2.5rem; }
+.mc-side { position: relative; }
+.mc-side .avatar { width: 72px; height: 72px; margin-bottom: 1rem; }
+.mc-side h1 { font-size: clamp(2.6rem, 10vw, 3.4rem); letter-spacing: -0.045em; margin-bottom: 0.7rem;
+  background: linear-gradient(100deg, #fff 40%, var(--cyan-t)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.mc-side .role { font-size: 1.02rem; }
+.mc-side .orbit { top: -24px; right: -16px; width: 190px; height: 190px; opacity: 0.75; }
+.mc-side > :not(.orbit) { position: relative; }
+.mc-nav { display: none; }
+.mc-sec { padding-top: 0.5rem; margin-bottom: 3.6rem; scroll-margin-top: 5rem; }
+.mc-label { display: flex; align-items: center; gap: 0.8rem; font-family: var(--mono); font-size: 0.78rem; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); margin-bottom: 1.2rem; }
+.mc-label span { color: var(--cyan-t); }
+.mc-label::after { content: ""; flex: 1; height: 1px; background: var(--line-2); }
+.mc-sec > .intro { margin-bottom: 0.6rem; }
+.mrow { display: grid; gap: 0.5rem 1.5rem; padding: 1.25rem 0; border-top: 1px solid var(--line); text-decoration: none; color: var(--fg); position: relative; transition: padding-left 0.2s ease; }
+.mrow::before { content: ""; position: absolute; left: 0; top: -1px; width: 0; height: 1px; background: var(--tone); transition: width 0.3s ease; }
+.mrow:hover::before { width: 100%; }
+.mrow h3 { font-size: 1.3rem; display: flex; align-items: center; gap: 0.5rem; }
+.mrow h3 .icon { width: 18px; height: 18px; color: var(--tone-t); transition: transform 0.2s ease; }
+.mrow:hover h3 .icon { transform: translateX(4px); }
+.mrow p { color: var(--muted); margin: 0.25rem 0 0; font-size: 0.98rem; }
+.read { display: flex; align-items: baseline; gap: 0.6rem; }
+.read b { font-family: var(--mono); font-size: 1.25rem; color: var(--tone-t); white-space: nowrap; }
+.read span { font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.mc-sec .chart-note { border-top: 1px solid var(--line); padding-top: 0.9rem; }
+.mc-sec .timeline.plain li { padding: 1rem 0; }
+.t-home footer { margin-top: 1rem; }
+
 /* ---------- Bigger screens ---------- */
 @media (min-width: 640px) {
+  .mrow { grid-template-columns: 1fr auto; align-items: center; }
+  .read { flex-direction: column; align-items: flex-end; gap: 0.1rem; }
+  .read b { font-size: 1.4rem; }
   .cards3.plain { grid-template-columns: 1fr; }
   .cards3.plain .mini-card { flex-direction: row; padding-left: 0; }
   .gfx { width: 300px; height: 120px; top: -14px; }
@@ -538,3 +584,14 @@ body::after { opacity: 0.7; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 @media print { body { background: #fff; color: #000; } body::before, body::after, nav.site, .tabs { display: none; } }
+@media (min-width: 940px) {
+  .t-home nav.site .nav-links { display: none; }
+  .mc { grid-template-columns: 20rem 1fr; gap: 5rem; align-items: start; }
+  .mc-side { position: sticky; top: 5.5rem; padding-top: 0.5rem; }
+  .mc-side .orbit { position: relative; display: block; top: 0; right: 0; left: -30px; width: 240px; height: 150px; margin: -10px 0 0.5rem; opacity: 0.9; }
+  .mc-nav { display: grid; gap: 0.2rem; margin-top: 2.2rem; }
+  .mc-nav a { display: flex; align-items: center; gap: 0.9rem; padding: 0.4rem 0; text-decoration: none; font-family: var(--mono); font-size: 0.76rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+  .mc-nav a i { width: 28px; height: 1px; background: var(--line-2); transition: width 0.2s ease, background 0.2s ease; }
+  .mc-nav a:hover, .mc-nav a.on { color: var(--fg); }
+  .mc-nav a:hover i, .mc-nav a.on i { width: 56px; background: var(--cyan); }
+}
