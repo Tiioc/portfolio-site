@@ -149,9 +149,9 @@ home = f"""
   {orbit()}
   <img class="avatar" src="me.jpg" width="72" height="72" alt="Tyler Bunn">
   <h1>Tyler Bunn</h1>
-  <p class="role">I'm a Project Management student at Boise State. I worked a club front desk, then became a Membership Advisor. I want an operations, coordinator or front office role in Seattle.</p>
+  <p class="role">I'm a Project Management student at Boise State. I worked a club front desk, then became a Membership Advisor. I handled email routing, billing fixes and refunds. I live in Mukilteo and want an operations, coordinator or front office role in Seattle.</p>
   <p class="status"><span class="live-dot" aria-hidden="true"></span>Available now</p>
-  <p class="actions top-cta"><a class="btn" href="mailto:itstylerbunn@gmail.com">{ic("mail")}Email me</a></p>
+  <p class="actions top-cta"><a class="btn" href="mailto:itstylerbunn@gmail.com">{ic("mail")}Email me</a><a class="btn" href="https://www.linkedin.com/in/tdbunn">{ic("link")}LinkedIn</a></p>
   <nav class="mc-nav" aria-label="Sections">
     <a href="#projects"><i></i>Projects</a>
     <a href="#experience"><i></i>Experience</a>
@@ -166,7 +166,7 @@ home = f"""
   <p class="intro">These are small projects I built by combining my personal experience, what I've learned in my classes, and real problems I ran into at work.</p>
   <a class="mrow teal" href="inboxowner/">
     <div><h3>InboxOwner {ic("arrow")}</h3><p>Every department's email came to my front desk. This tool gives each email an owner.</p></div>
-    <div class="read"><b>87%</b><span>right on emails it sorted by itself</span></div>
+    <div class="read"><b>87%</b><span>right when it sorted an email by itself</span></div>
   </a>
   <a class="mrow violet" href="member-billing/">
     <div><h3>Member Billing Tracker {ic("arrow")}</h3><p>Two members shared a name and I charged the wrong one. This sheet looks members up by ID.</p></div>
@@ -196,7 +196,7 @@ home = f"""
 
 <section id="contact" class="mc-sec">
   <h2 class="mc-label"><span>04</span>Contact</h2>
-  <p>I'm in Mukilteo and can be in Seattle for an interview on short notice.</p>
+  <p>I can be in Seattle for an interview on short notice.</p>
   <p class="actions"><a class="btn primary" href="mailto:itstylerbunn@gmail.com">{ic("mail")}Email me</a><a class="btn" href="https://www.linkedin.com/in/tdbunn">{ic("link")}LinkedIn</a></p>
 </section>
 </main>
@@ -249,12 +249,12 @@ inbox = f"""
         ("user", "Gives it an owner", "One person's name on each email.", "violet"),
         ("clock", "Times the wait", "How long each email waits.", "teal")])}</section>
 
-<section class="block"><h2><span class="num">4</span>What it found</h2>
+<section class="block"><h2><span class="num">4</span>What the test showed</h2>
 {chart_waits()}
-<p>Cancellation emails waited far longer than trial questions. So the tool gives each one an owner and a deadline.</p></section>
+<p>In my made-up inbox, cancellation emails waited far longer than trial questions. The tool makes a gap like that easy to see. Then it gives each email an owner and a deadline.</p></section>
 
 <section class="block"><h2><span class="num">5</span>How I tested it</h2>
-<p>My first rules only fit old emails. One even matched "lease" inside "please." So I tested on 96 new emails it had never seen. It got 87% right of the ones it sorted by itself.</p></section>
+<p>My first rules only fit old emails. One even matched "lease" inside "please." So I tested on 96 new emails it had never seen. When it was not sure, it asked a person. Of the emails it sorted by itself, 87% were right.</p></section>
 
 {nextlink("../member-billing/", "Member Billing Tracker")}
 
@@ -309,7 +309,7 @@ billing = f"""
 
 <section class="block"><h2><span class="num">4</span>What the test showed</h2>
 {chart_billing()}
-<p>Looking up by name got 2 wrong and raised 2 false alarms. I planted these mistakes, so this is an easy test. A wrong price would still get through.</p></section>
+<p>I planted these mistakes, so this is an easy test. Even so, looking up by name got 2 wrong and raised 2 false alarms.</p></section>
 
 {nextlink("../this-site/", "This site")}
 
@@ -317,6 +317,7 @@ billing = f"""
 <summary>The fine print</summary>
 <ul>
   <li>A made-up club with 36 members and 113 payments. I planted 15 mistakes.</li>
+  <li>A wrong price would still get through.</li>
   <li>A short script can email the fix list at 8am. I haven't run it inside the sheet yet.</li>
 </ul>
 </details>

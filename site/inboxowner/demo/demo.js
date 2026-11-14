@@ -811,10 +811,11 @@ window.TRIAGE_EVAL={
     return plan.map((p, k) => `<li>${p.to} gets one reminder. It lists ${all[k]}.</li>`).join('');
   }
 
+  let showAll = false;
   function renderOwners() {
     const q = C.queue(THREADS, CFG, claims);
     const live = q.filter(x => x.status !== 'stale'), old = q.filter(x => x.status === 'stale');
-    const cards = live.map(x => {
+    const cards = (showAll ? live : live.slice(0, 5)).map(x => {
       const t = byId[x.id];
       const opts = ['<option value="">Nobody yet</option>'].concat(CFG.team.map(p => `<option${x.owner === p ? ' selected' : ''}>${p}</option>`)).join('');
       const late = x.status === 'overdue';
@@ -833,9 +834,11 @@ window.TRIAGE_EVAL={
       <h2>If reminders went out now</h2>
       <ul class="found">${reminders(plan)}</ul>
       <div class="email-list">${cards || '<p>Nothing waiting.</p>'}</div>
+      ${!showAll && live.length > 5 ? `<p><button class="plain" id="q-all">Show all ${live.length}</button></p>` : ''}
       <p class="muted">${old.length} older emails (2+ weeks) sit on a separate cleanup list, so the reminders stay short.</p>`;
     $('#p-owners').querySelectorAll('select[data-id]').forEach(s => s.addEventListener('change', () => { if (s.value) claims[s.dataset.id] = s.value; else delete claims[s.dataset.id]; saveClaims(); renderOwners(); }));
     $('#q-suggest').onclick = () => { C.queue(THREADS, CFG, claims).forEach(x => { if (!claims[x.id] && x.suggestedOwner && x.status !== 'stale') claims[x.id] = x.suggestedOwner; }); saveClaims(); renderOwners(); };
+    if ($('#q-all')) $('#q-all').onclick = () => { showAll = true; renderOwners(); };
     $('#q-reset').onclick = () => { claims = {}; saveClaims(); renderOwners(); };
   }
 
