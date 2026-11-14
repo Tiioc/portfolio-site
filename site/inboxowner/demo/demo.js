@@ -805,7 +805,7 @@ window.TRIAGE_EVAL={
     if (!plan.length) return '<li>Nobody. Every email has an owner and nothing is late.</li>';
     const n = (k, word) => `${k} ${k === 1 ? 'email' : 'emails'} ${word}`;
     const what = p => { const over = p.items.filter(k => k.why === 'overdue').length, un = p.items.length - over;
-      return [over ? n(over, 'that are late') : '', un ? n(un, 'with no owner') : ''].filter(Boolean).join(' and '); };
+      return [over ? n(over, 'that are late') : '', un ? n(un, 'that waited a day with no owner') : ''].filter(Boolean).join(' and '); };
     const all = plan.map(what);
     if (plan.length === CFG.team.length && all.every(x => x === all[0])) return `<li>Each of the ${plan.length} staff gets one reminder. It lists ${all[0]}.</li>`;
     return plan.map((p, k) => `<li>${p.to} gets one reminder. It lists ${all[k]}.</li>`).join('');
@@ -831,11 +831,11 @@ window.TRIAGE_EVAL={
       ${note(`Emails still waiting on ${when(CFG.asOf)}. Pick a name to claim one. That person owns the reply.`)}
       ${tiles([[live.length, 'waiting'], [live.filter(x => x.owner).length, 'claimed', 'ok'], [live.filter(x => x.status === 'overdue').length, 'late', 'warn']])}
       <p class="btn-row"><button class="plain go" id="q-suggest">Claim all with suggested names</button> <button class="plain" id="q-reset">Start over</button></p>
-      <h2>If reminders went out now</h2>
-      <ul class="found">${reminders(plan)}</ul>
       <div class="email-list">${cards || '<p>Nothing waiting.</p>'}</div>
       ${!showAll && live.length > 5 ? `<p><button class="plain" id="q-all">Show all ${live.length}</button></p>` : ''}
-      <p class="muted">${old.length} older emails (2+ weeks) sit on a separate cleanup list, so the reminders stay short.</p>`;
+      <p class="muted">${old.length} older emails (2+ weeks) sit on a separate cleanup list, so the reminders stay short.</p>
+      <h2>If reminders went out now</h2>
+      <ul class="found">${reminders(plan)}</ul>`;
     $('#p-owners').querySelectorAll('select[data-id]').forEach(s => s.addEventListener('change', () => { if (s.value) claims[s.dataset.id] = s.value; else delete claims[s.dataset.id]; saveClaims(); renderOwners(); }));
     $('#q-suggest').onclick = () => { C.queue(THREADS, CFG, claims).forEach(x => { if (!claims[x.id] && x.suggestedOwner && x.status !== 'stale') claims[x.id] = x.suggestedOwner; }); saveClaims(); renderOwners(); };
     if ($('#q-all')) $('#q-all').onclick = () => { showAll = true; renderOwners(); };

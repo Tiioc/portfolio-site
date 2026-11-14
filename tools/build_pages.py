@@ -149,7 +149,7 @@ home = f"""
   {orbit()}
   <img class="avatar" src="me.jpg" width="72" height="72" alt="Tyler Bunn">
   <h1>Tyler Bunn</h1>
-  <p class="role">I'm a Project Management student at Boise State. I worked a club front desk, then became a Membership Advisor. I handled email routing, billing fixes and refunds. I live in Mukilteo and want an operations, coordinator or front office role in Seattle.</p>
+  <p class="role">I want an operations, coordinator or front office role in Seattle. I worked a club front desk, then became a Membership Advisor. I handled email routing, billing fixes and refunds. I'm a Project Management student at Boise State and live in Mukilteo.</p>
   <p class="status"><span class="live-dot" aria-hidden="true"></span>Available now</p>
   <p class="actions top-cta"><a class="btn" href="mailto:itstylerbunn@gmail.com">{ic("mail")}Email me</a><a class="btn" href="https://www.linkedin.com/in/tdbunn">{ic("link")}LinkedIn</a></p>
   <nav class="mc-nav" aria-label="Sections">
@@ -166,7 +166,7 @@ home = f"""
   <p class="intro">These are small projects I built by combining my personal experience, what I've learned in my classes, and real problems I ran into at work.</p>
   <a class="mrow teal" href="inboxowner/">
     <div><h3>InboxOwner {ic("arrow")}</h3><p>Every department's email came to my front desk. This tool gives each email an owner.</p></div>
-    <div class="read"><b>87%</b><span>right when it sorted an email by itself</span></div>
+    <div class="read"><b>87%</b><span>of emails it sorted by itself were right</span></div>
   </a>
   <a class="mrow violet" href="member-billing/">
     <div><h3>Member Billing Tracker {ic("arrow")}</h3><p>Two members shared a name and I charged the wrong one. This sheet looks members up by ID.</p></div>
@@ -235,10 +235,9 @@ inbox = f"""
 <section class="block"><h2><span class="num">2</span>What I made</h2>
 <p>A tool that gives every email an owner and shows who is still waiting. I set the rules and tested it. Claude Code wrote the code.</p>
 <p class="actions"><a class="btn primary" href="demo/#owners">{ic("play")}Try the demo</a><a class="btn" href="code/">{ic("code")}See the code</a></p>
-<p class="aside">A version for real Gmail exists, but no real team has used it yet.</p>
 <figure class="peek teal" role="img" aria-label="A peek at the demo: three late emails, each with one owner.">
   <figcaption>A peek at the demo</figcaption>
-  <div class="peek-row"><div><strong>Free trial?</strong><span>Mateo Fischer · Trial inquiries</span></div><span class="pill late">Late by 81 hrs</span><span class="own">Jordan</span></div>
+  <div class="peek-row"><div><strong>Free trial?</strong><span>Mateo Fischer · Trial &amp; first-class inquiries</span></div><span class="pill late">Late by 81 hrs</span><span class="own">Jordan</span></div>
   <div class="peek-row"><div><strong>Cancel membership</strong><span>Casey Haddad · Cancellations</span></div><span class="pill late">Late by 79 hrs</span><span class="own">Maya</span></div>
   <div class="peek-row"><div><strong>Hold request</strong><span>Avery Moreno · Membership freezes</span></div><span class="pill late">Late by 64 hrs</span><span class="own">Jordan</span></div>
   <p class="chart-note">Owners are the ones the demo suggests.</p>
@@ -247,14 +246,14 @@ inbox = f"""
 <section class="block"><h2><span class="num">3</span>How it works</h2>
 {steps([("tag", "Sorts new mail", "Guesses the topic or asks a person.", "amber"),
         ("user", "Gives it an owner", "One person's name on each email.", "violet"),
-        ("clock", "Times the wait", "How long each email waits.", "teal")])}</section>
+        ("clock", "Times the wait", "Shows which emails are late.", "teal")])}</section>
 
-<section class="block"><h2><span class="num">4</span>What the test showed</h2>
-{chart_waits()}
-<p>In my made-up inbox, cancellation emails waited far longer than trial questions. The tool makes a gap like that easy to see. Then it gives each email an owner and a deadline.</p></section>
-
-<section class="block"><h2><span class="num">5</span>How I tested it</h2>
+<section class="block"><h2><span class="num">4</span>How I tested it</h2>
 <p>My first rules only fit old emails. One even matched "lease" inside "please." So I tested on 96 new emails it had never seen. When it was not sure, it asked a person. Of the emails it sorted by itself, 87% were right.</p></section>
+
+<section class="block"><h2><span class="num">5</span>What the demo shows</h2>
+{chart_waits()}
+<p>I made up this inbox, so the gap is not a real finding. It shows what the tool makes easy to see. Then each email gets an owner and a deadline.</p></section>
 
 {nextlink("../member-billing/", "Member Billing Tracker")}
 
@@ -262,6 +261,7 @@ inbox = f"""
 <summary>The fine print</summary>
 <ul>
   <li>A made-up gym with four staff and 548 emails from 90 days.</li>
+  <li>A version for real Gmail exists, but no real team has used it yet.</li>
 </ul>
 </details>
 """
@@ -276,8 +276,7 @@ def chart_billing():
   <figcaption>15 mistakes I put in on purpose</figcaption>
   {row("My sheet, by member ID", ["ok"] * 15, "15 caught")}
   {row("If it looked people up by name", ["ok"] * 13 + ["bad"] * 2 + ["bad extra"] * 2, "2 wrong, 2 false alarms", "worse")}
-  <p class="legend"><span><i class="d ok"></i>Caught right</span><span><i class="d bad"></i>Wrong</span><span><i class="d bad extra"></i>False alarm</span></p>
-  <p class="chart-note">A real Google Sheet you can open.</p></figure>'''
+  <p class="legend"><span><i class="d ok"></i>Caught right</span><span><i class="d bad"></i>Wrong</span><span><i class="d bad extra"></i>False alarm</span></p></figure>'''
 
 billing = f"""
 <header class="page-head violet">
