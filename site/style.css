@@ -601,3 +601,16 @@ h2 { font-size: 1.2rem; }
   .mc-nav a:hover, .mc-nav a.on { color: var(--fg); }
   .mc-nav a:hover i, .mc-nav a.on i { width: 56px; background: var(--cyan); }
 }
+.aside { font-size: 0.92rem !important; color: var(--muted); margin: 0.9rem 0 0; }
+.block .actions { margin-top: 1rem; }
+.chart-note.made { margin: 0 !important; }
+.mrow.minor h3 { font-size: 1.05rem; color: var(--muted); }
+.top-cta { margin-top: 1rem; }
+.top-cta .btn { flex: 0 0 auto; min-height: 42px; padding: 0.5rem 1rem; }
+@media (max-width: 639px) {
+  .dots-row { grid-template-columns: 1fr; }
+  .dots { flex-wrap: nowrap; gap: 4px; }
+  .dots .d { width: 12px; height: 12px; flex: none; }
+}
+button.plain.go { color: var(--ink); font-weight: 650; border-color: transparent; background: linear-gradient(100deg, var(--accent-t), var(--accent)); }
+button.plain.go:hover { filter: brightness(1.06); }

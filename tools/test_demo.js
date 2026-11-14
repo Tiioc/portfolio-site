@@ -30,6 +30,7 @@ const assert = require('assert');
   const mini = await pg.$$eval('#p-owners .mini b', x => x.map(e => e.textContent));
   ok(mini[0] === '13' && mini[1] === '0' && mini[2] === '11', 'same 13 waiting, 0 claimed, 11 late: ' + mini.join('/'));
   ok(has(o, '54 older emails'), 'same 54 older emails on the cleanup list');
+  ok(has(o, 'Each of the 4 staff gets one reminder. It lists 11 emails with no owner.'), 'reminder line is one plain sentence');
   await pg.selectOption('#p-owners select[data-id]', 'Priya');
   ok((await pg.$$eval('#p-owners .mini b', x => x.map(e => e.textContent)))[1] === '1', 'claiming one email updates the count');
   await pg.click('#q-suggest');

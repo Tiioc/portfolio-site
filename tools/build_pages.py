@@ -40,10 +40,11 @@ SITE = "https://tylerbunn.netlify.app/"
 WORDS_BEFORE = 1349  # the first InboxOwner page: 1,002 words showing + 347 in its collapsed section
 def page(path, title, desc, body, depth, current=None, script="", og="general", absolute=False, theme="home"):
     up = "/" if absolute else "../" * depth
+    built = "<p>Built in plain HTML and CSS with Claude Code, which I directed and fact-checked.</p>" if theme in ("home", "site") else ""
     url = SITE + path.replace("index.html", "")
     cur = ' aria-current="page"'
     nav = "".join(f'<a href="{up}#{k}"{cur if k == current else ""}>{v}</a>'
-                  for k, v in [("projects", "Projects"), ("work", "Work"), ("contact", "Contact")])
+                  for k, v in [("projects", "Projects"), ("experience", "Experience"), ("contact", "Contact")])
     html = f"""<!doctype html>
 <html lang="en">
 <head>
@@ -72,7 +73,7 @@ def page(path, title, desc, body, depth, current=None, script="", og="general", 
 <nav class="site" aria-label="Site"><a class="brand" href="{up}">Tyler Bunn</a><span class="nav-links">{nav}</span></nav>
 {body}
 <footer>
-<p>Built in plain HTML and CSS with Claude Code, which I directed and fact-checked.</p>
+{built}
 <p><a href="mailto:itstylerbunn@gmail.com">itstylerbunn@gmail.com</a> · <a href="https://www.linkedin.com/in/tdbunn">linkedin.com/in/tdbunn</a></p>
 </footer>
 </div>
@@ -148,12 +149,13 @@ home = f"""
   {orbit()}
   <img class="avatar" src="me.jpg" width="72" height="72" alt="Tyler Bunn">
   <h1>Tyler Bunn</h1>
-  <p class="role">Project Management student at Boise State, living in Mukilteo. I'm looking for operations, coordinator or front office roles in Seattle.</p>
+  <p class="role">I'm a Project Management student at Boise State. I worked a club front desk, then became a Membership Advisor. I want an operations, coordinator or front office role in Seattle.</p>
   <p class="status"><span class="live-dot" aria-hidden="true"></span>Available now</p>
+  <p class="actions top-cta"><a class="btn" href="mailto:itstylerbunn@gmail.com">{ic("mail")}Email me</a></p>
   <nav class="mc-nav" aria-label="Sections">
     <a href="#projects"><i></i>Projects</a>
-    <a href="#work"><i></i>How I work</a>
     <a href="#experience"><i></i>Experience</a>
+    <a href="#work"><i></i>How I work</a>
     <a href="#contact"><i></i>Contact</a>
   </nav>
 </aside>
@@ -163,34 +165,33 @@ home = f"""
   <h2 class="mc-label"><span>01</span>Projects</h2>
   <p class="intro">These are small projects I built by combining my personal experience, what I've learned in my classes, and real problems I ran into at work.</p>
   <a class="mrow teal" href="inboxowner/">
-    <div><h3>InboxOwner {ic("arrow")}</h3><p>Shows who owns each email in a shared inbox, and who is still waiting.</p></div>
-    <div class="read"><b>18.7 hrs</b><span>cancel emails waited</span></div>
+    <div><h3>InboxOwner {ic("arrow")}</h3><p>Every department's email came to my front desk. This tool gives each email an owner.</p></div>
+    <div class="read"><b>87%</b><span>right on emails it sorted by itself</span></div>
   </a>
   <a class="mrow violet" href="member-billing/">
-    <div><h3>Member Billing Tracker {ic("arrow")}</h3><p>Catches billing mistakes and makes a daily fix list for the front desk.</p></div>
-    <div class="read"><b>15 of 15</b><span>mistakes caught</span></div>
+    <div><h3>Member Billing Tracker {ic("arrow")}</h3><p>Two members shared a name and I charged the wrong one. This sheet looks members up by ID.</p></div>
+    <div class="read"><b>15 of 15</b><span>planted mistakes caught</span></div>
   </a>
-  <a class="mrow amber" href="this-site/">
+  <a class="mrow amber minor" href="this-site/">
     <div><h3>This site {ic("arrow")}</h3><p>My portfolio. I planned it, directed the build and put it online.</p></div>
-    <div class="read"><b>3 projects</b><span>and 1 live demo</span></div>
   </a>
-  <p class="chart-note">Both tools were tested on made-up data.</p>
-</section>
-
-<section id="work" class="mc-sec">
-  <h2 class="mc-label"><span>02</span>How I work</h2>
-  <p>I learn how things work before I suggest changes.</p>
-  {process()}
+  <p class="chart-note made">Both tools were tested on made-up data.</p>
 </section>
 
 <section id="experience" class="mc-sec">
-  <h2 class="mc-label"><span>03</span>Experience and school</h2>
+  <h2 class="mc-label"><span>02</span>Experience and school</h2>
   <ul class="timeline plain">
-    <li><div><strong>Outback Steakhouse</strong><span class="when">Dec 2025 – Jun 2026 · Santa Clarita</span><span>Busser, promoted to food runner within six months.</span></div></li>
+    <li><div><strong>Outback Steakhouse</strong><span class="when">Dec 2025 – Jun 2026 · Santa Clarita, CA</span><span>Busser, promoted to food runner within six months.</span></div></li>
     <li><div><strong>The Paseo Club</strong><span class="when">Dec 2024 – Oct 2025 · Santa Clarita, CA</span><span>Front Desk, then Membership Advisor. Email routing, billing fixes and refunds in HubSpot.</span></div></li>
-    <li><div><strong>Cooksey's Lifeguard &amp; Swim Academy</strong><span class="when">Mar 2023 – Mar 2024 · Santa Clarita</span><span>Lifeguard and swim instructor. Often the only staff member on duty.</span></div></li>
+    <li><div><strong>Cooksey's Lifeguard &amp; Swim Academy</strong><span class="when">Mar 2023 – Mar 2024 · Santa Clarita, CA</span><span>Lifeguard and swim instructor. Often the only staff member on duty.</span></div></li>
     <li><div><strong>Boise State University</strong><span class="when">Expected Spring 2028</span><span>B.S. in Project Management.</span></div></li>
   </ul>
+</section>
+
+<section id="work" class="mc-sec">
+  <h2 class="mc-label"><span>03</span>How I work</h2>
+  <p>I learn how things work before I suggest changes.</p>
+  {process()}
 </section>
 
 <section id="contact" class="mc-sec">
@@ -216,10 +217,9 @@ home = f"""
 def chart_waits():
     rows = [("Cancellation emails", 18.7, "pink"), ("Trial questions", 1.2, "teal")]
     bars = "".join(f'<div class="hbar {tone}"><span class="hbar-label">{lab}</span><span class="hbar-track"><span class="hbar-area"><span class="hbar-fill" style="width:{v / 18.7 * 100:.1f}%"></span></span><span class="hbar-value">{v} hrs</span></span></div>' for lab, v, tone in rows)
-    return f'''<figure class="chart" aria-label="Typical wait for a first reply: cancellation emails 18.7 hours, trial questions 1.2 hours. Sorted right: 87%.">
+    return f'''<figure class="chart" aria-label="Typical wait for a first reply: cancellation emails 18.7 hours, trial questions 1.2 hours.">
   <figcaption>Wait for a first reply</figcaption>{bars}
-  <div class="hbar-row-plain"><span class="hbar-label">Sorted right</span><span class="hbar-value">87%</span></div>
-  <p class="chart-note">Open hours only. Made-up data.</p></figure>'''
+  <p class="chart-note">Counts only hours the gym was open.</p></figure>'''
 
 inbox = f"""
 <header class="page-head teal">
@@ -233,14 +233,15 @@ inbox = f"""
 <p>At The Paseo Club, every department's email came to the front desk. Nobody could tell who had answered what.</p></section>
 
 <section class="block"><h2><span class="num">2</span>What I made</h2>
-<p>A tool that gives every email an owner and shows who is still waiting. Claude Code wrote the code. I set the rules and tested every number.</p>
-
+<p>A tool that gives every email an owner and shows who is still waiting. I set the rules and tested it. Claude Code wrote the code.</p>
+<p class="actions"><a class="btn primary" href="demo/#owners">{ic("play")}Try the demo</a><a class="btn" href="code/">{ic("code")}See the code</a></p>
+<p class="aside">A version for real Gmail exists, but no real team has used it yet.</p>
 <figure class="peek teal" role="img" aria-label="A peek at the demo: three late emails, each with one owner.">
   <figcaption>A peek at the demo</figcaption>
   <div class="peek-row"><div><strong>Free trial?</strong><span>Mateo Fischer · Trial inquiries</span></div><span class="pill late">Late by 81 hrs</span><span class="own">Jordan</span></div>
   <div class="peek-row"><div><strong>Cancel membership</strong><span>Casey Haddad · Cancellations</span></div><span class="pill late">Late by 79 hrs</span><span class="own">Maya</span></div>
   <div class="peek-row"><div><strong>Hold request</strong><span>Avery Moreno · Membership freezes</span></div><span class="pill late">Late by 64 hrs</span><span class="own">Jordan</span></div>
-  <p class="chart-note">Made-up emails. Owners are the ones the demo suggests.</p>
+  <p class="chart-note">Owners are the ones the demo suggests.</p>
 </figure></section>
 
 <section class="block"><h2><span class="num">3</span>How it works</h2>
@@ -250,13 +251,10 @@ inbox = f"""
 
 <section class="block"><h2><span class="num">4</span>What it found</h2>
 {chart_waits()}
-<p>So the fix is clear: give cancellation emails an owner and a reply deadline. The demo does that.</p></section>
+<p>Cancellation emails waited far longer than trial questions. So the tool gives each one an owner and a deadline.</p></section>
 
-<section class="block"><h2><span class="num">5</span>What I learned</h2>
-<p>My first rules only fit old emails. One even matched "lease" inside "please." So I tested on 96 new emails it had never seen.</p></section>
-
-<section class="block"><h2><span class="num">6</span>Try it</h2>
-<p class="actions"><a class="btn primary" href="demo/">{ic("play")}Try the demo</a><a class="btn" href="code/">{ic("code")}See the code</a></p></section>
+<section class="block"><h2><span class="num">5</span>How I tested it</h2>
+<p>My first rules only fit old emails. One even matched "lease" inside "please." So I tested on 96 new emails it had never seen. It got 87% right of the ones it sorted by itself.</p></section>
 
 {nextlink("../member-billing/", "Member Billing Tracker")}
 
@@ -264,8 +262,6 @@ inbox = f"""
 <summary>The fine print</summary>
 <ul>
   <li>A made-up gym with four staff and 548 emails from 90 days.</li>
-  <li>The 87% comes from 96 new emails. It counts the ones it sorted by itself.</li>
-  <li>A version for real Gmail exists, but no real team has used it yet.</li>
 </ul>
 </details>
 """
@@ -276,12 +272,12 @@ def chart_billing():
     def row(label, cells, value, tone=""):
         dots = "".join(f'<span class="d {c}"></span>' for c in cells)
         return f'<div class="dots-row {tone}"><span class="dots-label">{label}</span><span class="dots">{dots}</span><span class="dots-value">{value}</span></div>'
-    return f'''<figure class="chart" aria-label="15 mistakes I put in on purpose. Looking members up by ID: 15 caught, 0 mistakes. Looking them up by name: 4 mistakes.">
+    return f'''<figure class="chart" aria-label="15 mistakes I put in on purpose. Looking members up by ID: 15 caught, 0 mistakes. Looking them up by name: 2 wrong and 2 false alarms.">
   <figcaption>15 mistakes I put in on purpose</figcaption>
   {row("My sheet, by member ID", ["ok"] * 15, "15 caught")}
-  {row("If it looked people up by name", ["ok"] * 13 + ["bad"] * 2 + ["bad extra"] * 2, "4 mistakes", "worse")}
+  {row("If it looked people up by name", ["ok"] * 13 + ["bad"] * 2 + ["bad extra"] * 2, "2 wrong, 2 false alarms", "worse")}
   <p class="legend"><span><i class="d ok"></i>Caught right</span><span><i class="d bad"></i>Wrong</span><span><i class="d bad extra"></i>False alarm</span></p>
-  <p class="chart-note">Made-up data in a real Google Sheet.</p></figure>'''
+  <p class="chart-note">A real Google Sheet you can open.</p></figure>'''
 
 billing = f"""
 <header class="page-head violet">
@@ -295,14 +291,15 @@ billing = f"""
 <p>At The Paseo Club, I handled dues, refunds and failed payments. I once charged the wrong member because two members had the same name.</p></section>
 
 <section class="block"><h2><span class="num">2</span>What I made</h2>
-<p>A Google Sheet that catches billing mistakes and lists what to fix. Claude Code wrote the formulas and script. I set the rules and tested it.</p>
+<p>A Google Sheet that catches billing mistakes and lists what to fix. I set the rules and tested it. Claude Code wrote the formulas and script.</p>
+<p class="actions"><a class="btn primary" href="https://docs.google.com/spreadsheets/d/1F_MrU0XxCY8uG9Ryjuv_wpOlGj6v7UtjT_gvkpw3xWQ/edit">{ic("sheet")}Open the sheet</a><a class="btn" href="code/">{ic("code")}See the code</a></p>
 <figure class="peek violet" role="img" aria-label="A peek at the fix list: four rows, each starting with what to do.">
   <figcaption>A peek at the fix list</figcaption>
   <div class="peek-row"><span class="act a-call">Call</span><div><strong>Mia Shaw <i>M-1013</i></strong><span>Member disputed this charge</span></div><span class="amt">$189</span></div>
   <div class="peek-row"><span class="act a-retry">Retry card</span><div><strong>Sam Jensen <i>M-1019</i></strong><span>Card declined, not retried</span></div><span class="amt">$95</span></div>
   <div class="peek-row"><span class="act a-refund">Refund</span><div><strong>Felix Reyes <i>M-1006</i></strong><span>Charged twice this month</span></div><span class="amt">$189</span></div>
   <div class="peek-row"><span class="act a-refund">Send refund</span><div><strong>Chris Morgan <i>M-1031</i></strong><span>Refund approved, never sent</span></div><span class="amt">$95</span></div>
-  <p class="chart-note">4 of the 15 rows. Made-up members.</p>
+  <p class="chart-note">4 of the 15 rows.</p>
 </figure></section>
 
 <section class="block"><h2><span class="num">3</span>How it works</h2>
@@ -310,15 +307,9 @@ billing = f"""
         ("alert", "Catches mistakes", "Declined cards, double charges, unsent refunds.", "pink"),
         ("list", "Makes a fix list", "Who to call, refund or retry.", "teal")])}</section>
 
-<section class="block"><h2><span class="num">4</span>What it found</h2>
+<section class="block"><h2><span class="num">4</span>What the test showed</h2>
 {chart_billing()}
-<p>Each row of the fix list says what to do: call, refund, or retry.</p></section>
-
-<section class="block"><h2><span class="num">5</span>What I learned</h2>
-<p>Looking people up by name breaks fast, even with one shared name.</p></section>
-
-<section class="block"><h2><span class="num">6</span>Try it</h2>
-<p class="actions"><a class="btn primary" href="https://docs.google.com/spreadsheets/d/1F_MrU0XxCY8uG9Ryjuv_wpOlGj6v7UtjT_gvkpw3xWQ/edit">{ic("sheet")}Open the sheet</a><a class="btn" href="code/">{ic("code")}See the code</a></p></section>
+<p>Looking up by name got 2 wrong and raised 2 false alarms. I planted these mistakes, so this is an easy test. A wrong price would still get through.</p></section>
 
 {nextlink("../this-site/", "This site")}
 
@@ -326,21 +317,19 @@ billing = f"""
 <summary>The fine print</summary>
 <ul>
   <li>A made-up club with 36 members and 113 payments. I planted 15 mistakes.</li>
-  <li>It catches all 15 because I planted them. A wrong price would get through.</li>
   <li>A short script can email the fix list at 8am. I haven't run it inside the sheet yet.</li>
 </ul>
 </details>
 """
-page("member-billing/index.html", "Member Billing Tracker, by Tyler Bunn", "A Google Sheet that catches billing mistakes at a members' club and makes a daily fix list. Tested on made-up data.", billing, 1, og="member-billing", theme="billing")
+page("member-billing/index.html", "Member Billing Tracker, by Tyler Bunn", "A Google Sheet that catches billing mistakes at a members' club and makes a fix list. Tested on made-up data.", billing, 1, og="member-billing", theme="billing")
 
 # ---------------------------------------------------------------------------- demo shell
 demo = f"""
 <header class="page-head teal">
   <span class="pc-icon big">{ic("play")}</span>
   <h1>InboxOwner demo</h1>
-  <p class="pc-tags">Tested on made-up data</p>
 </header>
-<p>A made-up gym's shared inbox with four staff: Maya, Jordan, Priya and Sam. This snapshot is from Thursday, October 22, 2026, 4:00 PM. <a href="../">Back to the project</a></p>
+<p>A made-up gym's shared inbox with four staff: Maya, Jordan, Priya and Sam. <a href="../">Back to the project</a></p>
 <noscript><p><strong>This demo needs JavaScript to run.</strong> The project page works without it.</p></noscript>
 <div class="tabs" id="demo-tabs" role="tablist">
   <button role="tab" data-tab="waits" aria-selected="true">Wait times</button>
@@ -394,32 +383,18 @@ thissite = f"""
 <p>A resume can't show a working demo. I needed one place to show my projects.</p></section>
 
 <section class="block"><h2><span class="num">2</span>What I made</h2>
-<p>This site. Claude Code wrote the code. I planned it and checked every word and number.</p></section>
+<p>This site. I planned it and checked it. Claude Code wrote the code.</p></section>
 
-<section class="block"><h2><span class="num">3</span>How it works</h2>
+<section class="block"><h2><span class="num">3</span>How I did it</h2>
 {steps([("pen", "Planned it", "Who reads it, and what they need first.", "violet"),
         ("code", "Built it plain", "HTML and CSS. No frameworks.", "teal"),
         ("globe", "Put it online", "Hosted on Netlify. Tested on a phone.", "amber")])}</section>
 
-<section class="block"><h2><span class="num">4</span>What's online</h2>
-{readout()}</section>
-
-<section class="block"><h2><span class="num">5</span>What I learned</h2>
+<section class="block"><h2><span class="num">4</span>What I learned</h2>
 <p>Check every number against its source before it goes online.</p></section>
-
-<section class="block"><h2><span class="num">6</span>Try it</h2>
-<p class="actions"><a class="btn primary" href="../">{ic("home")}Back to the home page</a><a class="btn" href="../inboxowner/demo/">{ic("play")}Try the demo</a></p></section>
 
 {nextlink("../inboxowner/", "InboxOwner")}
 
-<details>
-<summary>The fine print</summary>
-<ul>
-  <li>Plain HTML and CSS, hosted on Netlify.</li>
-  <li>Every page is tested at phone size before it goes live.</li>
-  <li>The demo has its own 29 checks.</li>
-</ul>
-</details>
 """
 page("this-site/index.html", "This site, by Tyler Bunn", "How I planned my portfolio, directed the build and put it online.", thissite, 1, theme="site")
 page("index.html", "Tyler Bunn", "Tyler Bunn, Project Management student at Boise State, looking for operations, coordinator and front office roles in Seattle. Available now.", home, 0, current="projects")

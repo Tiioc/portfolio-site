@@ -800,6 +800,17 @@ window.TRIAGE_EVAL={
   try { claims = JSON.parse(localStorage.getItem(CLAIM_KEY) || '{}') || {}; } catch (e) { claims = {}; }
   const saveClaims = () => { try { localStorage.setItem(CLAIM_KEY, JSON.stringify(claims)); } catch (e) { /* storage blocked */ } };
 
+  // One plain line per person. If everyone's reminder is the same, say it once.
+  function reminders(plan) {
+    if (!plan.length) return '<li>Nobody. Every email has an owner and nothing is late.</li>';
+    const n = (k, word) => `${k} ${k === 1 ? 'email' : 'emails'} ${word}`;
+    const what = p => { const over = p.items.filter(k => k.why === 'overdue').length, un = p.items.length - over;
+      return [over ? n(over, 'that are late') : '', un ? n(un, 'with no owner') : ''].filter(Boolean).join(' and '); };
+    const all = plan.map(what);
+    if (plan.length === CFG.team.length && all.every(x => x === all[0])) return `<li>Each of the ${plan.length} staff gets one reminder. It lists ${all[0]}.</li>`;
+    return plan.map((p, k) => `<li>${p.to} gets one reminder. It lists ${all[k]}.</li>`).join('');
+  }
+
   function renderOwners() {
     const q = C.queue(THREADS, CFG, claims);
     const live = q.filter(x => x.status !== 'stale'), old = q.filter(x => x.status === 'stale');
@@ -818,11 +829,11 @@ window.TRIAGE_EVAL={
     $('#p-owners').innerHTML = `
       ${note(`Emails still waiting on ${when(CFG.asOf)}. Pick a name to claim one. That person owns the reply.`)}
       ${tiles([[live.length, 'waiting'], [live.filter(x => x.owner).length, 'claimed', 'ok'], [live.filter(x => x.status === 'overdue').length, 'late', 'warn']])}
-      <p class="btn-row"><button class="plain" id="q-suggest">Claim all with suggested names</button> <button class="plain" id="q-reset">Start over</button></p>
-      <div class="email-list">${cards || '<p>Nothing waiting.</p>'}</div>
-      <p class="muted">${old.length} older emails (2+ weeks) sit on a separate cleanup list, so the reminders stay short.</p>
+      <p class="btn-row"><button class="plain go" id="q-suggest">Claim all with suggested names</button> <button class="plain" id="q-reset">Start over</button></p>
       <h2>If reminders went out now</h2>
-      <ul class="found">${plan.length ? plan.map(p => { const over = p.items.filter(k => k.why === 'overdue').length, un = p.items.length - over; return `<li>${p.to} gets one email: ${[over ? `${over} late` : '', un ? `${un} nobody has claimed` : ''].filter(Boolean).join(', ')}.</li>`; }).join('') : '<li>Nobody. Every email has an owner and nothing is late.</li>'}</ul>`;
+      <ul class="found">${reminders(plan)}</ul>
+      <div class="email-list">${cards || '<p>Nothing waiting.</p>'}</div>
+      <p class="muted">${old.length} older emails (2+ weeks) sit on a separate cleanup list, so the reminders stay short.</p>`;
     $('#p-owners').querySelectorAll('select[data-id]').forEach(s => s.addEventListener('change', () => { if (s.value) claims[s.dataset.id] = s.value; else delete claims[s.dataset.id]; saveClaims(); renderOwners(); }));
     $('#q-suggest').onclick = () => { C.queue(THREADS, CFG, claims).forEach(x => { if (!claims[x.id] && x.suggestedOwner && x.status !== 'stale') claims[x.id] = x.suggestedOwner; }); saveClaims(); renderOwners(); };
     $('#q-reset').onclick = () => { claims = {}; saveClaims(); renderOwners(); };
